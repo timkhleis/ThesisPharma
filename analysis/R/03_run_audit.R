@@ -9,11 +9,11 @@ on.exit(disconnect_duckdb(con), add = TRUE)
 message("Loading tables for the disambiguation and data quality audit...")
 
 patent_inventor <- DBI::dbReadTable(con, "patent_inventor")
-patent_inventor_enriched <- DBI::dbReadTable(con, "patent_inventor_enriched")
 inventor_year <- DBI::dbReadTable(con, "inventor_year")
 inventor_group_year <- DBI::dbReadTable(con, "inventor_group_year")
 inventor_ipc_year <- DBI::dbReadTable(con, "inventor_ipc_year")
 group_year_status <- DBI::dbReadTable(con, "group_year_status")
+patent_company_link <- DBI::dbReadTable(con, "patent_company_link")
 inventor_production <- DBI::dbReadTable(con, "inventor_production")
 group_production <- DBI::dbReadTable(con, "group_production")
 
@@ -93,14 +93,9 @@ mobility_switch_outliers <- switch_counts |>
 
 message("Building merger-window review sample...")
 
-merger_window_candidates <- patent_inventor_enriched |>
-  dplyr::filter(!is.na(.data$merger_status), !is.na(.data$year)) |>
-  dplyr::group_by(.data$codinv, .data$year, .data$id_group, .data$merger_status) |>
-  dplyr::summarise(
-    patent_count = dplyr::n_distinct(.data$appln_id),
-    compcod_count = dplyr::n_distinct(.data$compcod),
-    .groups = "drop"
-  )
+merger_window_candidates <- inventor_group_year |>
+  dplyr::filter(!is.na(.data$merger_status_values), !is.na(.data$year), !is.na(.data$group_list)) |>
+  dplyr::rename(id_group_list = .data$group_list, merger_status = .data$merger_status_values)
 
 set.seed(20260327)
 
@@ -125,7 +120,7 @@ inventor_compare <- inventor_year |>
     fract_diff = .data$self_fract - .data$helper_fract
   )
 
-group_year_rebuilt <- patent_inventor_enriched |>
+group_year_rebuilt <- patent_company_link |>
   dplyr::filter(!is.na(.data$id_group), !is.na(.data$year)) |>
   dplyr::group_by(.data$id_group, .data$year) |>
   dplyr::summarise(self_patent = dplyr::n_distinct(.data$appln_id), .groups = "drop")
@@ -221,4 +216,3 @@ summary_md <- c(
 writeLines(summary_md, project_path("analysis", "output", "audit", "audit_summary.md"))
 
 message("Audit build complete.")
-

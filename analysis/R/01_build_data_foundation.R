@@ -108,13 +108,13 @@ tables <- list(
 )
 
 tables$ipc <- tables$ipc |>
-  dplyr::rename(ipc_code = .data$clmn)
+  dplyr::rename(ipc_code = "clmn")
 
 tables$group <- tables$group |>
-  dplyr::rename(group_type = .data$type)
+  dplyr::rename(group_type = "type")
 
 tables$merger_list <- tables$merger_list |>
-  dplyr::rename(merger_count = .data$count)
+  dplyr::rename(merger_count = "count")
 
 tables$patent <- tables$patent |>
   dplyr::mutate(year = as.integer(.data$year))
@@ -148,7 +148,7 @@ inventory <- create_table_inventory(table_specs) |>
 write_csv(inventory, project_path("analysis", "output", "metadata", "table_inventory.csv"))
 
 key_checks <- inventory |>
-  dplyr::select(.data$table_name, .data$layer, .data$primary_key, .data$duplicate_key_rows)
+  dplyr::select("table_name", "layer", "primary_key", "duplicate_key_rows")
 
 write_csv(key_checks, project_path("analysis", "output", "metadata", "key_checks.csv"))
 

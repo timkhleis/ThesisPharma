@@ -123,6 +123,14 @@ write_parquet_and_table <- function(con, df, table_name, parquet_subdir) {
   invisible(parquet_path)
 }
 
+copy_db_table_to_parquet <- function(con, table_name, parquet_subdir) {
+  parquet_path <- project_path("analysis", "output", "parquet", parquet_subdir, paste0(table_name, ".parquet"))
+  parquet_sql <- normalize_path_sql(parquet_path)
+  quoted_table <- as.character(DBI::dbQuoteIdentifier(con, table_name))
+  DBI::dbExecute(con, sprintf("COPY %s TO '%s' (FORMAT PARQUET, COMPRESSION ZSTD)", quoted_table, parquet_sql))
+  invisible(parquet_path)
+}
+
 create_table_inventory <- function(table_specs) {
   tibble::tibble(
     table_name = names(table_specs),
