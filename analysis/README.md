@@ -8,6 +8,7 @@ This folder contains the R-based data engineering pipeline for the thesis data f
 - Parquet outputs for canonical, helper, enrichment, derived, and audit layers
 - A DuckDB database for reproducible joins and validation
 - An inventor disambiguation audit based on the published `codinv` assignment
+- Detailed architecture and usage documentation in `analysis/DATABASE_ARCHITECTURE.md`
 
 ## How To Run
 
@@ -29,6 +30,26 @@ Run the audit later when you want to review disambiguation and data quality flag
 ```powershell
 & 'C:\Program Files\R\R-4.5.1\bin\Rscript.exe' analysis\R\03_run_audit.R
 ```
+
+Inspect the built database and preview the main research tables:
+
+```powershell
+& 'C:\Program Files\R\R-4.5.1\bin\Rscript.exe' analysis\R\inspect_data.R
+```
+
+Optionally pass table names to preview specific outputs:
+
+```powershell
+& 'C:\Program Files\R\R-4.5.1\bin\Rscript.exe' analysis\R\inspect_data.R inventor_year patent_enriched
+```
+
+Inspect the database visually in the DuckDB browser UI:
+
+```powershell
+duckdb -ui analysis/output/thesis_foundation.duckdb
+```
+
+This is the quickest way to browse tables, inspect schemas, preview rows, and run ad hoc SQL interactively.
 
 ## Output Layout
 
