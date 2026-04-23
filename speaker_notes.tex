@@ -1,0 +1,140 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{parskip}
+\usepackage{titlesec}
+\usepackage{xcolor}
+\usepackage{booktabs}
+\usepackage{enumitem}
+\usepackage{microtype}
+\usepackage{amsmath}
+
+\definecolor{darkblue}{RGB}{0,51,102}
+\definecolor{midgray}{RGB}{100,100,100}
+\definecolor{examplebg}{RGB}{245,250,245}
+
+\titleformat{\section}{\large\bfseries\color{darkblue}}{}{0em}{}[\vspace{-0.5em}\textcolor{darkblue!30}{\hrule}\vspace{0.3em}]
+\titlespacing{\section}{0pt}{1.4em}{0.6em}
+
+\setlength{\parindent}{0pt}
+
+%% Inline example box
+\newcommand{\example}[1]{%
+  \begin{trivlist}
+    \item\relax
+    \colorbox{examplebg}{\parbox{\dimexpr\linewidth-2\fboxsep}%
+      {\small\itshape\color{darkblue!80} #1}}
+  \end{trivlist}%
+}
+
+\begin{document}
+
+{\Large\bfseries\color{darkblue} After the Acquisition}\\[0.3em]
+{\large Post-Merger Innovation Among Stayers in Pharma M\&A}\\[0.2em]
+{\color{midgray} Speaker Notes \quad|\quad PSE Regulation, Markets and Environment Seminar \quad|\quad April 2026}
+
+\vspace{1em}
+\textcolor{darkblue!30}{\hrule}
+\vspace{1.2em}
+
+%% ─────────────────────────────────────────────────────────────────────────────
+\section*{Title Slide \hfill{\normalfont\small\color{midgray}$\sim$30 sec}}
+
+Thank the organizers and introduce yourself briefly. This is a master's thesis presentation on what happens to inventors inside pharmaceutical firms after they are acquired --- specifically, to those who stay.
+
+%% ─────────────────────────────────────────────────────────────────────────────
+\section*{Slide 1 \quad Pharma Mergers Raise Innovation Concerns That Remain Unanswered for Retained Inventors \hfill{\normalfont\small\color{midgray}$\sim$2 min}}
+
+Start with the policy hook. The pharmaceutical sector is interesting for two reasons: it is one of the most R\&D-intensive industries in the world, and it has been consolidating aggressively for decades. That combination has put it squarely on the radar of competition authorities.
+
+In 2023 the FTC formally asked: what is the full range of a merger's effects on innovation? That is almost exactly the question I am trying to answer, just at a more granular level.
+
+The literature gives us two layers of evidence. At the firm level, we know patenting falls after mergers. At the inventor level, Cassi and Ornaghi --- whose data I am using --- show that exit and departure rates spike, and that inventors who leave lose around 30 percent of their expected career output.
+
+But there is a group nobody has looked at carefully: the inventors who stay. They are the majority --- Cassi and Ornaghi report that roughly 73 percent of target inventors remain. And yet we know almost nothing about what happens to the quality or direction of their research after the deal. That is the gap I am addressing.
+
+\example{The pattern is well-documented in large deals. When Glaxo acquired Wellcome in 1996, Wellcome's main research facility in Beckenham --- employing around 1,500 scientists --- was shut down. GSK's own account later acknowledged that the company lost more talent than it had anticipated. Similarly, after Pfizer acquired Warner-Lambert in 2000 and Pharmacia in 2003, R\&D operations in Michigan and Illinois were discontinued. These are not edge cases; they are the norm for large pharmaceutical consolidations.}
+
+%% ─────────────────────────────────────────────────────────────────────────────
+\section*{Slide 2 \quad Integration Disrupts Stayer Output Across Three Testable Dimensions \hfill{\normalfont\small\color{midgray}$\sim$2 min}}
+
+The left column gives the theoretical grounding. I want to stress that these four mechanisms all point in the same direction but through different channels.
+
+\textbf{Integration frictions} are about time and attention being diverted from research to administration.
+
+\example{When Pfizer absorbed Pharmacia's researchers after the 2003 deal, scientists who had been filing patents at a steady pace spent months navigating procurement approvals, reporting line changes, and IT system migrations. That is bureaucratic drag reducing discovery time directly.}
+
+\textbf{Loss of status} is about motivation. Paruchuri, Nerkar and Hambrick call this the Conqueror's Effect: central figures in the target's R\&D network lose their informal authority after the deal.
+
+\example{Think of a senior medicinal chemist at a mid-size biotech who has built a network of collaborators around her expertise over fifteen years. After acquisition she is suddenly one of hundreds of chemists in the acquirer's portfolio, her project champions have left, and decisions on her research agenda are now made two organizational layers above where they used to be.}
+
+\textbf{Disrupted knowledge networks} limit access to the tacit, informal knowledge that makes pharmaceutical research productive.
+
+\example{The Wellcome Beckenham closure is again instructive: teams that had worked side by side for a decade were dispersed overnight. The informal protocols --- who to call when a synthesis step fails, which assay technique works for a particular compound class --- do not transfer in an org chart.}
+
+\textbf{Weaker championing} means early-stage internal projects lose their internal advocates.
+
+\example{When Bristol-Myers Squibb acquired Celgene in 2019 for \$74bn, BMS inherited a broad hematology pipeline. Inevitably, portfolio review favored projects closest to commercialization and closest to BMS's existing therapeutic focus. Early-stage Celgene programs with no internal champion at BMS were quietly deprioritized.}
+
+On the hypotheses: H1 and H2 are about output declining in quantity and quality. H3 is the more novel one. My prediction is that stayers are pushed into the acquirer's technological fields, which represents human capital misallocation even for inventors who remain productive.
+
+\example{A concrete TechDrift scenario: an oncology immunologist at a target biotech whose entire pre-merger patent portfolio sits in IPC classes A61K39 (immunological preparations) and A61P35 (antineoplastics). After acquisition by a cardiovascular-focused acquirer, she finds herself contributing to projects in A61P9 (cardiovascular agents). Her TechDrift score falls because her current field vector is now distant from her baseline. She is still filing patents --- still a stayer --- but working in unfamiliar territory.}
+
+The heterogeneity table is worth flagging for questions. Older, more exclusive inventors should suffer more because they have stronger ties to the old structure. Technologically overlapping deals should be less damaging because there is less organizational distance to bridge.
+
+%% ─────────────────────────────────────────────────────────────────────────────
+\section*{Slide 3 \quad One Million Inventor-Year Observations Spanning 513 Acquisitions \hfill{\normalfont\small\color{midgray}$\sim$1.5 min}}
+
+The base data comes from Carmine Ornaghi and Lorenzo Cassi --- Lorenzo is one of the supervisors of this thesis and a faculty member here at PSE. I am building on their panel rather than constructing everything from scratch, which allows me to focus on the quality and field extensions.
+
+The scale matters: one million inventor-year observations and 513 acquisitions over 27 years is substantially larger than most prior work in this space.
+
+On the right, let me explain what I have added. The DuckDB pipeline reshapes the raw data into the analytical tables I need for the DiD. The OECD quality indicators let me move beyond raw counts. And TechDrift, which is still being computed, works as follows.
+
+\textbf{How the IPC cosine similarity works.} Each patent is assigned one or more IPC codes --- a hierarchical classification of technology fields. A61K31 covers pharmaceutical preparations from organic chemistry; A61P35 covers antineoplastic agents; C07D covers heterocyclic compounds, common in small-molecule drug discovery. For each inventor in each year, I construct a vector over all IPC codes, where each element is 1 if the inventor filed at least one patent in that class that year and 0 otherwise. The pre-merger baseline vector $\mathbf{v}_i^0$ is built from their activity in the five years before the deal.
+
+\example{Concretely: an inventor's pre-merger vector might have 1s in \{A61K31, A61P35, C07D\} and 0s everywhere else. After the acquisition, if she now files patents in \{A61K31, A61P9, C07D\}, the overlap is partial and the cosine similarity --- the dot product normalized by vector lengths --- falls below one. The further her post-merger field vector is from her original profile, the lower the TechDrift score.}
+
+A score of 1 means she is working in exactly the same fields as before; a score approaching 0 means she has moved into entirely new territory.
+
+%% ─────────────────────────────────────────────────────────────────────────────
+\section*{Slide 4 \quad Callaway--Sant'Anna Delivers Clean Cohort Comparisons Free of TWFE Bias \hfill{\normalfont\small\color{midgray}$\sim$2 min}}
+
+The key identification challenge is that treatment timing varies across acquisitions --- deals happen in different years across a 27-year panel. That is exactly the setting where TWFE breaks down, because early-treated cohorts effectively serve as controls for later-treated ones, contaminating estimates when treatment effects are heterogeneous.
+
+Callaway and Sant'Anna solve this by computing group-time average treatment effects, comparing each acquisition cohort only to not-yet-treated firms at the time of the deal. I prefer not-yet-treated over never-treated controls for a simple reason: never-treated firms in this industry are the firms nobody wanted to acquire --- structurally different in ways that make them a poor counterfactual for target companies.
+
+On the equations: the event study gives the dynamic picture and is what I use to validate the parallel trends assumption. The aggregate ATT gives the summary number. The sign prediction is negative --- I expect $\lambda < 0$ for quantity and quality outcomes.
+
+%% ─────────────────────────────────────────────────────────────────────────────
+\section*{Slide 5 \quad Stayer Effects Reveal a Missing Channel of Dynamic Welfare Loss \hfill{\normalfont\small\color{midgray}$\sim$2 min}}
+
+Let me close with why this matters.
+
+On the contributions: I am not the first to study stayers, but I am the first to ask whether the patents they produce are as good as they would have been, and whether they are still working on the same problems. Both are new questions.
+
+The expected results follow from the theory. Non-collaborating stayers in Cassi and Ornaghi lose nearly two patents over five years, while collaborators are barely affected. That is a useful prior: the effect is real but heterogeneous.
+
+On policy, the key argument is that current merger review treats the stayer problem as solved once you count who stayed. My thesis says that is not enough: even retained inventors may produce less and worse research. That is a welfare cost invisible to headcount statistics.
+
+\example{The patent cliff makes this acute. Keytruda --- Merck's flagship cancer immunotherapy --- generated \$29.5bn in sales last year and its patent expires in 2028, putting roughly 30 percent of Merck's revenue at risk. Merck is already in advanced talks to acquire Verona Pharma for around \$10bn to start filling that gap. GSK is in a similar position and has been on an active acquisition spree, completing a string of bolt-on biotech deals over the past two years to rebuild its pipeline ahead of its own patent expirations.
+
+This is the standard industry playbook: face a patent cliff, go on an acquisition run. But if those acquisitions then suppress the innovation output of the very scientists being retained, the strategy is partially self-defeating --- and that is a competition policy problem that current frameworks are not equipped to catch.}
+
+Happy to take questions.
+
+%% ─────────────────────────────────────────────────────────────────────────────
+\vspace{1.5em}
+\textcolor{darkblue!30}{\hrule}
+\vspace{0.8em}
+{\small\color{midgray}\textbf{Likely questions to prepare for}}
+
+\begin{itemize}[leftmargin=1.5em, itemsep=0.5em]\small
+  \item \textit{Why not use never-treated firms as controls?} They are structurally different from eventual targets --- smaller, less concentrated, lower patent stock. Not-yet-treated firms share the same observable profile, differing only in deal timing.
+  \item \textit{How do you define a stayer from patent data?} An inventor is a stayer if they file at least one patent under the acquiring group's name within $x \in \{3,5\}$ years of the deal. Since patents are the only signal of activity in this data, this is the standard approach.
+  \item \textit{Is TechDrift picking up misallocation or voluntary specialization?} The direction matters: if stayers drift toward the acquirer's fields specifically, that is consistent with organizational pressure rather than autonomous choice. I plan to test this by interacting TechDrift with deal-level technological similarity --- a high-overlap deal should produce less drift if the mechanism is misallocation.
+  \item \textit{How do you handle selection into stayer status?} Stayers are not random --- acquirers try to retain productive scientists. I address this with a Heckman selection correction using age as an exclusion restriction.
+  \item \textit{What is the external validity of EPO data?} EPO patents reliably capture the R stage of pharmaceutical research --- early-stage drug discovery. That is precisely what post-merger restructuring disrupts. The limitation is that they do not cover D-stage clinical development, so the welfare estimates are likely a lower bound.
+\end{itemize}
+
+\end{document}
