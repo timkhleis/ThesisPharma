@@ -3,6 +3,10 @@
 .RData
 .Ruserdata
 .r_libs/
-analysis/output/
+CLAUDE.md
 Data/
-
+01_Data/*
+!01_Data/.gitkeep
+analysis/output/
+02_analysis/output/*
+!02_analysis/output/.gitkeep
