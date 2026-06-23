@@ -4,6 +4,7 @@
 .Ruserdata
 .r_libs/
 CLAUDE.md
+.claude/
 Data/
 01_Data/*
 !01_Data/.gitkeep

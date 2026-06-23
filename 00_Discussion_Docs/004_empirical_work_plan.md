@@ -1,5 +1,5 @@
 # Empirical Work Plan
-### After the Acquisition — Stayers' Innovation in Pharma M&A
+### After the Acquisition — Stayers' Inventive Output in Pharma M&A
 
 *Last revised: 2026-05-04*  
 *Status: Reviewed (Claude + Codex). Ready to implement after final read.*
@@ -126,22 +126,71 @@ Understand how Cassi-Ornaghi constructed firm-group-year assignments for treated
 
 ---
 
-## Phase 3 — Rebuild Stayer Classification Independently
+## Phase 3 — Rebuild Inventor Affiliation and Stayer Classification
 
-**Goal:** produce `inventor_status_own` — your own classification of inventor-deal exposure. The main priority is to correctly reproduce target-side treated inventors (`T_STAYER`, `T_LEAVER`) and future-treated/not-yet-treated controls for the CS(2021) design. Reproducing all Cassi-Ornaghi categories (`N_STAYER`, `A_STAYER`, `N_LEAVER`, etc.) is useful for validation and robustness, but secondary to the main treatment/control spine.
+**Goal:** produce `inventor_affiliation_own` and `inventor_status_own` — your own version of the inventor affiliation/status spine. Rebuilding `inventor_status_reference` requires first rebuilding an affiliation layer: the canonical patent/group tables can assign multiple candidate groups to the same inventor-year, while Cassi-Ornaghi's `inventor_status_reference` has one resolved `id_group` per active inventor-year. This is the Step IV affiliation issue discussed in the paper.
 
-**Stayer definition (follow Cassi-Ornaghi logic from Stata scripts):**
+### 3a. Rebuild inventor affiliation (`inventor_affiliation_own`)
 
-- An inventor is **target-side** for deal `e` if they filed ≥1 patent for a firm in `target_group` in the 5 years before `deal_year`.
-- They are a **T_STAYER** if they subsequently file ≥1 patent for the acquiring group (`acquirer_group`) within `x` years post-deal (main: `x = 5`, robustness: `x ∈ {2, 3}`).
-- They are a **T_LEAVER** if they were target-side but do not file for the acquirer group within the window.
+**Goal:** assign each inventor to one resolved group per year, approximating Cassi-Ornaghi's conservative Step IV affiliation resolution.
 
-**Sample filters (replicate Cassi-Ornaghi exactly):**
-- Drop inventors with ≤1 patent observation in their career (`by codinv: drop if sum(1) <= 1`).
-- Drop inventors who appear as `N_LEAVER` in more than one firm (their `tmprat > 1` rule).
+**Input chain:**
+
+```text
+patent_inventor(codinv, appln_id)
+  JOIN patent_company_link(appln_id, compcod, id_group, year)
+```
+
+Do not use `inventor_group_year` as the affiliation source for classification because it stores candidate groups as a semicolon-separated list and is not resolved to one group per inventor-year. `inventor_year` has no group column.
+
+**Resolution rule:**
+
+1. Generate candidate groups for each `codinv × year` from the patent-company links.
+2. If the inventor-year has one candidate group, assign it directly.
+3. If multiple candidate groups exist, use a conservative career-continuity rule:
+   - prefer the previous-year resolved group if available;
+   - otherwise prefer the next-year group if available;
+   - otherwise prefer the inventor's modal career group;
+   - otherwise prefer the group with the most patents in that inventor-year;
+   - final deterministic tie-breaker: lowest `id_group`.
+
+**Output:** `inventor_affiliation_own` at `codinv × year` grain, with:
+
+- `candidate_group_count`
+- `candidate_group_list`
+- `resolved_group`
+- `resolved_by`
+- `affiliation_ambiguous`
+
+**Validation before classification:**
+
+- Share of inventor-years with multiple candidate groups.
+- Share resolved by direct unique assignment vs. continuity/modal/tie-break rules.
+- Agreement between `inventor_affiliation_own.resolved_group` and `inventor_status_reference.id_group` on overlapping active `codinv × year` rows.
+- Special check for `T_STAYER` rows, because matching treated stayers matters most.
+
+### 3b. Build inventor status (`inventor_status_own`)
+
+**Goal:** classify inventor-deal exposure using `inventor_affiliation_own`, not raw `patent_company_link`, as the group-history source. The main priority is to correctly reproduce target-side treated inventors (`T_STAYER`, `T_LEAVER`) and future-treated/not-yet-treated controls for the CS(2021) design. Reproducing all Cassi-Ornaghi categories (`N_STAYER`, `A_STAYER`, `N_LEAVER`, etc.) is useful for validation and robustness, but secondary to the main treatment/control spine.
+
+**Stayer definition:**
+
+- An inventor is **target-side** for deal `e` if their `resolved_group` equals `target_group` in the 5 years before `deal_year`.
+- They are a **T_STAYER** if their `resolved_group` equals `acquirer_group_final` within `x` years post-deal (main: `x = 5`, robustness: `x ∈ {2, 3}`).
+- They are a **T_LEAVER** if they were target-side but do not have resolved acquirer affiliation in the post-deal window.
+
+Keep the window-based classification because it is suited to the CS(2021) cohort design, but document that Cassi-Ornaghi's original status construction is patent-pair/spell based rather than a fixed-window cohort design.
+
+**Sample filters (replicate Cassi-Ornaghi as closely as possible):**
+
+- Build career counts before any deal-specific filtering.
+- Drop inventors without at least two distinct patent years.
+- Drop inventors who appear as `N_LEAVER` in more than one firm if this category is reconstructed (their `tmprat > 1` rule).
 - For multi-exposure inventors (T_STAYER in more than one deal): keep first treated exposure in main spec; drop in robustness.
+- Exclude deals with `acquirer_source = 'MISSING'` from the main classification and write them to diagnostics.
 
 **Validation:**
+
 - Compare your classification counts to the benchmark:
 
 | type | Benchmark | Own | Difference |
@@ -151,11 +200,14 @@ Understand how Cassi-Ornaghi constructed firm-group-year assignments for treated
 | N_STAYER | 584,032 rows | ? | ? |
 | A_STAYER | 68,131 rows | ? | ? |
 
-- Investigate any systematic divergence before proceeding.
+- Prioritise close agreement on `T_STAYER`, because this is the treated group. Treat `T_LEAVER` divergence as secondary because Cassi-Ornaghi may use additional leaver filters that are not fully visible in the supplement code.
+- Investigate systematic divergence by acquirer source, placeholder acquirers, late-window truncation, early-cohort group stability, and affiliation-resolution method.
 
-**Output:** `parquet/derived/inventor_status_own.parquet` + DuckDB table.
+**Output:** `parquet/derived/inventor_affiliation_own.parquet`, `parquet/derived/inventor_status_own.parquet` + DuckDB tables.
 
 **Script:** `02_analysis/R/04_build_stayer_classification.R`
+
+> **Next meeting with Prof. Cassi:** We found that the canonical patent/group tables still contain multiple possible groups for some inventor-years, while `inventor_status.csv` has one resolved group per inventor-year. My understanding is that this reflects your Step IV affiliation-resolution procedure. If I rebuild my own `inventor_status` table, I plan to approximate this with a conservative career-continuity resolver that minimizes apparent employer switching. Does this match the spirit of your procedure, and is there any more precise rule or code you would recommend using?
 
 ---
 
@@ -188,14 +240,16 @@ Check OECD quality coverage rate separately for each outcome before treating `NU
 
 Built in R from `inventor_ipc_year`. Steps:
 
-1. For each stayer inventor, define **career baseline IPC vector**: normalised sum of IPC activity in the 3 years strictly before `deal_year`.
+1. For each inventor, define the **career baseline IPC vector**: normalised sum of IPC activity over `[deal_year − 5, deal_year − 1]` — the same five-year window used to define cohort membership. This ensures the baseline is consistently defined and pre-treatment by construction.
 2. For each year `t` (including pre-deal years for pre-trend validation), compute cosine similarity between the year-`t` IPC vector and the baseline.
-3. `TechDrift_it = 1 − cosine_similarity` (higher = more drift).
+3. `TechDrift_it = 1 − cosine_similarity` (higher = more drift from career baseline).
 
 Design choices to document explicitly:
-- IPC granularity: **4-character subclass** (recommended — avoids extreme sparsity of full codes, avoids over-aggregation at section level).
-- Baseline window: **3 years pre-deal** (not full career — more responsive, less contaminated by early-career patterns).
+- IPC granularity: **4-character subclass** (recommended — avoids extreme sparsity of full codes, avoids over-aggregation at section level). Test 8-character subgroup as a robustness check (see Phase 9).
+- Baseline window: **5 years pre-deal** (`[deal_year − 5, deal_year − 1]`), matching the cohort definition window. Full pre-career baseline used as robustness only.
 - Use `Matrix` package for sparse cosine similarity.
+
+**TechDrift ambiguity test (report in Section 6):** TechDrift may indicate misallocation (inventor forced into unfamiliar territory) or productive recombination (inventor brings new knowledge to a new area). After computing `TechDrift_it`, regress `Quality_it` on `TechDrift_it` within the stayer sample, conditioning on event-time and deal fixed effects. A negative coefficient supports the misallocation interpretation; a positive coefficient supports recombination. Report this test alongside the main TechDrift ATT.
 
 **Output:** `parquet/derived/inventor_tech_drift.parquet`
 
@@ -271,7 +325,7 @@ Report share of `inventor_year` observations with non-missing `quality_it`. This
 
 ## Phase 7 — Main CS(2021) Estimation
 
-Run separately for each outcome: `patent_count`, `fractional_patent_count`, `quality_it_4`, `tech_drift_it`.
+Run separately for each outcome: `active_patenting` (binary, primary extensive-margin outcome), `patent_count`, `fractional_patent_count`, `quality_it_4`, `tech_drift_it`. Report `active_patenting` first — it avoids predicted-value sign violations from the linear CS(2021) estimator on count data. `patent_count` is the main intensive-margin outcome.
 
 ```r
 library(did)
@@ -295,6 +349,7 @@ agg_cal     <- aggte(out, type = "calendar") # calendar-time effects
 **Output for each outcome:**
 - Event-study plot: ATT(τ) for τ = −5 to +5, with 95% uniform confidence bands.
 - Pre-trend test: τ < 0 coefficients jointly insignificant (Roth 2022 sensitivity analysis).
+- **Pre-announcement diagnostic**: inspect τ = −2 and τ = −1 separately. If τ = −1 is significant but τ = −5 to τ = −2 are flat, run a supplementary specification using τ = −2 as the terminal pre-period. Pharmaceutical deal negotiations typically start 12–18 months before close.
 - Headline number from `agg_simple`.
 
 **Script:** `02_analysis/R/07_cs2021_main.R`
@@ -303,11 +358,15 @@ agg_cal     <- aggte(out, type = "calendar") # calendar-time effects
 
 ## Phase 8 — Heterogeneity: DealSim Moderator
 
-**8a. Stratified (primary approach)**
-Split deals into DealSim tertiles (low / medium / high). Re-run CS(2021) in each subsample. Plot three event-study curves on the same figure. Test whether medium-tertile ATT is less negative than both extremes.
+**8a. Stratified by tercile (primary approach)**
+Split deals into DealSim terciles (low / medium / high). Re-run CS(2021) in each subsample. Plot three event-study curves on the same figure. Test whether medium-tercile ATT is less negative than both extremes (formal pairwise test).
 
-**8b. Parametric interaction (TWFE, robustness only)**
-TWFE is biased under heterogeneous treatment but useful for testing the interaction shape:
+**Important scope note on DealSim**: DealSim is defined only for treated and eventually-treated deals — not for never-treated inventors. The tercile stratification is therefore a comparison *across treated deal cohorts*, not between treated and control inventors. State this explicitly when reporting results.
+
+**Low-DealSim prediction test**: the low-tercile ATT discriminates between two competing theories — *integration friction* (predicts a significant negative ATT at low overlap) vs. *autonomy preservation* (predicts a near-zero ATT because a distant acquirer has no reason to interfere). Inspect the low-tercile coefficient and confidence interval explicitly to distinguish these.
+
+**8b. Parametric interaction (TWFE, supplementary only)**
+A continuous DealSim × treatment interaction is not straightforward inside CS(2021) because the estimator works at the group-time level rather than the deal level. Use TWFE with the interaction as a supplementary descriptive test only, not the primary result:
 
 ```r
 feols(patent_count ~
@@ -318,7 +377,10 @@ feols(patent_count ~
       data = stayer_panel, cluster = ~deal_id)
 ```
 
-A significant coefficient on `years_since_deal × deal_sim_sq` supports the inverted-U hypothesis.
+A significant negative coefficient on `years_since_deal × deal_sim_sq` supports the inverted-U hypothesis. Report the estimated peak DealSim value.
+
+**8c. Deal size interaction (additional heterogeneity)**
+Interact deal size (log `target_value` tercile) with DealSim tercile. Large-acquires-large deals (structural lab consolidation) may show a stronger inverted-U than large-acquires-small deals (target autonomy preserved). This tests whether the DealSim shape is regime-specific.
 
 **Script:** `02_analysis/R/08_heterogeneity_dealsim.R`
 
@@ -330,7 +392,7 @@ A significant coefficient on `years_since_deal × deal_sim_sq` supports the inve
 |---|---|
 | Alternative stayer window | Re-run Phase 3 with `x ∈ {2, 3}` instead of `x = 5` |
 | Alternative quality measure | Replace `quality_index_4` with raw `fwd_cits5` |
-| Alternative TechDrift baseline | Full pre-career vs. 3-year window |
+| Alternative TechDrift baseline | Full pre-career vs. 5-year window (main); 4-digit vs. 8-digit IPC granularity |
 | Minimum pre-deal activity | Drop inventors with < 2 patents pre-deal |
 | Exclude border cohorts | Drop deal cohorts 1988–1993 and 2010–2015 |
 | Alternative control group | `control_group = "nevertreated"` in `att_gt()` |
