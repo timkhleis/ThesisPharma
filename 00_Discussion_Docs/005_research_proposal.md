@@ -94,13 +94,12 @@ The main full-cohort CS(2021) analysis uses the broad merger-list treatment-timi
 
 **Effective deal counts by analysis layer:**
 
-| Analysis window | Main full-cohort deal count | In group-history spine | DealSim-resolved non-placeholder acquirer groups |
-|-----------------|----------------------------:|-----------------------:|-------------------------------------------------:|
-| Unrestricted merger-list window | 513 | 491 | 455 |
-| Five-year event window, 1993--2010 | 373 | 356 | 335 |
-| Three-year event window, 1991--2012 | 431 | 413 | 388 |
+| Analysis window | Merger-list deals | Matched target spine after target-side exclusions | Acquirer-resolved sample after acquirer-side exclusions |
+|-----------------|------------------:|------------------------------------------------:|----------------------------------------------------:|
+| Unrestricted merger-list window | 513 | 478 | 444 |
+| Five-year event window, 1993--2010 | 372 | 345 | 326 |
 
-The main full-cohort CS(2021) analysis uses the broad treatment-timing sample. DealSim analyses are necessarily restricted to deals with clean target and acquirer group identifiers. I therefore report DealSim as a subsample heterogeneity analysis and use the DealSim-resolved common sample as a robustness check for the main specification.
+The first-results CS(2021) analysis uses the uniquely matched target-spine sample; extending the final full-cohort specification to the 22 unmatched merger-list deals requires a validated target-group fallback. DealSim and stayer analyses are further restricted to deals with clean acquirer identifiers. I therefore report acquirer-dependent analyses as subsample results and use their common sample as a robustness check for the main specification.
 
 ---
 
@@ -108,7 +107,7 @@ The main full-cohort CS(2021) analysis uses the broad treatment-timing sample. D
 
 The main treated population is the **pre-deal target-inventor cohort**.
 
-An inventor belongs to the treated cohort for deal `d` if their latest observed group affiliation in years `[deal_year − 5, deal_year − 1]` is the target group of deal `d`.
+An inventor belongs to the treated cohort for deal `d` if, in their latest active pre-deal year within `[deal_year − 5, deal_year − 1]`, the target is either the resolved group or an exact member of the annual candidate-group list. A narrow transition rule also retains inventors first observed with the acquirer in year `−1` when the target was their immediately preceding affiliation within two years. Each inventor is assigned to their earliest qualifying acquisition exposure.
 
 This definition is set **before treatment**. It does not condition on whether the inventor subsequently stays, leaves, or stops patenting. This is the design choice that makes the main causal analysis clean.
 
@@ -140,7 +139,7 @@ After defining the pre-deal target-inventor cohort, inventors are classified by 
 | `T_Ever_Stayed` | At least one post-deal patent affiliated with the acquirer group within five years |
 | `T_LEAVER` | Post-deal patenting observed, but not with acquirer, and at least one post-deal group differs from the original target |
 | `T_NO_POST_5Y` | No observed EPO patent in the five-year post-deal window |
-| `T_UNRESOLVED_TARGET_POST` | Post-deal patenting only under the original target group (assignee-name lag or subsidiary autonomy) |
+| `T_TARGET_CONTINUING` | Post-deal patenting observed only under the original target group; retained as a separate category and included in the expanded retained-sample robustness check |
 
 **Horizon-specific diagnostic variables (constructed within `T_Ever_Stayed`):**
 
@@ -151,8 +150,8 @@ After defining the pre-deal target-inventor cohort, inventors are classified by 
 | `short_stayer` | 1 if `first_outside_year ≤ deal_year + 2`; robustness reported for cutoffs of 1 and 3 years |
 | `career_end_year` | Last year with any EPO patent in the full panel — Cassi-Ornaghi career exit definition; used for descriptive and attrition purposes only, never as a regression sample filter |
 | `persistent_stayer_h` | At least one acquirer-affiliated patent by horizon h and no observed non-acquirer patent through h; allows patenting gaps after initial acquirer observation and does not condition on future patent activity after h — **preferred horizon robustness cut** |
-| `patent_active_survivor_h` | `persistent_stayer_h` AND `career_end_year > deal_year + h`; excludes career exits but conditions on future patent activity — **selected intensive-margin robustness only** |
-| `career_exit_within_stayer_h` | `T_Ever_Stayed` AND `career_end_year ≤ deal_year + h` — within-stayer analogue of `T_NO_POST_5Y` |
+| `patent_active_survivor_h` | `persistent_stayer_h` AND `career_end_year ≥ deal_year + h`; requires patent visibility through horizon h and therefore defines a **selected intensive-margin robustness sample** |
+| `career_exit_before_h` | `T_Ever_Stayed` AND `career_end_year < deal_year + h` — descriptive within-stayer career-exit indicator |
 
 [^outside]: `first_outside_year` relies on the `inventor_affiliation_own` structure, which collapses every inventor-year into exactly one primary `resolved_group`. The primary affiliation is defined as the modal group (highest patent count) for that year, with career-continuity tie-breakers. This structurally ensures that isolated trailing collaborations do not mistakenly trigger departure signals, fulfilling the intent of a majority filter.
 
@@ -160,7 +159,7 @@ After defining the pre-deal target-inventor cohort, inventors are classified by 
 
 - `T_Ever_Stayed` is defined post-treatment. Every analysis restricted to this group — or any horizon-specific subset of it — conditions on a post-treatment selection variable. These are post-treatment selected samples, not clean identification samples. The direction and magnitude of selection are characterised empirically (see Section 11).
 - `persistent_stayer_h` is the preferred horizon robustness cut because it does not condition on future patent activity. However, it still conditions on not being observed outside the acquirer through h — it remains a survivor-style sample and should not be labelled "preferred evidence," only "preferred horizon robustness."
-- `patent_active_survivor_h` conditions on `career_end_year > deal_year + h`, which selects on future patent activity — an outcome variable. It is reported only as a selected intensive-margin robustness check, not as the main sample.
+- `patent_active_survivor_h` conditions on `career_end_year ≥ deal_year + h`, which selects on continued patent visibility — an outcome variable. It is reported only as a selected intensive-margin robustness check, not as the main sample.
 - After an initial acquirer-affiliated patent by horizon h, silent years within the horizon are kept in `persistent_stayer_h` as unobserved staying states unless an outside patent is observed. Pre-deal career age diagnostics assess whether the silent subgroup looks systematically more senior — if so, management transition within the stayer pool is noted as a classification caveat. **Implementation note**: code must explicitly distinguish a **gap year** (zero patents in year t, but acquirer-affiliated patents observed both before and after t within the horizon window) from **truncation** (zero patents in year t with no subsequent observation within the window, whether due to panel end at 2015 or true career exit). Gap years are kept inside `persistent_stayer_h`; truncation years trigger the `career_exit_within_stayer_h` flag. The logic branch must be tested on known cases before the classification runs at scale.
 - `T_NO_POST_5Y` does not necessarily indicate labour-market exit. **Diagnostic**: compare pre-deal career age and patent count distributions across all four primary status groups. If `T_NO_POST_5Y` inventors are systematically more senior pre-deal, note the management transition interpretation as a classification caveat.
 - Cassi and Ornaghi (2026) already characterise the `T_LEAVER` and `T_NO_POST_5Y` populations. **This thesis does not replicate that analysis**; it uses it as a motivating baseline and focuses on `T_Ever_Stayed`.
@@ -244,7 +243,7 @@ Conditional on the included covariates — pre-deal patent stock, deal size, tar
 
 **Estimand**: stayer-specific ATT for observed `T_Ever_Stayed` inventors on patent counts, quality, and TechDrift, interpreted subject to selection into post-treatment retention.[^sace]
 
-**Sample scope note**: `T_UNRESOLVED_TARGET_POST` inventors (post-deal patenting only under the original target group) are included in the full-cohort Layer 1 ATT — they belong to the pre-deal target-inventor cohort regardless of post-deal status. They are excluded from Layer 2 because they cannot be reliably classified as either stayer or leaver; their count and share are reported in Table 1 as a data quality check.
+**Sample scope note**: `T_TARGET_CONTINUING` inventors (post-deal patenting only under the original target group) are included in the full-cohort Layer 1 ATT because treatment-cohort membership is fixed before treatment. They enter Layer 2 only in the expanded retained-sample robustness check; the conservative stayer sample still requires an observed acquirer affiliation.
 
 **Identification structure**: `T_Ever_Stayed` is defined post-treatment, so this analysis does not identify a standard CATE. Instead it estimates acquisition effects for the observed retained inventor population under explicitly characterised selection. The preferred Layer 2 specification uses the broad `T_Ever_Stayed` sample; horizon-specific `persistent_stayer_h` samples are reported as survivor-sample robustness checks; and `patent_active_survivor_h` samples isolate the intensive margin among continuing patenters. Because continued patenting is itself an outcome, these intensive-margin estimates are substantively important but selected. Layer 2 addresses selection in three steps:
 
@@ -256,7 +255,7 @@ Conditional on the included covariates — pre-deal patent stock, deal size, tar
 
 3. **Sensitivity analysis**: quantify the tolerance threshold — how large would unobservable selection need to be (as a share of variance in stayer status) to overturn the main finding? Report as a single threshold sentence: *"The result survives unless unobservable factors account for more than X% of the variance in stayer status."*
 
-**Horizon-specific robustness and intensive margin**: re-run Layer 2 restricting to `persistent_stayer_h` for h = 2, 3, 5. These are survivor-sample robustness checks — they condition on not being observed outside the acquirer through horizon h, which is itself a post-treatment condition. The `patent_active_survivor_h` sample additionally excludes career exits and is reported as the continuing-patenter intensive margin. It answers whether productivity falls even among inventors who remain visible in patent data, but it is not preferred evidence for the total stayer effect because `career_end_year > deal_year + h` conditions on future patent activity.
+**Horizon-specific robustness and intensive margin**: re-run Layer 2 restricting to `persistent_stayer_h` for h = 2, 3, 5. These are survivor-sample robustness checks — they condition on not being observed outside the acquirer through horizon h, which is itself a post-treatment condition. The `patent_active_survivor_h` sample additionally requires `career_end_year ≥ deal_year + h` and is reported as the continuing-patenter intensive margin. It answers whether productivity falls even among inventors who remain visible in patent data, but it is not preferred evidence for the total stayer effect because continued patent visibility is itself an outcome.
 
 **Attrition plot**: for each event year t = 0 to +5, decompose `T_Ever_Stayed` into four mutually exclusive states: (1) active with acquirer — acquirer-affiliated patent in year t; (2) outside departure — no acquirer patent in year t but patents with a non-acquirer group; (3) silent/gap — no patent anywhere in year t, career not yet ended (`career_end_year > deal_year + t`); (4) career exit — `career_end_year ≤ deal_year + t`. This is the honest context for reading the event-study shape: late post-deal coefficients average over a progressively more selected subsample, and the plot shows what that selection looks like.
 

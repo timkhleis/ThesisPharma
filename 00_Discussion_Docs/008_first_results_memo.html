@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>First Results Memo</title>
+<style>
+  @page { size: A4; margin: 10mm; }
+  * { box-sizing: border-box; }
+  body { margin: 0; color: #17211d; font-family: Arial, Helvetica, sans-serif; font-size: 9.4pt; line-height: 1.25; }
+  .page { width: 190mm; min-height: 277mm; position: relative; page-break-after: always; overflow: hidden; }
+  .page:last-child { page-break-after: auto; }
+  h1 { display: inline; margin: 0; font-size: 18pt; color: #173f31; }
+  h2 { margin: 0 0 4mm; font-size: 14pt; color: #173f31; }
+  h3 { margin: 0 0 2mm; font-size: 10.5pt; }
+  p { margin: 1.4mm 0; }
+  ul, ol { margin: 1.5mm 0; padding-left: 5mm; }
+  li { margin: 0.8mm 0; }
+  .date { float: right; font-size: 8.5pt; color: #4d5b55; margin-top: 2mm; }
+  .subtitle { margin: 2mm 0 3mm; color: #4d5b55; font-size: 8.8pt; }
+  .box { border: 0.35mm solid #ccd8d2; background: #edf4f1; padding: 2.5mm 3mm; margin: 2mm 0 3mm; }
+  .status { background: #fff8dc; border-color: #e5d99d; }
+  .grid { display: grid; grid-template-columns: 34% 64%; gap: 2%; align-items: start; }
+  .two { display: grid; grid-template-columns: 49% 49%; gap: 2%; align-items: start; }
+  table { width: 100%; border-collapse: collapse; font-size: 8.6pt; }
+  th { text-align: left; border-top: 0.4mm solid #31493f; border-bottom: 0.25mm solid #687a72; padding: 1.2mm 0.7mm; }
+  td { border-bottom: 0.15mm solid #d7dfdb; padding: 1.1mm 0.7mm; }
+  th:not(:first-child), td:not(:first-child) { text-align: right; }
+  figure { margin: 0; }
+  figure img { width: 100%; display: block; }
+  .memo-figure img { height: 64mm; object-fit: contain; }
+  figcaption, .caption { font-size: 7.7pt; color: #43514b; margin-top: 1mm; }
+  code { font-family: Consolas, monospace; font-size: 0.92em; }
+  .small { font-size: 8.5pt; }
+  .footer { position: absolute; bottom: 0; left: 0; right: 0; font-size: 7.5pt; color: #68736f; }
+</style>
+</head>
+<body>
+
+<section class="page">
+  <div><h1>First Results: Acquisitions and Inventor Productivity</h1><span class="date">1 July 2026</span></div>
+  <div class="subtitle">Preliminary descriptive evidence for supervisor discussion. The causal estimation panel is complete and the <code>did</code> package is installed; no CS(2021) coefficient is reported until the <code>att_gt()</code> run completes and its diagnostics are checked.</div>
+
+  <div class="box">
+    <strong>Three preliminary facts.</strong>
+    <ul>
+      <li>The corrected sample is anchored to the published 513-merger universe. It retains 478 uniquely matched target-spine deals after Cassi's target-side exclusions; 345 lie in the 1993-2010 clean window.</li>
+      <li>Among 28,279 pre-deal target inventors in the clean sample, mean annual patenting falls from 0.474 in year -1 to 0.246 in the deal year and 0.113 by year +5. These are descriptive means, not treatment effects.</li>
+      <li>The decline is almost entirely an extensive-margin story: the share of the cohort filing any patent falls from 27.5% (year −1) to 4.7% (year +5), while patents per <em>active</em> inventor actually rises (1.72 → 2.42 over the same window). See Figure 2.</li>
+    </ul>
+  </div>
+
+  <div class="grid">
+    <div>
+      <h3>Corrected sample construction</h3>
+      <table>
+        <thead><tr><th>Stage</th><th>Count</th></tr></thead>
+        <tbody>
+          <tr><td>Merger-list deals</td><td>513</td></tr>
+          <tr><td>Unique spine matches</td><td>490</td></tr>
+          <tr><td>After target drop flags</td><td>478</td></tr>
+          <tr><td>Clean target-spine deals</td><td>345</td></tr>
+          <tr><td>Clean deals with inventors</td><td>338</td></tr>
+          <tr><td>Clean target inventors</td><td>28,279</td></tr>
+          <tr><td>Status-eligible inventors</td><td>27,510</td></tr>
+        </tbody>
+      </table>
+      <h3 style="margin-top:4mm">Why the deal count changed</h3>
+      <p class="small">The group-history files cover more mergers than the published sample. The previous reconstruction inadvertently admitted those additional events. The corrected code first anchors each event to <code>deal_map.deal_id</code>, excludes 22 unmatched deals and one ambiguous match, and then applies Cassi's drop flags.</p>
+    </div>
+    <figure>
+      <img src="../02_analysis/output/figures/preliminary_results/figure1_full_cohort.png" alt="Full-cohort descriptive event profile">
+      <figcaption><strong>Figure 1.</strong> Full pre-deal target cohort. Missing inventor-years are coded as zero patent output. The figure is an event-time profile and contains no comparison group.</figcaption>
+    </figure>
+  </div>
+
+  <div class="box status" style="margin-top:4mm">
+    <strong>Causal estimation status.</strong> The balanced CS(2021) panel passes uniqueness and balance checks, and the official <code>did</code> package now installs and loads cleanly. The <code>att_gt()</code> estimation run (not-yet-treated controls, deal-level clustering) is queued next; no CS(2021) coefficient is reported in this memo until that run completes and passes the pre-trend and cohort-support checks.
+  </div>
+</section>
+
+<section class="page">
+  <h2>Full-Cohort Decomposition and Pre-Deal Selection</h2>
+  <div class="subtitle">Both productivity figures use the fixed pre-deal cohort. No displayed productivity trajectory conditions on staying, continued patenting, or another post-deal outcome.</div>
+
+  <figure class="memo-figure">
+    <img src="../02_analysis/output/figures/preliminary_results/figure2_full_cohort_decomposition.png" alt="Full-cohort extensive vs intensive margin decomposition">
+    <figcaption><strong>Figure 2.</strong> Full-cohort decomposition into active patenting and patents per active inventor. The decline is driven mainly by panel A; panel B describes the changing composition of active patentees and is not a causal intensive-margin estimate.</figcaption>
+  </figure>
+
+  <figure class="memo-figure" style="margin-top:1.5mm">
+    <img src="../02_analysis/output/figures/preliminary_results/figure3_selection_and_attrition.png" alt="Pre-deal selection into staying and cumulative post-deal reach">
+    <figcaption><strong>Figure 3.</strong> Panel A reports observed staying by pre-deal patent stock. Panel B keeps the full 28,279-inventor denominator and shows cumulative post-deal patent reach. The inset reconciles the apparent retention puzzle: among active post-deal patenters, the thesis stayer share is 71.5% (4,160 stayers; 1,662 leavers), close to Cassi&ndash;Ornaghi's 72.6% (7,104; 2,675). Acquirer and outside reach can overlap; all comparisons are descriptive.</figcaption>
+  </figure>
+
+  <div class="two" style="margin-top:2.5mm">
+    <div>
+      <h3>Active-patenter benchmark</h3>
+      <table>
+        <thead><tr><th>Source</th><th>Stayers</th><th>Leavers</th><th>Share</th></tr></thead>
+        <tbody>
+          <tr><td>Thesis, clean window</td><td>4,160</td><td>1,662</td><td>71.5%</td></tr>
+          <tr><td>Cassi&ndash;Ornaghi</td><td>7,104</td><td>2,675</td><td>72.6%</td></tr>
+        </tbody>
+      </table>
+      <p class="small">Only 14.7% of the full cohort is ever acquirer-affiliated because 78.9% never patents again within five years. Conditional on observable post-deal activity, the stay/leave composition closely matches Cassi&ndash;Ornaghi.</p>
+    </div>
+    <div>
+      <h3>Interpretation discipline</h3>
+      <ul class="small">
+        <li>Figures 1&ndash;2 and Figure 3B retain the full pre-deal cohort.</li>
+        <li>Figure 3A is a descriptive selection diagnostic based on pre-deal output.</li>
+        <li><code>T_Ever_Stayed</code> means at least one acquirer-affiliated patent within five years, not continuous retention.</li>
+        <li>The CS(2021) estimate for <code>active_patenting</code> must determine whether silence exceeds the counterfactual rate.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="box status" style="margin-top:4mm">
+    <strong>Feedback requested from Prof. Cassi.</strong>
+    <ol>
+      <li>Is there an intended mapping for the 22 merger-list deals without an exact group-history match?</li>
+      <li>Which Zephyr event corresponds to the ambiguous 2008 acquisition value of 25,000: Curacyte Discovery or Hunter-Fleming?</li>
+      <li>When group-history timing differs from the Zephyr legal merger year, should treatment follow organizational integration or legal closing?</li>
+    </ol>
+  </div>
+
+  <div class="footer">All figures are preliminary. The full-cohort CS(2021) estimates will use not-yet-treated controls, deal-level clustering, and the matched-spine sample shown here.</div>
+</section>
+
+</body>
+</html>

@@ -1,0 +1,256 @@
+\documentclass[10pt]{article}
+
+\usepackage[margin=0.55in]{geometry}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage{tabularx}
+\usepackage{array}
+\usepackage{xcolor}
+\usepackage{enumitem}
+\usepackage{microtype}
+\usepackage{parskip}
+\usepackage{caption}
+\usepackage{amsmath}
+\usepackage{needspace}
+\usepackage[T1]{fontenc}
+\usepackage{XCharter}
+\microtypesetup{expansion=false}
+
+\definecolor{forest}{HTML}{1B4332}
+\definecolor{softgreen}{HTML}{EAF2EE}
+\definecolor{softorange}{HTML}{FFF3E2}
+\definecolor{orange}{HTML}{D97706}
+\definecolor{linegrey}{HTML}{D6D6D6}
+\definecolor{qblue}{HTML}{1D4E89}
+\definecolor{softblue}{HTML}{E9EFF6}
+
+\graphicspath{{../02_analysis/output/figures/supervisor_memo/}{../02_analysis/output/figures/preliminary_results/}}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{2.5pt}
+\setlist[itemize]{leftmargin=1.25em,itemsep=0.8pt,topsep=1.5pt,parsep=0pt}
+\setlist[enumerate]{leftmargin=1.45em,itemsep=1pt,topsep=1.5pt,parsep=0pt}
+\captionsetup{font=footnotesize,labelfont=bf,skip=2pt}
+\renewcommand{\arraystretch}{1.15}
+\pagestyle{empty}
+
+\newcolumntype{Y}{>{\centering\arraybackslash}X}
+\newcolumntype{R}{>{\raggedleft\arraybackslash}X}
+
+\newcommand{\resultbox}[1]{%
+  \noindent\fcolorbox{forest}{softgreen}{%
+    \parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule\relax}{#1}}}
+\newcommand{\warningbox}[1]{%
+  \noindent\fcolorbox{orange}{softorange}{%
+    \parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule\relax}{#1}}}
+\newcommand{\tightsection}[1]{\vspace{2pt}{\large\bfseries\color{forest}#1}\par{\color{forest!40}\hrule height 0.5pt}\vspace{2pt}}
+\newcommand{\questionbanner}[1]{%
+  \noindent\colorbox{softblue}{\parbox{\dimexpr\linewidth-2\fboxsep\relax}{\vspace{2pt}{\Large\bfseries\color{qblue}#1}\vspace{2pt}}}\par\vspace{5pt}}
+\newcommand{\dataquestionbanner}[1]{%
+  \noindent\colorbox{softorange}{\parbox{\dimexpr\linewidth-2\fboxsep\relax}{\vspace{1.5pt}{\large\bfseries\color{orange}#1}\vspace{1.5pt}}}\par\vspace{4pt}}
+
+\begin{document}
+
+{\LARGE\bfseries\color{forest} Thesis Update}\hfill
+{\small 3 July 2026}
+
+\vspace{2pt}
+{\color{forest}\hrule height 1pt}
+\vspace{5pt}
+\resultbox{%
+\textbf{Where things stand.} The data construction and stayer classification hold up well, and inventor output clearly falls after acquisition. What I am still wrestling with is identification: a positive $t=-3$ lead shows up for patenting, patent counts, and citations, and the fixes I have tried either condition on post-treatment activity or simply relabel the lead. The reassuring part is that the post-deal decline survives formal sensitivity bounds (HonestDiD), so the estimated decline is not erased by the pre-trend violations allowed in those bounds; the open question is which design gives the cleanest causal reading of it. This memo lays out what I have found, what I have already tried, and the few places I would value your judgement.}
+
+\tightsection{1. Progress: construction and classification}
+
+I reconstructed the acquisition spine, linked inventors to pre-deal target groups, built balanced inventor-year outcomes that retain zero-patent years, and classified observed post-deal affiliation. The clean descriptive sample reproduces Cassi--Ornaghi's central composition closely: \textbf{71.5\%} of observed inventors are stayers, versus \textbf{72.6\%} in Cassi--Ornaghi.
+
+\textbf{How I classify inventors.} Every inventor-year after the deal falls into exactly one of four states, reconstructed from where I actually observe them patenting: \emph{active with the acquirer}, \emph{outside departure} (a patent under an unrelated group), \emph{silent} (no patent that year, but they patent again later), or \emph{career exit} (no patent that year, and never again anywhere in the data --- their last observed EPO patent is behind them). These four states are mutually exclusive and cover everyone in every year, which is what lets me talk about ``the'' stayer share without double-counting. Figure~1 shows how they evolve for inventors I ever observe staying with the acquirer: silent/gap years are the largest group right after the deal, and they gradually convert into career exits over the following five years --- exactly the composition shift I lean on in Section~2.
+
+\begin{minipage}{\linewidth}
+\centering
+\includegraphics[width=0.68\linewidth]{figure3_attrition_decomposition.png}
+\captionof{figure}{\textbf{Post-deal state decomposition among ever-observed stayers.} The four states are mutually exclusive and exhaustive in every year. Clean 1993--2010 sample.}
+\end{minipage}
+
+\vspace{3pt}
+\textbf{Where the estimation sample comes from.} The table below traces the full funnel from the 513-deal merger list to each sample used in this memo: deals with a single, unambiguous match in the underlying group-history data; of those, deals with at least one inventor actually patenting for the target group in the five pre-deal years; of those, deals whose deal year falls in the range the DiD panel can use; and, narrowest, deals that additionally sit inside the symmetric five-year window the descriptive figures need.
+
+\begin{center}
+\footnotesize
+\begin{tabularx}{\linewidth}{@{}*{5}{Y}@{}}
+\toprule
+Merger-list deals & Clearly matched & With a pre-deal inventor & DiD sample (1993--2015) & Descriptive window (1993--2010) \\
+\midrule
+513 & 478 & 453 & 450 & 338 \\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+Of the 450 DiD-sample deals, 133 (spread across the sample period, not concentrated late; see ``Questions,'' item 5) produce no classifiable stayer or leaver: 101 because no cohort inventor patents under any identity in the five post-deal years, 32 because the acquirer entity itself cannot be resolved.
+
+\vspace{4pt}
+\begin{minipage}{\linewidth}
+\centering
+\includegraphics[width=0.78\linewidth]{memo_figure1_raw_patents.pdf}
+\captionof{figure}{\textbf{Raw patent-count path.} Means for the fixed pre-deal target cohort, with missing inventor-years coded as zero. Pale shading is a 95\% percentile interval from 999 nonparametric bootstrap draws that resample complete deals. This is descriptive sampling uncertainty, not causal inference.}
+\end{minipage}
+
+\tightsection{2. Extensive margin, conditional intensity, and stayer selection}
+
+\begin{minipage}{\linewidth}
+\centering
+\includegraphics[width=0.94\linewidth]{memo_figure2_margins.pdf}
+\captionof{figure}{\textbf{Extensive and conditional intensive margins.} Pale ribbons are 95\% deal-cluster percentile intervals from 999 bootstrap draws. Patents per active inventor is recomputed within every draw. It conditions on contemporaneous patenting and is therefore descriptive.}
+\end{minipage}
+
+The probability of filing falls from 29.9\% at $t=-3$ to 11.3\% at $t=0$ and 4.7\% at $t=5$. In contrast, patents per active inventor rise from 1.68 to 2.17 and 2.42. That divergence is consistent with survivor composition: after acquisition, fewer inventors remain visible, and those who do are positively selected.
+
+\vspace{2pt}
+\begin{minipage}{\linewidth}
+\centering
+\includegraphics[width=0.94\linewidth]{memo_figure3_selection.pdf}
+\captionof{figure}{\textbf{Selection and post-deal visibility.} Panel A reports observed stayer shares by five-year pre-deal patent stock with 95\% deal-bootstrap whiskers. Panel B reports cumulative visibility in the full fixed cohort with 95\% deal-bootstrap ribbons. Affiliation series can overlap.}
+\end{minipage}
+
+Panel A shows that more productive inventors before the deal are more likely to be observed staying afterward: the probability of staying rises from 7.9\% for inventors with a single patent in the \emph{five years before the deal} to 33.4\% for those with three or more. Panel B shows why that matters for how to read the 71.5\% figure on the first page: by five years after the deal, only 21.1\% of the full pre-deal cohort has filed any patent at all --- 14.7\% with the acquirer and 7.5\% elsewhere, categories that can overlap for inventors observed in both affiliations and so need not sum to 21.1\% --- so most of the cohort has simply disappeared from the patent record. The 71.5\% stayer share is a share \emph{among the inventors I can still observe patenting}, not a share of the original cohort; almost 80\% of that cohort is not observably active in either direction five years out. Some of that is completely normal: inventors drop out of the patent record all the time, acquisition or not. As a benchmark, across all pharma inventors active in a given year, only 41.8\% file another patent within the next five years --- so a 58\% general disappearance rate is the baseline I am working against. The target cohort's 78.9\% is well above that baseline, but the comparison also shows I should not read the whole gap as acquisition-specific.
+
+\warningbox{\textbf{Interpretation.} The rising output I see among inventors who keep patenting is not a positive effect --- it is a selection artefact. Once I only look at inventors who are still patenting, I have already selected on the outcome, so of course average output looks higher among them. The same problem affects any sample defined by post-deal activity: active patentees, persistent stayers, observed stayers, all of it. That is why my primary estimand always keeps the full pre-deal cohort, zero-output inventors included.}
+
+\newpage
+
+\tightsection{3. The DiD estimates: large post-deal declines, but a pre-trend I cannot yet explain away}
+
+The post-deal effects are big and consistent, but the leads are the problem. It is easiest to see if I first show the event study with no anticipation window at all, and then the version I am currently working with.
+
+\begin{minipage}{\linewidth}
+\centering
+\includegraphics[width=0.97\linewidth]{memo_figure_did_noanticipation.pdf}
+\captionof{figure}{\textbf{DiD estimates with no anticipation window.} Same matched sample and estimator as the next figure, but anticipation $=0$, so the reference is $t=-1$. Both the $t=-4$ and $t=-3$ leads are positive and their simultaneous bands exclude zero. Pale ribbons are simultaneous 95\% multiplier-bootstrap bands from 999 draws clustered by deal; orange marks $t=-4$ and $t=-3$.}
+\end{minipage}
+
+With $t=-1$ as the reference, the pre-deal hump is stark: for any patent the leads are $+0.066$ at $t=-4$ and $+0.070$ at $t=-3$, and both exclude zero. Allowing one year of anticipation moves the reference to $t=-2$ and absorbs $t=-1$, which leaves a single significant lead at $t=-3$ (below).
+
+\begin{minipage}{\linewidth}
+\centering
+\includegraphics[width=0.97\linewidth]{memo_figure4_did.pdf}
+\captionof{figure}{\textbf{Current working specification (anticipation $=1$).} Callaway--Sant'Anna doubly robust estimator with not-yet-treated controls, anticipation $=1$, universal base $t=-2$, balanced event support through $|t|=5$, common support, and lean predetermined controls. Pale ribbons are simultaneous 95\% multiplier-bootstrap bands from 999 draws clustered by deal. The orange $t=-3$ point is the remaining identification warning.}
+\end{minipage}
+
+\begin{center}
+\small
+\begin{tabularx}{0.96\linewidth}{@{}>{\raggedright\arraybackslash}X *{3}{>{\centering\arraybackslash}p{0.215\linewidth}}@{}}
+\toprule
+Outcome & $t=-3$ & $t=0$ & $t=5$ \\
+\midrule
+Any patent & $+0.048\ [0.013,\ 0.083]$ & $-0.222\ [-0.292,\ -0.152]$ & $-0.388\ [-0.458,\ -0.318]$ \\
+$\log(1+\text{patents})$ & $+0.040\ [0.004,\ 0.076]$ & $-0.187\ [-0.244,\ -0.130]$ & $-0.346\ [-0.418,\ -0.273]$ \\
+$\log(1+\text{five-year citations})$ & $+0.052\ [0.009,\ 0.095]$ & $-0.116\ [-0.192,\ -0.039]$ & $-0.231\ [-0.296,\ -0.166]$ \\
+\bottomrule
+\end{tabularx}
+\par\vspace{2pt}
+\begin{minipage}{0.9\linewidth}
+\centering\footnotesize All intervals are 95\% simultaneous multiplier-bootstrap bands from 999 draws clustered by deal.
+\end{minipage}
+\end{center}
+
+\Needspace{7\baselineskip}
+The post-deal estimates are large and keep growing more negative, but all three $t=-3$ bands exclude zero. That is what I would expect if acquisitions happen near an inventive-output peak --- a mirror image of Ashenfelter's dip from the job-training literature, where earnings dip just before participation and partly recover afterward; here output would peak just before acquisition and partly revert --- or if the event-relative way I build the sample makes treated and donor trajectories non-comparable before treatment. The evidence I have gathered points at the first story.
+
+\warningbox{%
+\textbf{Why I do not yet trust parallel trends here.}
+\begin{itemize}
+  \item Inventors enter the sample through a patent window built around their own acquisition date. That alone can create a mechanical rise before the deal and a reversion afterward.
+  \item The hump comes from the most productive inventors, not from dead-weight leavers. When I restrict the sample to inventors with sustained pre-deal output, the lead roughly triples instead of shrinking --- that rules out a simple composition story and points to acquisition happening at a productivity peak.
+  \item The not-yet-treated donor pool is contaminated too: controls within three years of their own future deal are patenting at about $0.29$, versus about $0.04$ for controls further out. So the comparison group itself shifts as calendar time and event time move.
+  \item The Verginer-style survival restriction --- keeping only deals where the target or acquirer is still patenting afterward --- leaves the hump intact. It also conditions which deals are in the sample on a post-acquisition outcome, so it is selection, not a parallel-trends fix.
+\end{itemize}}
+
+This kind of pattern has a name in the labor literature: it is the mirror image of Ashenfelter's dip (Ashenfelter, 1978; Heckman and Smith, 1999), where program participation typically follows a trough in earnings rather than a peak. The standard responses there are either to model and net out the pre-trend directly --- matching participants to comparison workers with similar pre-period trajectories, as in Jacobson, LaLonde and Sullivan (1993) --- or to use a variable that predicts the pre-trend without itself being affected by anticipation, and use that to partial the pre-trend out, as in Freyaldenhoven, Hansen and Shapiro (2019). I have not built either of these directly yet: HonestDiD bounds the damage rather than removing it, and my common-support matching is closer to the first approach than the second. I do not think another covariate is going to fix this. What I actually need is to pin down the construction mechanism, work out whether the risk set itself needs redesigning, and bound whatever I cannot get rid of --- and I would like your read on whether it is worth building the trajectory-matching or propensity-weighting version properly, or whether bounding is the more defensible place to stop (see the Questions section).
+
+\tightsection{4. What I have tried, and what is still open}
+
+\textbf{How I am thinking about the estimand}
+
+\begin{enumerate}
+  \item \textbf{Primary total effect.} My main estimand keeps the full pre-deal target cohort, zero-patent years and all, so I never condition on post-acquisition visibility or affiliation.
+  \item \textbf{Extensive-margin outcomes.} Patenting, moving to an outside group, going silent, and exiting a career are things I want to explain, not filters for deciding who stays in the sample.
+  \item \textbf{Conditional intensity.} Patents among active patentees and outcomes among observed stayers are useful descriptive decompositions, but I only present them that way --- never as causal estimates.
+  \item \textbf{Selection sensitivity.} Where I do look at observed stayers, I plan to reweight using only pre-treatment variables and report trimming or tipping-point ranges, and I will only reach for Lee bounds if I can make a genuine monotonicity argument for the underlying selection.
+  \item \textbf{No unsupported stayer ATT.} Without a credible principal-strata assumption or an instrument, I will not claim a point-identified effect for ``always-stayers.''
+\end{enumerate}
+
+\vspace{5pt}
+\textbf{What I have already tried}
+
+\begin{itemize}
+  \item \textbf{Sensitivity bounds (HonestDiD).} The post-deal decline holds up well. At impact, the confidence set excludes zero under both the smoothness and the relative-magnitude restrictions. Further out it survives pre-trend violations up to $1.25$--$1.75\times$ the largest lead I actually observe under relative magnitudes, though it is more fragile under a strict smoothness restriction, which the non-monotone hump violates easily.
+  \item \textbf{Restricting to genuinely active inventors.} This backfires, as noted above: the lead grows rather than shrinks, which tells me the pre-trend is selection into acquisition at a peak, not composition.
+  \item \textbf{Widening the anticipation window.} With anticipation $=2$, the remaining leads at $t=-5$ and $t=-4$ become insignificant and the five-year effect barely moves ($\approx -0.39$) --- but only because $t=-2$ and $t=-1$ are then treated as anticipated response. That may be the right call, or it may just be absorbing the pre-trend.
+  \item \textbf{A never-treated comparison} is ready to build (roughly $351{,}000$ pharma-active inventors never sit in a target cohort), and I still owe a working placebo-timing test --- my first, truncated-panel version does not aggregate cleanly, so it needs a redesign.
+\end{itemize}
+
+\newpage
+
+\questionbanner{Questions}
+
+\textbf{On the identification strategy}
+
+\begin{enumerate}
+  \item Is a one- or two-year anticipation window defensible, given \texttt{target\_year} is most likely the merger \emph{announcement} date? There could easily have been rumors before the announcement that changed inventor behavior --- but would that push output in the direction I actually see? A rumor-driven scramble to establish priority would raise output before the deal, which fits; anxiety-driven disengagement would lower it, which does not. I would like a sanity check on which story is more plausible here.
+  \item Should I explicitly model and subtract the pre-trend --- matching or reweighting on the pre-period trajectory --- or is propensity-score matching on pre-deal characteristics the better first move, rather than only bounding the residual with HonestDiD?
+  \item Should I change the design before going further: move the primary comparison to never-treated controls, or redefine the at-risk set on a calendar rather than treatment-relative basis, so cohort construction cannot mechanically generate the hump?
+  \item Is the honest endpoint to bound the residual and present the effect as robust despite a pre-trend, rather than keep chasing a perfectly flat line?
+\end{enumerate}
+
+\vspace{4pt}
+\dataquestionbanner{Data questions for Professor Cassi}
+
+\begin{enumerate}
+  \item Does \texttt{target\_year} represent the announcement date, legal completion, or organizational integration? That is what would tell me whether anticipation $=1$ (or $=2$) is justified rather than assumed.
+  \item Is acquisition at an inventive-output peak plausible in this setting, or would you read the $t=-3$ hump as an artefact of how I construct the cohort?
+  \item Does keeping only an inventor's earliest acquisition exposure match your intended treatment-assignment convention, or would you handle inventors who appear in multiple acquisitions differently?
+  \item How should placeholder group identifiers (the \texttt{999}-prefixed ones) enter affiliation histories, and are target-to-acquirer fallback mappings acceptable when the original target identifier disappears?
+  \item 133 of the 450 DiD-sample deals produce no classifiable stayer or leaver, spread across the full sample period rather than concentrated late. Of these, 101 have no cohort inventor patenting under any identity in the five post-deal years, and 32 have an acquirer entity I cannot resolve at all. For the 101: is complete post-deal patenting attrition plausible for small or fully absorbed targets, or does my affiliation resolution more likely miss patents filed under a renamed or restructured successor entity? Do you have data beyond 2015, or a fuller group-history mapping, that would help resolve either group?
+\end{enumerate}
+
+\newpage
+
+\tightsection{Technical appendix: exact definitions, reconstruction, and open data questions}
+
+\textbf{Sample construction and classification.} Deals come from a 513-deal merger list. I match each one to the underlying group-history data using the deal year and value, which resolves cleanly for 478 deals once I drop ambiguous or placeholder-group matches --- these are the ``clearly matched'' deals in the Section~1 table. For the descriptive figures I further restrict to a 1993--2010 window so that every deal has a complete five-year window before and after the acquisition, leaving 338 deals with inventors and 28,279 pre-deal target inventors. As shown in the Section~1 funnel table, the DiD panel relaxes that symmetric-window requirement and so covers more deals and inventors (450 deals, 32,233 inventors) than the descriptive sample.
+
+An inventor enters the pre-deal cohort based on their latest resolved (or candidate-list) affiliation with the target group in the five years before the deal; if an inventor is linked to more than one acquisition, I keep only their earliest exposure, so the event-time interpretation stays clean. Post-deal, I reconstruct each inventor's affiliation year by year from their observed patent record --- with the target group, with the acquirer, or with an unrelated outside group --- and roll that up into a status over the fixed five-year window: \emph{stayer} (\texttt{T\_Ever\_Stayed}) means at least one patent affiliated with the acquiring group is observed at any point in that window, which is an ``ever observed'' measure, not evidence of continuous five-year retention; \emph{leaver} means a patent observed under an unrelated group instead. \emph{Career exit} is defined independently of the deal: it is the calendar year of an inventor's last observed EPO patent anywhere in the full 1988--2015 data, which is what lets me tell a permanent exit apart from a silent gap year in Figure~1.
+
+\vspace{4pt}
+\textbf{Main estimator and sample.} The provisional DiD uses 32,233 inventors and 450 deals on the common-support sample. It estimates group-time effects with Callaway--Sant'Anna doubly robust scores, not-yet-treated controls, anticipation $=1$, universal base $t=-2$, and \texttt{balance\_e=5}. Predetermined controls are career age and its square, primary IPC field, log five-year pre-deal patent stock, log group size, and log deal value. The panel is balanced and inventor-years are unique.
+
+\textbf{Outcomes.}
+\begin{itemize}
+  \item \emph{Any patent}: one if annual patent count is positive; \emph{patents}: $\log(1+\text{annual count})$.
+  \item \emph{Citations}: patent--inventor links are first deduplicated by application, inventor, and year. OECD five-year forward citations are summed to inventor-year and transformed as $\log(1+\text{sum})$. The citation panel uses exactly the patent panels' inventors, deals, timing, support, controls, and clustering.
+  \item The descriptive cohort is fixed using pre-deal information; absent annual patents are zeros. Affiliation and active-patenter analyses are explicitly secondary outcomes or descriptions.
+\end{itemize}
+
+\textbf{Uncertainty.} Descriptive intervals are percentile intervals from a fixed-seed, 999-draw nonparametric bootstrap that resamples complete deals; nonlinear ratios are recomputed within draws. DiD ribbons are simultaneous, not pointwise, 95\% bands from a 999-draw multiplier bootstrap clustered by \texttt{deal\_id}.
+
+\vspace{4pt}
+\textbf{Verginer--Riccaboni reconstruction.}
+
+{\small
+\noindent\begin{tabularx}{\linewidth}{@{}>{\raggedright\arraybackslash}X R R R@{}}
+\toprule
+Outcome & Published average & Paper-faithful reconstruction & Corrected reconstruction \\
+\midrule
+$\log(1+\text{patents})$ & $-0.136$ & $-0.256$ & $-0.264$ \\
+$\log(1+\text{citations})$ & $-0.350$ & $-0.156$ & $-0.170$ \\
+\bottomrule
+\end{tabularx}\par
+}
+
+The operational survival sample --- keeping only deals where the target or acquirer is still patenting afterward --- shrinks to 29,533 inventors and 348 deals, and it does not fix the pre-trend: $t=-3$ is $+0.065$ for patents and $+0.068$ for citations with universal base and balanced support, both still excluding zero. Literal target-only survival is even more restrictive, retaining just 6 of 478 spine deals, since target group identifiers typically transition to the acquirer. Forward-looking activity and exit outcomes mechanically constrain their own pre-period paths, so neither restores identification.
+
+The two reconstruction deviations run in opposite directions (patents nearly double their published magnitude, citations less than half), which most likely reflects data-layer differences rather than estimator settings: Verginer--Riccaboni use PCT-family patents, Google Patents citations truncated at 2022, and a biotech-specific deal list, whereas this reconstruction uses EPO applications, OECD's fixed five-year forward-citation window, and the broader pharma deal list used throughout this memo.
+
+\vfill
+{\footnotesize\color{gray}Reproducibility: \texttt{02\_analysis/R/10\_build\_supervisor\_memo\_assets.R}; generated CSVs in \texttt{02\_analysis/output/results/supervisor\_memo/}; vector figures and PNG previews in \texttt{02\_analysis/output/figures/supervisor\_memo/}.}
+
+\end{document}

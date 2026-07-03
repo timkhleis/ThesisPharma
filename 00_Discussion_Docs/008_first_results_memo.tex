@@ -1,0 +1,139 @@
+\documentclass[10pt]{article}
+
+\usepackage[margin=0.58in]{geometry}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage{tabularx}
+\usepackage{xcolor}
+\usepackage{enumitem}
+\usepackage{microtype}
+\usepackage{parskip}
+\usepackage{caption}
+
+\definecolor{forest}{HTML}{1B4332}
+\definecolor{softgreen}{HTML}{EAF2EE}
+\definecolor{softyellow}{HTML}{FFF7D6}
+\definecolor{linegrey}{HTML}{D6D6D6}
+
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{3pt}
+\setlist[itemize]{leftmargin=1.25em,itemsep=1pt,topsep=2pt}
+\captionsetup{font=small,labelfont=bf,skip=2pt}
+\pagestyle{empty}
+
+\newcommand{\resultbox}[1]{%
+  \noindent\fcolorbox{linegrey}{softgreen}{%
+    \parbox{0.965\linewidth}{#1}}}
+
+\newcommand{\statusbox}[1]{%
+  \noindent\fcolorbox{linegrey}{softyellow}{%
+    \parbox{0.965\linewidth}{#1}}}
+
+\begin{document}
+
+{\Large\bfseries First Results: Acquisitions and Inventor Productivity}\hfill
+{\small 29 June 2026}
+
+{\small Preliminary descriptive evidence for supervisor discussion. The causal estimation panel is complete, but no CS(2021) coefficient is reported until the official \texttt{did} package runs successfully.}
+
+\vspace{2pt}
+\resultbox{%
+\textbf{Three preliminary facts.}
+\begin{itemize}
+  \item The corrected sample is anchored to the published 513-merger universe. It retains 478 uniquely matched target-spine deals after Cassi's target-side exclusions; 345 lie in the 1993--2010 clean window.
+  \item Among 28,279 pre-deal target inventors in the clean sample, mean annual patenting falls from 0.474 in year $-1$ to 0.246 in the deal year and 0.113 by year $+5$. These are descriptive means, not treatment effects.
+  \item The late decline is concentrated on the extensive margin. Continuing-patenter stayers remain productive, while the broader persistent-stayer sample increasingly includes silent inventors and career exits.
+\end{itemize}}
+
+\vspace{5pt}
+\begin{minipage}[t]{0.34\textwidth}
+\textbf{Corrected sample construction}
+
+\small
+\begin{tabularx}{\linewidth}{@{}Xr@{}}
+\toprule
+Stage & Count \\
+\midrule
+Merger-list deals & 513 \\
+Unique spine matches & 490 \\
+After target drop flags & 478 \\
+Clean target-spine deals & 345 \\
+Clean deals with inventors & 338 \\
+Clean target inventors & 28,279 \\
+Status-eligible inventors & 27,510 \\
+\bottomrule
+\end{tabularx}
+
+\vspace{5pt}
+\textbf{Why the deal count changed}
+
+The group-history files cover more mergers than the published sample. The previous reconstruction inadvertently admitted those additional events. The corrected code first anchors each event to \texttt{deal\_map.deal\_id}, excludes 22 unmatched deals and one ambiguous match, and then applies Cassi's drop flags.
+\end{minipage}\hfill
+\begin{minipage}[t]{0.64\textwidth}
+\centering
+\includegraphics[width=\linewidth]{../02_analysis/output/figures/preliminary_results/figure1_full_cohort.png}
+\captionof{figure}{Full pre-deal target cohort. Missing inventor-years are coded as zero patent output. The figure is an event-time profile and contains no comparison group.}
+\end{minipage}
+
+\vfill
+\statusbox{%
+\textbf{Causal estimation status.} The balanced CS(2021) panel contains 903,420 inventor-year observations for 32,265 inventors over 1988--2015. It passes uniqueness and balance checks. Installation of the official \texttt{did} package is currently blocked by CRAN access, so the memo does not substitute an unvalidated estimator.}
+
+\newpage
+
+{\large\bfseries Stayer Classification and Intensive-Margin Evidence}
+
+\begin{minipage}[t]{0.48\textwidth}
+\centering
+\includegraphics[width=\linewidth]{../02_analysis/output/figures/preliminary_results/figure2a_persistent_stayer5.png}
+\end{minipage}\hfill
+\begin{minipage}[t]{0.48\textwidth}
+\centering
+\includegraphics[width=\linewidth]{../02_analysis/output/figures/preliminary_results/figure2b_patent_active_survivor5.png}
+\end{minipage}
+
+{\small\textbf{Figure 2.} Descriptive patenting profiles for persistent stayers (left, $N=3{,}696$ in the clean sample) and continuing-patenter stayers (right, $N=1{,}309$). Both samples are defined using post-treatment outcomes. The right panel is therefore a selected intensive-margin result, not evidence for the total causal effect on retained inventors.}
+
+\vspace{5pt}
+\begin{minipage}[t]{0.48\textwidth}
+\textbf{Comparison with Cassi--Ornaghi}
+
+\small
+\begin{tabularx}{\linewidth}{@{}Xrrr@{}}
+\toprule
+Source & Stayers & Leavers & Share \\
+\midrule
+Cassi--Ornaghi & 7,104 & 2,675 & 72.6\% \\
+Thesis, corrected & 4,419 & 1,771 & 71.4\% \\
+Thesis, clean window & 4,160 & 1,662 & 71.5\% \\
+\bottomrule
+\end{tabularx}
+
+\vspace{4pt}
+The stay/leave composition remains close to Cassi--Ornaghi, although the thesis has fewer active inventors. This follows from the matched-spine restriction, the five-year pre- and post-deal windows, stricter affiliation assignment, and first-exposure treatment timing.
+\end{minipage}\hfill
+\begin{minipage}[t]{0.48\textwidth}
+\textbf{Interpretation discipline}
+
+\small
+\begin{itemize}
+  \item The main full-cohort design is fixed before treatment and does not condition on staying.
+  \item \texttt{T\_Ever\_Stayed} records at least one acquirer-affiliated patent within five years; it does not imply continuous retention.
+  \item Persistent-stayer and continuing-patenter profiles describe selected post-treatment populations.
+  \item The divergence between the two panels shows why career visibility must not be silently imposed as a sample restriction.
+\end{itemize}
+\end{minipage}
+
+\vspace{6pt}
+\statusbox{%
+\textbf{Feedback requested from Prof. Cassi.}
+\begin{enumerate}[leftmargin=1.35em,itemsep=1pt,topsep=2pt]
+  \item Is there an intended mapping for the 22 merger-list deals without an exact group-history match?
+  \item Which Zephyr event corresponds to the ambiguous 2008 acquisition value of 25,000: Curacyte Discovery or Hunter-Fleming?
+  \item When group-history timing differs from the Zephyr legal merger year, should treatment follow organizational integration or legal closing?
+\end{enumerate}}
+
+\vfill
+{\footnotesize\color{gray}All figures are preliminary. The full-cohort CS(2021) estimates will use not-yet-treated controls, deal-level clustering, and the matched-spine sample shown here.}
+
+\end{document}

@@ -4,8 +4,10 @@
 #   Rscript 02_analysis/R/04c_build_prelim_own_status.R
 #
 # Outputs:
-#   DuckDB tables : cassi_deal_spine, inventor_status_own
+#   DuckDB tables : cassi_deal_spine, cassi_deal_group_spine,
+#                   target_cohort_own, inventor_status_own
 #   Parquet       : 02_analysis/output/parquet/helper/cassi_deal_spine.parquet
+#                   02_analysis/output/parquet/derived/target_cohort_own.parquet
 #                   02_analysis/output/parquet/derived/inventor_status_own.parquet
 #   Audit CSVs    : 02_analysis/output/audit/prelim_own_status/
 
@@ -53,6 +55,8 @@ banner("PRELIMINARY OWN STATUS CLASSIFICATION")
 required_tables <- c(
   "cassi_group_history_target",
   "cassi_merge",
+  "deal_map",
+  "merger_list",
   "inventor_affiliation_own",
   "inventor_status_reference"
 )
@@ -208,14 +212,40 @@ WHERE deal_year BETWEEN 1988 AND 2015
 spine_path <- copy_to_parquet(con, "cassi_deal_spine", HELPER_PARQUET)
 message("Written: ", spine_path)
 
-section("Building first-exposure target-side inventor classification")
+section("Restricting the group-history spine to the 513 thesis deals")
 
 DBI::dbExecute(con, "
 CREATE OR REPLACE TABLE cassi_deal_group_spine AS
+WITH match_counts AS (
+  SELECT
+    CAST(dm.deal_id AS BIGINT) AS deal_id,
+    COUNT(DISTINCT cds.dealnumber) AS n_matching_dealnumbers
+  FROM deal_map dm
+  LEFT JOIN cassi_deal_spine cds
+    ON dm.target_year = cds.deal_year
+   AND dm.target_value = cds.deal_value
+  GROUP BY dm.deal_id
+),
+unique_matches AS (
+  SELECT
+    CAST(dm.deal_id AS BIGINT) AS deal_id,
+    dm.target_year AS deal_year,
+    dm.target_value AS deal_value,
+    CAST(dm.big AS BOOLEAN) AS big_deal,
+    cds.*
+  FROM deal_map dm
+  JOIN match_counts mc
+    ON CAST(dm.deal_id AS BIGINT) = mc.deal_id
+   AND mc.n_matching_dealnumbers = 1
+  JOIN cassi_deal_spine cds
+    ON dm.target_year = cds.deal_year
+   AND dm.target_value = cds.deal_value
+  WHERE cds.target_group IS NOT NULL
+    AND COALESCE(cds.todrop_tar, 0) <> 1
+)
 SELECT
-  ROW_NUMBER() OVER (
-    ORDER BY MIN(deal_year), dealnumber, target_group, acquirer_group
-  ) AS cassi_deal_group_id,
+  deal_id,
+  deal_id AS cassi_deal_group_id,
   dealnumber,
   MIN(deal_year) AS deal_year,
   MAX(deal_value) AS deal_value,
@@ -228,26 +258,29 @@ SELECT
   MIN(acquirer_compcod) AS acquirer_compcod,
   MIN(acquirer) AS acquirer,
   MIN(target) AS target,
+  MIN(year_merge) AS year_merge,
+  BOOL_OR(COALESCE(todrop_acq, 0) = 1) AS todrop_acq,
+  BOOL_OR(COALESCE(todrop_tar, 0) = 1) AS todrop_tar,
   string_agg(DISTINCT spine_issue, ';' ORDER BY spine_issue) AS spine_issues
-FROM cassi_deal_spine
-WHERE target_group IS NOT NULL
-  AND acquirer_group IS NOT NULL
-GROUP BY dealnumber, target_group, acquirer_group
+FROM unique_matches
+GROUP BY deal_id, dealnumber, target_group, acquirer_group
 ")
 
 group_spine_path <- copy_to_parquet(con, "cassi_deal_group_spine", HELPER_PARQUET)
 message("Written: ", group_spine_path)
 
+section("Building first-exposure target-side inventor classification")
+
 DBI::dbExecute(con, "
-CREATE OR REPLACE TABLE inventor_status_own AS
+CREATE OR REPLACE TEMP TABLE pre_target_side AS
 WITH usable_deals AS (
   SELECT *
   FROM cassi_deal_group_spine
 ),
-target_side AS (
-  SELECT
-    ia.codinv,
-    ud.cassi_deal_group_id,
+target_candidate_pairs AS (
+  SELECT DISTINCT
+    CAST(ud.deal_id AS BIGINT) AS deal_id,
+    CAST(ud.cassi_deal_group_id AS BIGINT) AS deal_group_id,
     ud.dealnumber,
     ud.deal_year,
     ud.deal_value,
@@ -258,53 +291,217 @@ target_side AS (
     ud.big_deal,
     ud.n_target_companies,
     ud.target_compcod_list,
-    MIN(ia.year) AS first_target_affiliation_year,
-    MAX(ia.year) AS last_target_affiliation_year,
-    COUNT(DISTINCT ia.year) AS n_target_pre_years
+    ud.todrop_acq,
+    CASE
+      WHEN ud.acquirer_group IS NOT NULL
+       AND CAST(ud.acquirer_group AS VARCHAR) NOT LIKE '999%'
+       AND NOT ud.todrop_acq
+      THEN TRUE ELSE FALSE
+    END AS status_eligible,
+    CAST(ia.codinv AS BIGINT) AS inventor_id
   FROM usable_deals ud
   JOIN inventor_affiliation_own ia
-    ON ia.resolved_group = ud.target_group
-   AND ia.year BETWEEN ud.deal_year - 5 AND ud.deal_year - 1
-  GROUP BY
-    ia.codinv,
-    ud.cassi_deal_group_id,
-    ud.dealnumber,
-    ud.deal_year,
-    ud.deal_value,
-    ud.acquirer_compcod,
-    ud.target_group,
-    ud.acquirer_group,
-    ud.acquirer_group_source,
-    ud.big_deal,
-    ud.n_target_companies,
-    ud.target_compcod_list
-),
-last_pre_affiliation AS (
+    ON ia.year BETWEEN ud.deal_year - 5 AND ud.deal_year - 1
+  WHERE COALESCE(ia.resolved_group = ud.target_group, FALSE)
+     OR COALESCE(
+          list_contains(
+            string_split(ia.candidate_group_list, ';'),
+            CAST(CAST(ud.target_group AS BIGINT) AS VARCHAR)
+          ),
+          FALSE
+        )
+     OR COALESCE(ia.resolved_group = ud.acquirer_group, FALSE)
+)
+SELECT
+  tcp.deal_id,
+  tcp.deal_group_id,
+  tcp.dealnumber,
+  tcp.deal_year,
+  tcp.deal_value,
+  tcp.acquirer_compcod,
+  tcp.target_group,
+  tcp.acquirer_group,
+  tcp.acquirer_group_source,
+  tcp.big_deal,
+  tcp.n_target_companies,
+  tcp.target_compcod_list,
+  tcp.todrop_acq,
+  tcp.status_eligible,
+  tcp.inventor_id,
+  ia.year,
+  ia.resolved_group,
+  ia.resolved_by,
+  ia.candidate_group_count,
+  ia.candidate_group_list,
+  COALESCE(ia.resolved_group = tcp.target_group, FALSE) AS target_resolved,
+  COALESCE(
+    list_contains(
+      string_split(ia.candidate_group_list, ';'),
+      CAST(CAST(tcp.target_group AS BIGINT) AS VARCHAR)
+    ),
+    FALSE
+  ) AS target_candidate,
+  COALESCE(ia.resolved_group = tcp.acquirer_group, FALSE) AS acquirer_resolved
+FROM target_candidate_pairs tcp
+JOIN inventor_affiliation_own ia
+  ON CAST(ia.codinv AS BIGINT) = tcp.inventor_id
+ AND ia.year BETWEEN tcp.deal_year - 5 AND tcp.deal_year - 1
+")
+
+DBI::dbExecute(con, "
+CREATE OR REPLACE TEMP TABLE pre_target_side_current AS
+WITH target_side_summary AS (
   SELECT
-    ts.codinv,
-    ts.cassi_deal_group_id,
-    ia.year AS last_pre_affiliation_year,
-    ia.resolved_group AS last_pre_affiliation_group,
+    inventor_id,
+    deal_group_id,
+    MIN(CASE WHEN target_resolved OR target_candidate THEN year END) AS first_target_affiliation_year,
+    MAX(CASE WHEN target_resolved OR target_candidate THEN year END) AS last_target_affiliation_year,
+    COUNT(DISTINCT CASE WHEN target_resolved OR target_candidate THEN year END) AS n_target_pre_years,
+    BOOL_OR(target_resolved) AS target_resolved_pre5,
+    BOOL_OR(target_candidate) AS target_candidate_pre5,
+    MIN(CASE WHEN acquirer_resolved THEN year END) AS first_acquirer_resolved_pre_year,
+    MAX(CASE WHEN target_resolved OR target_candidate THEN year END) AS last_target_evidence_pre_year
+  FROM pre_target_side
+  GROUP BY inventor_id, deal_group_id
+),
+latest_pre_affiliation AS (
+  SELECT
+    pts.deal_id,
+    pts.deal_group_id,
+    pts.dealnumber,
+    pts.deal_year,
+    pts.deal_value,
+    pts.acquirer_compcod,
+    pts.target_group,
+    pts.acquirer_group,
+    pts.acquirer_group_source,
+    pts.big_deal,
+    pts.n_target_companies,
+    pts.target_compcod_list,
+    pts.todrop_acq,
+    pts.status_eligible,
+    pts.inventor_id,
+    pts.year,
+    pts.resolved_group,
+    pts.resolved_by,
+    pts.candidate_group_count,
+    pts.candidate_group_list,
+    pts.target_resolved,
+    pts.target_candidate,
+    pts.acquirer_resolved
+  FROM pre_target_side pts
+  JOIN (
+    SELECT
+      inventor_id,
+      deal_group_id,
+      MAX(year) AS last_pre_affiliation_year
+    FROM pre_target_side
+    GROUP BY inventor_id, deal_group_id
+  ) ly
+    ON pts.inventor_id = ly.inventor_id
+   AND pts.deal_group_id = ly.deal_group_id
+   AND pts.year = ly.last_pre_affiliation_year
+)
+SELECT
+  lp.inventor_id AS codinv,
+  lp.deal_id,
+  lp.deal_group_id AS cassi_deal_group_id,
+  lp.dealnumber,
+  lp.deal_year,
+  lp.deal_value,
+  lp.acquirer_compcod,
+  lp.target_group,
+  lp.acquirer_group,
+  lp.acquirer_group_source,
+  lp.big_deal,
+  lp.n_target_companies,
+  lp.target_compcod_list,
+  lp.todrop_acq,
+  lp.status_eligible,
+  ts.first_target_affiliation_year,
+  ts.last_target_affiliation_year,
+  ts.n_target_pre_years,
+  lp.year AS last_pre_affiliation_year,
+  lp.resolved_group AS last_pre_affiliation_group,
+  lp.candidate_group_list AS latest_pre_candidate_group_list,
+  lp.resolved_by AS latest_pre_resolved_by,
+  lp.candidate_group_count AS latest_pre_candidate_group_count,
+  ts.target_resolved_pre5,
+  ts.target_candidate_pre5,
+  lp.target_resolved AS target_resolved_latest,
+  lp.target_candidate AS target_candidate_latest,
+  lp.acquirer_resolved AS acquirer_resolved_latest,
+  ts.first_acquirer_resolved_pre_year,
+  ts.last_target_evidence_pre_year,
+  CASE
+    WHEN lp.acquirer_resolved
+     AND lp.year = lp.deal_year - 1
+     AND ts.first_acquirer_resolved_pre_year = lp.deal_year - 1
+     AND ts.last_target_evidence_pre_year IS NOT NULL
+     AND ts.last_target_evidence_pre_year < ts.first_acquirer_resolved_pre_year
+     AND lp.deal_year - 1 - ts.last_target_evidence_pre_year <= 2
+    THEN TRUE ELSE FALSE
+  END AS target_to_acquirer_transition_strict,
+  lp.target_resolved AS target_cohort_conservative,
+  CASE WHEN ts.target_resolved_pre5 OR ts.target_candidate_pre5 THEN TRUE ELSE FALSE END AS target_cohort_any_pre5,
+  CASE
+    WHEN lp.target_resolved THEN 'resolved_latest'
+    WHEN lp.target_candidate THEN 'candidate_latest'
+    WHEN lp.acquirer_resolved
+     AND lp.year = lp.deal_year - 1
+     AND ts.first_acquirer_resolved_pre_year = lp.deal_year - 1
+     AND ts.last_target_evidence_pre_year IS NOT NULL
+     AND ts.last_target_evidence_pre_year < ts.first_acquirer_resolved_pre_year
+     AND lp.deal_year - 1 - ts.last_target_evidence_pre_year <= 2
+      THEN 'acquirer_transition_strict'
+    ELSE 'not_target_cohort'
+  END AS target_assignment_rule
+FROM latest_pre_affiliation lp
+JOIN target_side_summary ts
+  ON lp.inventor_id = ts.inventor_id
+ AND lp.deal_group_id = ts.deal_group_id
+WHERE (
+    lp.target_resolved
+    OR lp.target_candidate
+    OR (
+      lp.acquirer_resolved
+      AND lp.year = lp.deal_year - 1
+      AND ts.first_acquirer_resolved_pre_year = lp.deal_year - 1
+      AND ts.last_target_evidence_pre_year IS NOT NULL
+      AND ts.last_target_evidence_pre_year < ts.first_acquirer_resolved_pre_year
+      AND lp.deal_year - 1 - ts.last_target_evidence_pre_year <= 2
+    )
+  )
+")
+
+DBI::dbExecute(con, "
+CREATE OR REPLACE TABLE target_cohort_own AS
+WITH ranked AS (
+  SELECT
+    *,
     ROW_NUMBER() OVER (
-      PARTITION BY ts.codinv, ts.cassi_deal_group_id
-      ORDER BY ia.year DESC
-    ) AS rn
-  FROM target_side ts
-  JOIN inventor_affiliation_own ia
-    ON ia.codinv = ts.codinv
-   AND ia.year BETWEEN ts.deal_year - 5 AND ts.deal_year - 1
-),
-target_side_current AS (
-  SELECT
-    ts.*,
-    lp.last_pre_affiliation_year,
-    lp.last_pre_affiliation_group
-  FROM target_side ts
-  JOIN last_pre_affiliation lp
-    ON ts.codinv = lp.codinv
-   AND ts.cassi_deal_group_id = lp.cassi_deal_group_id
-   AND lp.rn = 1
-   AND lp.last_pre_affiliation_group = ts.target_group
+      PARTITION BY codinv
+      ORDER BY deal_year, deal_id
+    ) AS exposure_rank,
+    COUNT(*) OVER (PARTITION BY codinv) AS n_candidate_exposures
+  FROM pre_target_side_current
+)
+SELECT
+  *,
+  CASE WHEN n_candidate_exposures > 1 THEN TRUE ELSE FALSE END AS multi_exposure_inventor
+FROM ranked
+WHERE exposure_rank = 1
+")
+
+target_cohort_path <- copy_to_parquet(con, "target_cohort_own", DERIVED_PARQUET)
+message("Written: ", target_cohort_path)
+
+DBI::dbExecute(con, "
+CREATE OR REPLACE TABLE inventor_status_own AS
+WITH target_side_current AS (
+  SELECT *
+  FROM target_cohort_own
+  WHERE status_eligible
 ),
 post_activity AS (
   SELECT
@@ -332,7 +529,7 @@ post_activity AS (
         OR CAST(ia.resolved_group AS VARCHAR) LIKE '999%' THEN ia.year END) AS n_unclassified_post_years
   FROM target_side_current ts
   LEFT JOIN inventor_affiliation_own ia
-    ON ia.codinv = ts.codinv
+    ON CAST(ia.codinv AS BIGINT) = ts.codinv
    AND ia.year BETWEEN ts.deal_year AND ts.deal_year + 5
   GROUP BY ts.codinv, ts.cassi_deal_group_id
 ),
@@ -361,7 +558,7 @@ unrestricted_activity AS (
       AS n_late_other_years
   FROM target_side_current ts
   LEFT JOIN inventor_affiliation_own ia
-    ON ia.codinv = ts.codinv
+    ON CAST(ia.codinv AS BIGINT) = ts.codinv
    AND ia.year >= ts.deal_year
   GROUP BY ts.codinv, ts.cassi_deal_group_id
 ),
@@ -375,7 +572,7 @@ outside_after_acquirer AS (
     ON ts.codinv = pa.codinv
    AND ts.cassi_deal_group_id = pa.cassi_deal_group_id
   JOIN inventor_affiliation_own ia
-    ON ia.codinv = ts.codinv
+    ON CAST(ia.codinv AS BIGINT) = ts.codinv
    AND ia.year > pa.first_acquirer_year
    AND ia.year BETWEEN ts.deal_year AND ts.deal_year + 5
    AND ia.resolved_group IS NOT NULL
@@ -397,7 +594,7 @@ horizon_outside AS (
       WHEN ia.year BETWEEN ts.deal_year AND ts.deal_year + 5 THEN ia.year END) AS n_outside_through_5
   FROM target_side_current ts
   LEFT JOIN inventor_affiliation_own ia
-    ON ia.codinv = ts.codinv
+    ON CAST(ia.codinv AS BIGINT) = ts.codinv
    AND ia.year BETWEEN ts.deal_year AND ts.deal_year + 5
    AND ia.resolved_group IS NOT NULL
    AND CAST(ia.resolved_group AS VARCHAR) NOT LIKE '999%'
@@ -407,7 +604,7 @@ horizon_outside AS (
 ),
 career_end AS (
   SELECT
-    codinv,
+    CAST(codinv AS BIGINT) AS codinv,
     MAX(year) AS career_end_year
   FROM inventor_year
   WHERE patent_count > 0
@@ -504,21 +701,12 @@ with_diagnostics AS (
     CASE WHEN type = 'T_Ever_Stayed'
        AND career_end_year < deal_year + 5 THEN TRUE ELSE FALSE END AS career_exit_before_5
   FROM classified
-),
-ranked AS (
-  SELECT
-    *,
-    ROW_NUMBER() OVER (
-      PARTITION BY codinv
-      ORDER BY deal_year, cassi_deal_group_id
-    ) AS exposure_rank,
-    COUNT(*) OVER (PARTITION BY codinv) AS n_candidate_exposures
-  FROM with_diagnostics
 )
 SELECT
   codinv,
+  deal_id,
   cassi_deal_group_id,
-  cassi_deal_group_id AS cassi_deal_row_id,
+  deal_id AS cassi_deal_row_id,
   dealnumber,
   deal_year,
   deal_value,
@@ -537,6 +725,20 @@ SELECT
   last_pre_affiliation_year,
   last_pre_affiliation_group,
   n_target_pre_years,
+  target_resolved_pre5,
+  target_candidate_pre5,
+  target_resolved_latest,
+  target_candidate_latest,
+  acquirer_resolved_latest,
+  first_acquirer_resolved_pre_year,
+  last_target_evidence_pre_year,
+  target_to_acquirer_transition_strict,
+  target_cohort_conservative,
+  target_cohort_any_pre5,
+  target_assignment_rule,
+  latest_pre_candidate_group_list,
+  latest_pre_resolved_by,
+  latest_pre_candidate_group_count,
   first_post_patent_year,
   first_acquirer_year,
   first_acquirer_year AS first_acquirer_affiliation_year,
@@ -576,15 +778,102 @@ SELECT
   career_exit_before_5,
   n_candidate_exposures,
   exposure_rank,
-  CASE WHEN n_candidate_exposures > 1 THEN TRUE ELSE FALSE END AS multi_exposure_inventor
-FROM ranked
-WHERE exposure_rank = 1
+  multi_exposure_inventor
+FROM with_diagnostics
 ")
 
 status_path <- copy_to_parquet(con, "inventor_status_own", DERIVED_PARQUET)
 message("Written: ", status_path)
 
 section("Validation and audit outputs")
+
+deal_universe_reconciliation <- DBI::dbGetQuery(con, "
+WITH match_counts AS (
+  SELECT
+    CAST(dm.deal_id AS BIGINT) AS deal_id,
+    dm.target_year,
+    dm.target_value,
+    COUNT(DISTINCT cds.dealnumber) AS n_matching_dealnumbers
+  FROM deal_map dm
+  LEFT JOIN cassi_deal_spine cds
+    ON dm.target_year = cds.deal_year
+   AND dm.target_value = cds.deal_value
+  GROUP BY dm.deal_id, dm.target_year, dm.target_value
+)
+SELECT
+  COUNT(*) AS n_merger_list_deals,
+  SUM(CASE WHEN target_year BETWEEN 1993 AND 2010 THEN 1 ELSE 0 END) AS n_clean_merger_list_deals,
+  SUM(CASE WHEN n_matching_dealnumbers > 0 THEN 1 ELSE 0 END) AS n_with_spine_match,
+  SUM(CASE WHEN n_matching_dealnumbers = 0 THEN 1 ELSE 0 END) AS n_unmatched,
+  SUM(CASE WHEN n_matching_dealnumbers = 1 THEN 1 ELSE 0 END) AS n_unique_matches,
+  SUM(CASE WHEN n_matching_dealnumbers > 1 THEN 1 ELSE 0 END) AS n_ambiguous_matches,
+  SUM(CASE WHEN target_year BETWEEN 1993 AND 2010
+            AND n_matching_dealnumbers > 0 THEN 1 ELSE 0 END) AS n_clean_with_spine_match,
+  SUM(CASE WHEN target_year BETWEEN 1993 AND 2010
+            AND n_matching_dealnumbers = 1 THEN 1 ELSE 0 END) AS n_clean_unique_matches,
+  (SELECT COUNT(*) FROM cassi_deal_group_spine) AS n_target_spine_deals,
+  (SELECT COUNT(*) FROM cassi_deal_group_spine
+    WHERE deal_year BETWEEN 1993 AND 2010) AS n_clean_target_spine_deals,
+  (SELECT COUNT(*) FROM cassi_deal_group_spine
+    WHERE acquirer_group IS NOT NULL
+      AND CAST(acquirer_group AS VARCHAR) NOT LIKE '999%'
+      AND NOT todrop_acq) AS n_status_eligible_deals,
+  (SELECT COUNT(*) FROM cassi_deal_group_spine
+    WHERE deal_year BETWEEN 1993 AND 2010
+      AND acquirer_group IS NOT NULL
+      AND CAST(acquirer_group AS VARCHAR) NOT LIKE '999%'
+      AND NOT todrop_acq) AS n_clean_status_eligible_deals
+FROM match_counts
+")
+
+unmatched_merger_list_deals <- DBI::dbGetQuery(con, "
+SELECT
+  CAST(dm.deal_id AS BIGINT) AS deal_id,
+  dm.target_year,
+  dm.target_value,
+  dm.big
+FROM deal_map dm
+LEFT JOIN cassi_deal_spine cds
+  ON dm.target_year = cds.deal_year
+ AND dm.target_value = cds.deal_value
+GROUP BY dm.deal_id, dm.target_year, dm.target_value, dm.big
+HAVING COUNT(DISTINCT cds.dealnumber) = 0
+ORDER BY dm.target_year, dm.target_value
+")
+
+ambiguous_merger_list_matches <- DBI::dbGetQuery(con, "
+SELECT
+  CAST(dm.deal_id AS BIGINT) AS deal_id,
+  dm.target_year,
+  dm.target_value,
+  dm.big,
+  COUNT(DISTINCT cds.dealnumber) AS n_matching_dealnumbers,
+  string_agg(DISTINCT cds.dealnumber, ';' ORDER BY cds.dealnumber) AS matching_dealnumbers,
+  string_agg(DISTINCT COALESCE(cds.target, '<NA>'), '; ' ORDER BY COALESCE(cds.target, '<NA>'))
+    AS matching_targets,
+  string_agg(DISTINCT COALESCE(cds.acquirer, '<NA>'), '; ' ORDER BY COALESCE(cds.acquirer, '<NA>'))
+    AS matching_acquirers
+FROM deal_map dm
+JOIN cassi_deal_spine cds
+  ON dm.target_year = cds.deal_year
+ AND dm.target_value = cds.deal_value
+GROUP BY dm.deal_id, dm.target_year, dm.target_value, dm.big
+HAVING COUNT(DISTINCT cds.dealnumber) > 1
+ORDER BY dm.target_year, dm.target_value
+")
+
+target_cohort_counts <- DBI::dbGetQuery(con, "
+SELECT
+  CASE WHEN deal_year BETWEEN 1993 AND 2010
+       THEN 'clean_1993_2010' ELSE 'outside_clean_window' END AS sample,
+  COUNT(*) AS n_inventors,
+  COUNT(DISTINCT deal_id) AS n_deals,
+  SUM(CASE WHEN status_eligible THEN 1 ELSE 0 END) AS n_status_eligible_inventors,
+  SUM(CASE WHEN multi_exposure_inventor THEN 1 ELSE 0 END) AS n_multi_exposure_inventors
+FROM target_cohort_own
+GROUP BY sample
+ORDER BY sample
+")
 
 spine_summary <- DBI::dbGetQuery(con, "
 SELECT
@@ -784,13 +1073,19 @@ LEFT JOIN old
 )
 
 sample_waterfall <- DBI::dbGetQuery(con, "
-SELECT 'cassi_deal_group_spine_rows' AS step, COUNT(*) AS n FROM cassi_deal_group_spine
+SELECT 'merger_list_deals' AS step, COUNT(*) AS n FROM deal_map
+UNION ALL
+SELECT 'unique_matched_target_spine_deals', COUNT(*) FROM cassi_deal_group_spine
+UNION ALL
+SELECT 'target_cohort_own_rows', COUNT(*) FROM target_cohort_own
 UNION ALL
 SELECT 'inventor_status_own_rows', COUNT(*) FROM inventor_status_own
 UNION ALL
-SELECT 'clean_window_rows', COUNT(*) FROM inventor_status_own WHERE deal_year BETWEEN 1993 AND 2010
+SELECT 'clean_target_cohort_rows', COUNT(*) FROM target_cohort_own WHERE deal_year BETWEEN 1993 AND 2010
 UNION ALL
-SELECT 'multi_exposure_inventors', COUNT(*) FROM inventor_status_own WHERE multi_exposure_inventor
+SELECT 'clean_status_rows', COUNT(*) FROM inventor_status_own WHERE deal_year BETWEEN 1993 AND 2010
+UNION ALL
+SELECT 'multi_exposure_inventors', COUNT(*) FROM target_cohort_own WHERE multi_exposure_inventor
 UNION ALL
 SELECT 'unclassified_post_group_rows', COUNT(*) FROM inventor_status_own WHERE type = 'T_UNCLASSIFIED_POST_GROUP'
 ")
@@ -885,7 +1180,7 @@ SELECT
       END) AS first_late_outside_year
 FROM inventor_status_own s
 LEFT JOIN inventor_affiliation_own ia
-  ON ia.codinv = s.codinv
+  ON CAST(ia.codinv AS BIGINT) = s.codinv
  AND ia.year > s.deal_year + 5
 WHERE s.type = 'T_NO_POST_5Y'
   AND s.late_active_after_5
@@ -902,6 +1197,69 @@ GROUP BY
   s.late_acquirer_after_5,
   s.late_outside_after_5
 ORDER BY s.deal_year, s.dealnumber, s.codinv
+LIMIT 500
+")
+
+target_assignment_rule_counts <- DBI::dbGetQuery(con, "
+WITH scoped AS (
+  SELECT 'full_sample' AS sample, * FROM inventor_status_own
+  UNION ALL
+  SELECT 'clean_1993_2010' AS sample, * FROM inventor_status_own
+  WHERE deal_year BETWEEN 1993 AND 2010
+)
+SELECT
+  sample,
+  target_assignment_rule,
+  COUNT(*) AS n_inventors,
+  COUNT(DISTINCT cassi_deal_group_id) AS n_deals,
+  SUM(CASE WHEN type = 'T_Ever_Stayed' THEN 1 ELSE 0 END) AS n_t_ever_stayed,
+  SUM(CASE WHEN type = 'T_LEAVER' THEN 1 ELSE 0 END) AS n_t_leaver,
+  SUM(CASE WHEN type = 'T_NO_POST_5Y' THEN 1 ELSE 0 END) AS n_no_post_5y
+FROM scoped
+GROUP BY sample, target_assignment_rule
+ORDER BY sample, target_assignment_rule
+")
+
+target_candidate_recovery_vs_reference <- DBI::dbGetQuery(con, "
+WITH ref AS (
+  SELECT DISTINCT
+    codinv,
+    target_year AS deal_year,
+    type AS ref_type
+  FROM inventor_status_reference
+  WHERE type IN ('T_STAYER', 'T_LEAVER')
+    AND target_year IS NOT NULL
+),
+own AS (
+  SELECT
+    codinv,
+    deal_year,
+    type AS own_type,
+    target_assignment_rule,
+    target_cohort_conservative,
+    target_candidate_latest,
+    target_to_acquirer_transition_strict,
+    target_cohort_any_pre5
+  FROM inventor_status_own
+)
+SELECT
+  ref.ref_type,
+  COALESCE(own.own_type, 'NO_EXACT_OWN_MATCH') AS own_type,
+  COALESCE(own.target_assignment_rule, 'NO_EXACT_OWN_MATCH') AS target_assignment_rule,
+  COUNT(*) AS n
+FROM ref
+LEFT JOIN own
+  ON ref.codinv = own.codinv
+ AND ref.deal_year = own.deal_year
+GROUP BY ref.ref_type, own_type, target_assignment_rule
+ORDER BY ref.ref_type, n DESC
+")
+
+affiliation_reconciliation_examples <- DBI::dbGetQuery(con, "
+SELECT *
+FROM inventor_status_own
+WHERE target_assignment_rule IN ('candidate_latest', 'acquirer_transition_strict')
+ORDER BY target_assignment_rule, deal_year, dealnumber, codinv
 LIMIT 500
 ")
 
@@ -922,6 +1280,10 @@ LIMIT 500
 ")
 
 write_csv_base(spine_summary, "cassi_deal_spine_summary.csv")
+write_csv_base(deal_universe_reconciliation, "deal_universe_reconciliation.csv")
+write_csv_base(unmatched_merger_list_deals, "unmatched_merger_list_deals.csv")
+write_csv_base(ambiguous_merger_list_matches, "ambiguous_merger_list_matches.csv")
+write_csv_base(target_cohort_counts, "target_cohort_own_counts.csv")
 write_csv_base(status_counts, "inventor_status_own_counts.csv")
 write_csv_base(status_counts_clean, "inventor_status_own_counts_clean_window.csv")
 write_csv_base(status_counts_by_year, "inventor_status_own_counts_by_deal_year.csv")
@@ -934,6 +1296,9 @@ write_csv_base(sample_waterfall, "sample_waterfall.csv")
 write_csv_base(unrestricted_status_comparison, "unrestricted_status_comparison.csv")
 write_csv_base(unrestricted_status_by_current_type, "unrestricted_status_by_current_type.csv")
 write_csv_base(late_post5_activity_cases, "late_post5_activity_cases.csv")
+write_csv_base(target_assignment_rule_counts, "target_assignment_rule_counts.csv")
+write_csv_base(target_candidate_recovery_vs_reference, "target_candidate_recovery_vs_reference.csv")
+write_csv_base(affiliation_reconciliation_examples, "affiliation_reconciliation_examples.csv")
 write_csv_base(target_continuing_cases, "target_continuing_cases.csv")
 write_csv_base(unclassified_post_group_cases, "unclassified_post_group_cases.csv")
 write_csv_base(DBI::dbGetQuery(con, "
@@ -944,12 +1309,15 @@ write_csv_base(DBI::dbGetQuery(con, "
 "), "cassi_deal_spine_issues.csv")
 
 print(spine_summary)
+print(deal_universe_reconciliation)
+print(target_cohort_counts)
 print(status_counts)
 print(status_counts_clean)
 print(horizon_stayer_counts)
 print(retained_sample_counts)
 print(validation)
 print(unrestricted_status_comparison)
+print(target_assignment_rule_counts)
 print(deal_map_comparison)
 
 message("\n", strrep("=", 60))

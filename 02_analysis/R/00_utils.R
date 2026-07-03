@@ -93,10 +93,12 @@ duckdb_path <- function() {
   project_path("analysis", "output", "thesis_foundation.duckdb")
 }
 
-connect_duckdb <- function(read_only = FALSE) {
+connect_duckdb <- function(read_only = FALSE, memory_limit = "9GB", threads = 4) {
   duckdb_state$drv <- duckdb::duckdb()
   con <- DBI::dbConnect(duckdb_state$drv, duckdb_path(), read_only = read_only)
   try(DBI::dbExecute(con, "LOAD parquet;"), silent = TRUE)
+  try(DBI::dbExecute(con, sprintf("SET memory_limit='%s';", memory_limit)), silent = TRUE)
+  try(DBI::dbExecute(con, sprintf("SET threads=%d;", threads)), silent = TRUE)
   con
 }
 
