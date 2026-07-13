@@ -1,0 +1,231 @@
+# ============================================================================
+# 11c_balance_main_sample.R -- Main DiD v1: two-stage hierarchical entropy
+# balancing (firm then inventor). Writes final weights back to the units
+# parquet + balance/love-plot/weight diagnostics. [R1/A1] weighting mechanics.
+# ============================================================================
+BASE <- normalizePath("02_analysis", mustWork = TRUE)
+source(file.path(BASE, "R", "00_utils.R"))
+use_project_library()
+source(file.path(BASE, "R", "11a_main_design_config.R"))
+source(file.path(BASE, "R", "11_main_design_utils.R"))
+for (pkg in c("DBI", "duckdb", "WeightIt", "cobalt", "ggplot2"))
+  if (!requireNamespace(pkg, quietly = TRUE))
+    stop("Missing package: ", pkg, " -- install into .r_libs before running 11c.")
+suppressMessages({library(DBI); library(duckdb); library(WeightIt); library(cobalt); library(ggplot2)})
+set.seed(SEED)
+
+banner("MAIN DiD v1 -- TWO-STAGE ENTROPY BALANCING")
+
+# ---------------------------------------------------------------------------
+# Core two-stage routine. Returns final weights (constant per inventor-stack)
+# with firm size entering EXACTLY once (base.weights = firm multiplier).
+# ---------------------------------------------------------------------------
+two_stage_ebal <- function(units, firm_key_cols, firm_covars, inv_covars, inv_factors,
+                           cont_covars, n_weight_col = "n_qualifying_inventors") {
+  # standardize continuous covariates for numerical conditioning [minor];
+  # SMD balance is scale-invariant so reported balance is unaffected.
+  zc <- intersect(cont_covars, c(firm_covars, inv_covars))
+  for (v in zc) units[[v]] <- standardize_continuous(units[[v]])
+
+  units$.fk <- do.call(paste, c(units[firm_key_cols], sep = "|"))
+  firm_data <- unique(units[, c(".fk", firm_key_cols, "treated", "stack",
+                               firm_covars, n_weight_col)])
+  stopifnot(!anyDuplicated(firm_data$.fk))  # one covariate row per firm key
+
+  # --- Stage 1: firm entropy balancing (inventor-weighted via s.weights) ----
+  firm_form <- stats::reformulate(c(firm_covars, "factor(stack)"), response = "treated")
+  W_firm <- WeightIt::weightit(firm_form, data = firm_data, method = "ebal",
+                               estimand = "ATT", s.weights = firm_data[[n_weight_col]],
+                               maxit = 20000)
+  firm_data$firm_multiplier <- as.numeric(W_firm$weights)
+
+  # --- Expand firm multiplier to inventor rows (NOT the firm mass) [A1] ------
+  units$firm_multiplier      <- firm_data$firm_multiplier[match(units$.fk, firm_data$.fk)]
+  units$inventor_base_weight <- units$firm_multiplier
+
+  # --- Stage 2: inventor entropy balancing around firm base weights ---------
+  inv_terms <- c(firm_covars, inv_covars, inv_factors, "factor(stack)")
+  inv_form  <- stats::reformulate(inv_terms, response = "treated")
+  W_inv <- WeightIt::weightit(inv_form, data = units, method = "ebal", estimand = "ATT",
+                              base.weights = units$inventor_base_weight, maxit = 20000)
+  units$final_weight <- as.numeric(W_inv$weights)
+
+  list(units = units, firm_data = firm_data, W_firm = W_firm, W_inv = W_inv,
+       firm_form = firm_form, inv_form = inv_form)
+}
+
+# ===========================================================================
+# [A1] SYNTHETIC SELF-TEST -- run BEFORE touching real data
+# ===========================================================================
+banner("[A1] weighting self-test (synthetic)")
+selftest <- function() {
+  set.seed(1)
+  # 4 firms: 2 treated (sizes 2,4), 2 control (sizes 3,5); 1 continuous covar x.
+  fk <- data.frame(
+    focal_deal_id = 1:4, analysis_target_group_id = 1:4, stack = c(2000L,2000L,2000L,2000L),
+    arm = c("treated","treated","control","control"), treated = c(1L,1L,0L,0L),
+    x = c(1.0, 2.0, 0.5, 3.0), n_qualifying_inventors = c(2L,4L,3L,5L))
+  units <- do.call(rbind, lapply(seq_len(nrow(fk)), function(i)
+    data.frame(fk[i, ], codinv = paste0(i, "_", seq_len(fk$n_qualifying_inventors[i])))))
+  units$y <- 1  # dummy inventor covar (constant -> already balanced)
+  res <- tryCatch(
+    two_stage_ebal(units, c("focal_deal_id","analysis_target_group_id","stack","arm"),
+                   firm_covars = "x", inv_covars = "y", inv_factors = character(0),
+                   cont_covars = "x"),
+    error = function(e) { message("selftest ebal error: ", conditionMessage(e)); NULL })
+  if (is.null(res)) return(data.frame(check = "selftest", pass = FALSE, note = "ebal_error"))
+  u <- res$units
+  fw <- u$final_weight
+  # (1) treated weights all 1
+  t1 <- max(abs(fw[u$treated == 1L] - 1)) < 1e-8
+  # (2) control mass == treated mass (relative tolerance; ebal converges to ~1e-6)
+  t2 <- abs(sum(fw[u$treated == 0L]) - sum(fw[u$treated == 1L])) / sum(fw[u$treated == 1L]) < 1e-4
+  # (3) firm mass proportional to N (not N^2): control firm mass / n should be ~const multiplier
+  fm <- tapply(fw[u$treated==0L], u$.fk[u$treated==0L], sum)
+  fn <- tapply(rep(1,sum(u$treated==0L)), u$.fk[u$treated==0L], sum)
+  mult <- fm / fn                          # per-firm multiplier implied by final weights
+  t3 <- all(is.finite(mult))
+  # (4) weighted control covariate mean matches treated (x)
+  mt <- weighted.mean(u$x[u$treated==1L], fw[u$treated==1L])
+  mc <- weighted.mean(u$x[u$treated==0L], fw[u$treated==0L])
+  t4 <- abs(mt - mc) < 1e-4
+  data.frame(check = c("treated_weights_1","control_mass_eq_treated","firm_mass_finite","cov_mean_match"),
+             pass = c(t1,t2,t3,t4),
+             detail = c(sprintf("max|w_t-1|=%.2e", max(abs(fw[u$treated==1L]-1))),
+                        sprintf("mass_diff=%.2e", sum(fw[u$treated==0L])-sum(fw[u$treated==1L])),
+                        sprintf("mults=%s", paste(round(mult,3), collapse=",")),
+                        sprintf("mt=%.4f mc=%.4f", mt, mc)))
+}
+st <- selftest()
+write_audit(st, "weighting_selftest.csv"); print(st)
+if (!all(st$pass)) stop("[A1] weighting self-test FAILED -- fix before running on real data.")
+message("[A1] self-test PASSED")
+
+# ===========================================================================
+# REAL DATA
+# ===========================================================================
+banner("Loading units + preparing covariates")
+con <- dbConnect(duckdb::duckdb(), ":memory:")
+on.exit(dbDisconnect(con, shutdown = TRUE), add = TRUE)
+units <- dbGetQuery(con, sprintf("SELECT * FROM read_parquet('%s')", gsub("\\\\","/",UNITS_PARQUET)))
+units$stack <- as.integer(units$stack)
+units$qualifying_gap_cat <- droplevels(factor(units$qualifying_gap_cat))   # drop empty gap0
+units$modal_family <- droplevels(factor(units$modal_family))
+
+firm_key_cols <- c("focal_deal_id","analysis_target_group_id","stack","arm")
+
+# model-matrix hygiene [A6]: zero-variance / single-arm checks
+mm_check <- inspect_model_matrix(units, c(FIRM_COVARS, INV_COVARS))
+write_audit(mm_check, "model_matrix_checks.csv")
+print(mm_check)
+zv <- mm_check$covariate[mm_check$zero_variance]
+if (length(zv) > 0) stop("Zero-variance covariate(s): ", paste(zv, collapse=", "))
+
+CONT_COVARS <- c("log_firm_patent_stock","log_firm_inventor_count","observed_firm_patent_age",
+                 "log_patents_early","log_patents_recent","observed_inventor_career_age",
+                 "observed_target_patent_tenure","log_inventor_patent_stock","target_exclusivity")
+banner("Two-stage entropy balancing (real data)")
+fit <- tryCatch(
+  two_stage_ebal(units, firm_key_cols, FIRM_COVARS, INV_COVARS, INV_FACTOR_COVARS,
+                 cont_covars = CONT_COVARS),
+  error = function(e) { write_audit(data.frame(stage="ebal", error=conditionMessage(e)),
+    "ebal_failure.csv"); stop("Entropy balancing FAILED: ", conditionMessage(e)) })
+units <- fit$units
+fw <- units$final_weight
+
+# ---- Hard-stop gates [R5/A1] ----
+conv <- function(W) { v <- tryCatch(W$info$converged, error = function(e) NULL)
+                      if (is.null(v)) TRUE else isTRUE(v) }
+gate <- data.frame(
+  treated_weights_1 = max(abs(fw[units$treated==1L] - 1)) < 1e-8,
+  weights_finite    = all(is.finite(fw)) ,
+  weights_positive  = all(fw > 0),
+  firm_conv         = conv(fit$W_firm),
+  inv_conv          = conv(fit$W_inv))
+write_audit(gate, "ebal_gates.csv"); print(gate)
+if (!gate$treated_weights_1) stop("[A1] treated final weights != 1 -- inspect W_inv, do not patch.")
+if (!gate$weights_finite || !gate$weights_positive) stop("Non-finite/non-positive final weights.")
+
+# ---- Balance tables (cobalt) firm + final ----
+banner("Balance diagnostics")
+bt_firm <- cobalt::bal.tab(fit$W_firm, un = TRUE, disp = c("means"), stats = "mean.diffs")
+bt_inv  <- cobalt::bal.tab(fit$W_inv,  un = TRUE, disp = c("means"), stats = "mean.diffs")
+firm_bal <- bt_firm$Balance; firm_bal$covariate <- rownames(firm_bal)
+inv_bal  <- bt_inv$Balance;  inv_bal$covariate  <- rownames(inv_bal)
+write_audit(firm_bal, "firm_balance.csv")
+write_audit(inv_bal,  "inventor_balance.csv")
+smd_un  <- abs(inv_bal$Diff.Un[is.finite(inv_bal$Diff.Un)])
+smd_adj <- abs(inv_bal$Diff.Adj[is.finite(inv_bal$Diff.Adj)])
+message(sprintf("Inventor SMD max: un=%.3f adj=%.3f | %% adj<0.05=%.0f | %% adj<0.10=%.0f",
+  max(smd_un), max(smd_adj), 100*mean(smd_adj<0.05), 100*mean(smd_adj<0.10)))
+
+# ---- Love plots ----
+lp_firm <- cobalt::love.plot(fit$W_firm, stats = "mean.diffs", abs = TRUE,
+  thresholds = c(m = SMD_ACCEPTABLE), title = "Firm-stage balance (inventor-weighted)")
+lp_inv  <- cobalt::love.plot(fit$W_inv,  stats = "mean.diffs", abs = TRUE,
+  thresholds = c(m = SMD_ACCEPTABLE), title = "Final inventor-stage balance")
+ggsave(file.path(AUDIT_DIR, "love_plot_firm.png"),  lp_firm, width = 8, height = 6, dpi = 300, bg = "white")
+ggsave(file.path(AUDIT_DIR, "love_plot_final.png"), lp_inv,  width = 8, height = 7, dpi = 300, bg = "white")
+
+# ---- Weight + support diagnostics [R5] ----
+banner("Weight & support diagnostics")
+ctlw <- fw[units$treated == 0L]
+wd <- weight_quantile_diag(ctlw); wd$arm <- "control"
+# top-deal concentration + near-zero
+deal_mass <- tapply(ctlw, units$focal_deal_id[units$treated==0L], sum)
+wd$top_deal_share <- max(deal_mass) / sum(deal_mass)
+wd$n_near_zero    <- sum(ctlw < NEAR_ZERO_WEIGHT)
+wd$control_ess    <- ess(ctlw)
+wd$firm_ess_stage1 <- ess(fit$firm_data$firm_multiplier[fit$firm_data$treated==0L] *
+                          fit$firm_data$n_qualifying_inventors[fit$firm_data$treated==0L])
+wd$control_mass   <- sum(ctlw); wd$treated_mass <- sum(fw[units$treated==1L])
+write_audit(wd, "weight_diagnostics.csv"); print(wd)
+
+# mass by stack (weighted)
+mass_stack <- aggregate(final_weight ~ stack + arm, data = units, FUN = sum)
+write_audit(mass_stack, "weighted_mass_by_stack.csv")
+
+# ---- Era- and stack-level balance [R6] on continuous covars ----
+cont_covars <- c("log_firm_patent_stock","log_firm_inventor_count","observed_firm_patent_age",
+                 "log_patents_early","log_patents_recent","observed_inventor_career_age",
+                 "observed_target_patent_tenure","log_inventor_patent_stock","target_exclusivity")
+era_smd <- do.call(rbind, lapply(BALANCE_ERAS, function(er) {
+  idx <- units$stack >= er[1] & units$stack <= er[2]
+  if (sum(units$treated[idx]==1)==0 || sum(units$treated[idx]==0)==0) return(NULL)
+  s <- sapply(cont_covars, function(v) abs(smd_weighted(units[[v]][idx], units$treated[idx], fw[idx])))
+  data.frame(era = paste(er, collapse="-"), max_abs_smd = max(s), median_abs_smd = median(s))
+}))
+write_audit(era_smd, "era_balance.csv"); print(era_smd)
+stack_smd <- do.call(rbind, lapply(sort(unique(units$stack)), function(g) {
+  idx <- units$stack == g
+  if (sum(units$treated[idx]==1)==0 || sum(units$treated[idx]==0)==0) return(NULL)
+  s <- sapply(cont_covars, function(v) abs(smd_weighted(units[[v]][idx], units$treated[idx], fw[idx])))
+  data.frame(stack = g, max_abs_smd = max(s), median_abs_smd = median(s))
+}))
+write_audit(stack_smd, "stack_balance.csv")
+message(sprintf("Per-stack |SMD|: max across stacks=%.3f, median=%.3f",
+  max(stack_smd$max_abs_smd), median(stack_smd$max_abs_smd)))
+
+# ---- Hierarchical preservation [R7]: final vs stage-1 firm weights ----
+final_firm_mass <- tapply(fw[units$treated==0L], units$.fk[units$treated==0L], sum)
+fd <- fit$firm_data[fit$firm_data$treated==0L, ]
+fd$stage1_mass <- fd$firm_multiplier * fd$n_qualifying_inventors
+fd$final_mass  <- final_firm_mass[fd$.fk]
+hp <- data.frame(
+  corr_stage1_final_mass = stats::cor(fd$stage1_mass, fd$final_mass, use="complete.obs"),
+  firm_ess_stage1 = ess(fd$stage1_mass), firm_ess_final = ess(fd$final_mass),
+  max_abs_log_ratio = max(abs(log(fd$final_mass / fd$stage1_mass)), na.rm = TRUE))
+write_audit(hp, "hierarchical_preservation.csv"); print(hp)
+
+# ===========================================================================
+# WRITE AUGMENTED UNITS (with weights) back to parquet [A1]
+# ===========================================================================
+banner("Writing units + final weights")
+out_cols <- c(names(units)[!names(units) %in% c(".fk")])
+units_out <- units[, out_cols]
+duckdb::duckdb_register(con, "uo", units_out)
+dbExecute(con, sprintf("COPY (SELECT * FROM uo) TO '%s' (FORMAT PARQUET, COMPRESSION ZSTD)",
+  gsub("\\\\","/", UNITS_PARQUET)))
+duckdb::duckdb_unregister(con, "uo")
+message("Wrote weights to ", UNITS_PARQUET)
+banner("11c DONE")
