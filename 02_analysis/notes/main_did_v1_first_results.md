@@ -148,12 +148,23 @@ convergence tol relaxed to 1e-4 per reviewer; ESS≥50 / max-firm≤10% are warn
 - **Hybrid ≈ never-target**: g+7 keeps 108 of ~25,524 mass units (~0.4%) — the g+7 pool is redundant once
   never-target firms are available.
 
-**Recommendation.** Never-target (inventor-weighted) is now a **credible primary control pool**: it passes
-even the strict pre-registered gate, is technologically relevant post-weighting, and is not driven by a
-single firm (top-5 = 16.8%). **Next step: run the full inventor-stage (Stage 2) for never-target only,
-then inspect final inventor-stage ESS / concentration and event-study pre-trends before locking the
-inventor-weighted ATT as primary.** Deal-weighting remains a major alternative specification, not the
-automatic default.
+**Stage 2 — full two-stage balance (never-target, 3.75M units, 10.9 min).** The complete firm→inventor
+balance **confirms the firm-stage result**: both stages converge (firm meandiff 2.9e-5, inventor 4.1e-6);
+**all 14 firm+inventor covariates balance to ~1e-5** (large unweighted diffs — firm size −0.59 to −0.86,
+tech shares +0.8 to +1.57, exclusivity −0.20 — all driven to ~1e-6); **unique-firm ESS 101.7** (survives
+Stage 2), **max single-firm weight 4.2%**, top-5 16.9%. Even the inventor covariates that were somewhat
+imbalanced unweighted (exclusivity −0.20, tenure −0.08) are perfectly balanced after Stage 2.
+
+**Recommendation.** Never-target (inventor-weighted) is a **credible primary control pool**: it passes the
+strict pre-registered gate at both the firm stage *and* the full two-stage, is technologically relevant
+post-weighting (weighted pharma-core 0.43 vs treated 0.46), is not driven by a single firm (max 4.2%,
+top-5 16.9%), and holds ESS ~102 unique firms. **The inventor-weighted ATT is retained as feasible.** The
+only remaining pre-decision check is **event-study pre-trends**, which requires building the outcome panel
+(11d) + event study (11e) on the never-target arm — the authorized next step. Deal-weighting remains a
+major alternative specification, not the automatic default.
+
+*Stage-2 audit:* `never_target_stage2_diagnostics.csv`, `never_target_stage2_balance.csv`,
+`never_target_stage2_stack_ess.csv`; weights → `main_did_v1_never_target_weights.parquet`.
 
 **Audit trail:** `never_target_support_comparison.csv`, `never_target_top_donors_{never_target,hybrid}.csv`,
 `never_target_weighted_relevance_*.csv`, `never_target_tech_relevance_audit.csv`.

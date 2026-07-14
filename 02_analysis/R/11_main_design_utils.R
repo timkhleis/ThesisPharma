@@ -165,6 +165,30 @@ weight_quantile_diag <- function(w) {
             ess = ess(w), n = length(w), row.names = NULL)
 }
 
+# Two-stage hierarchical entropy balancing [R1/A1] -- firm size enters exactly once
+# (base.weights = firm multiplier). Shared by 11c (g+7) and 11h (never-target).
+two_stage_ebal <- function(units, firm_key_cols, firm_covars, inv_covars, inv_factors,
+                           cont_covars, n_weight_col = "n_qualifying_inventors", maxit = 20000) {
+  zc <- intersect(cont_covars, c(firm_covars, inv_covars))
+  for (v in zc) units[[v]] <- standardize_continuous(units[[v]])
+  units$.fk <- do.call(paste, c(units[firm_key_cols], sep = "|"))
+  firm_data <- unique(units[, c(".fk", firm_key_cols, "treated", "stack", firm_covars, n_weight_col)])
+  stopifnot(!anyDuplicated(firm_data$.fk))
+  firm_form <- stats::reformulate(c(firm_covars, "factor(stack)"), response = "treated")
+  W_firm <- WeightIt::weightit(firm_form, data = firm_data, method = "ebal", estimand = "ATT",
+                               s.weights = firm_data[[n_weight_col]], maxit = maxit)
+  firm_data$firm_multiplier <- as.numeric(W_firm$weights)
+  units$firm_multiplier      <- firm_data$firm_multiplier[match(units$.fk, firm_data$.fk)]
+  units$inventor_base_weight <- units$firm_multiplier            # [A1] multiplier, NOT mass
+  inv_form <- stats::reformulate(c(firm_covars, inv_covars, inv_factors, "factor(stack)"),
+                                 response = "treated")
+  W_inv <- WeightIt::weightit(inv_form, data = units, method = "ebal", estimand = "ATT",
+                              base.weights = units$inventor_base_weight, maxit = maxit)
+  units$final_weight <- as.numeric(W_inv$weights)               # already final; do NOT re-multiply
+  list(units = units, firm_data = firm_data, W_firm = W_firm, W_inv = W_inv,
+       firm_form = firm_form, inv_form = inv_form)
+}
+
 # [C5] ebal convergence: max abs WEIGHTED model-matrix column mean diff (raw, not SMD).
 # mm = numeric model matrix (no intercept); w = analysis mass (s.weights * ebal weights).
 model_matrix_cols <- function(formula, data) {

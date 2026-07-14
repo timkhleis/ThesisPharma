@@ -20,39 +20,7 @@ banner("MAIN DiD v1 -- TWO-STAGE ENTROPY BALANCING")
 # Core two-stage routine. Returns final weights (constant per inventor-stack)
 # with firm size entering EXACTLY once (base.weights = firm multiplier).
 # ---------------------------------------------------------------------------
-two_stage_ebal <- function(units, firm_key_cols, firm_covars, inv_covars, inv_factors,
-                           cont_covars, n_weight_col = "n_qualifying_inventors") {
-  # standardize continuous covariates for numerical conditioning [minor];
-  # SMD balance is scale-invariant so reported balance is unaffected.
-  zc <- intersect(cont_covars, c(firm_covars, inv_covars))
-  for (v in zc) units[[v]] <- standardize_continuous(units[[v]])
-
-  units$.fk <- do.call(paste, c(units[firm_key_cols], sep = "|"))
-  firm_data <- unique(units[, c(".fk", firm_key_cols, "treated", "stack",
-                               firm_covars, n_weight_col)])
-  stopifnot(!anyDuplicated(firm_data$.fk))  # one covariate row per firm key
-
-  # --- Stage 1: firm entropy balancing (inventor-weighted via s.weights) ----
-  firm_form <- stats::reformulate(c(firm_covars, "factor(stack)"), response = "treated")
-  W_firm <- WeightIt::weightit(firm_form, data = firm_data, method = "ebal",
-                               estimand = "ATT", s.weights = firm_data[[n_weight_col]],
-                               maxit = 20000)
-  firm_data$firm_multiplier <- as.numeric(W_firm$weights)
-
-  # --- Expand firm multiplier to inventor rows (NOT the firm mass) [A1] ------
-  units$firm_multiplier      <- firm_data$firm_multiplier[match(units$.fk, firm_data$.fk)]
-  units$inventor_base_weight <- units$firm_multiplier
-
-  # --- Stage 2: inventor entropy balancing around firm base weights ---------
-  inv_terms <- c(firm_covars, inv_covars, inv_factors, "factor(stack)")
-  inv_form  <- stats::reformulate(inv_terms, response = "treated")
-  W_inv <- WeightIt::weightit(inv_form, data = units, method = "ebal", estimand = "ATT",
-                              base.weights = units$inventor_base_weight, maxit = 20000)
-  units$final_weight <- as.numeric(W_inv$weights)
-
-  list(units = units, firm_data = firm_data, W_firm = W_firm, W_inv = W_inv,
-       firm_form = firm_form, inv_form = inv_form)
-}
+# two_stage_ebal() now lives in 11_main_design_utils.R (shared with 11h).
 
 # ===========================================================================
 # [A1] SYNTHETIC SELF-TEST -- run BEFORE touching real data
