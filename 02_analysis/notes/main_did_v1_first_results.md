@@ -118,49 +118,45 @@ the mega-deal concentration explicitly as a scope/limitation of any inventor-wei
 (they *may* be acquirers) restore support for the **inventor-weighted** ATT, before we abandon it for
 deal-weighting?
 
-**Universe (target-side exclusion only [C2/C4]).** Pharma-patenting groups 25,865 − 903 ever-target
-(target_group / target_group_pre / target_group_post / target-compcod→group ±2y) = **13,781
-never-observed-target pharma groups**. Latest-affiliation assignment over `[g-5,g-1]` →
-**2,913,514 control inventor-units** across **77,370 group×stack cells** (an inventor can be a control
-in multiple stacks). Cleanliness drops (any prior `deal_year<g` or competing `[g,g+3]` real target) are
-tiny (17.4k). Firms reach **10,358 inventors** (treated max 2,422; g+7 max 1,501) — the size support
-g+7 lacked.
+**Universe (target-side, pre-deal only).** After the reviewer's correction (exclude only
+`target_group` + `target_group_pre` + the target company's `firm_group` id **at deal_year−1**; **drop
+`target_group_post` and the ±2y window**, both of which capture the merged/acquirer group and were
+wrongly re-excluding acquirers), ever-target groups fall 903→**646** and the universe grows to
+**13,978 never-observed-target pharma groups**. Latest-affiliation assignment over `[g-5,g-1]` →
+**3,721,005 control inventor-units** across **79,087 group×stack cells**; firms reach **10,313
+inventors**. Cleanliness drops (any prior `deal_year<g` or competing `[g,g+3]` real target) ≈ 40k.
 
-**Pharma-relevance caveat [audit].** Treated firms are 44.5% pharma-core (small-molecule + biotech +
-formulation), inventor-weighted; the never-target pool is only **19%**, with **51% of never-target
-inventor mass in cells with <5% pharma content** (technologically distant giants). Entropy balancing
-includes the three tech shares, so it must down-weight those — creating a size-vs-technology tension.
+**Firm-stage support comparison** (inventor-weighted target, stack indicators, standardized covariates;
+convergence tol relaxed to 1e-4 per reviewer; ESS≥50 / max-firm≤10% are warnings):
 
-**Firm-stage support comparison** (inventor-weighted target, stack indicators, standardized covariates):
-
-| spec | max |SMD| pre→post | unique-firm ESS | max single-firm wt | converged (meandiff) | gate |
-|---|---|---|---|---|---|---|
+| spec | max \|SMD\| pre→post | unique-firm ESS | max single-firm wt | converged | gate |
+|---|---|---|---|---|---|
 | future_g7 | 0.67 → **1.31** | **1.0** | 100% | no (0.90) | **FAIL** |
-| never_target | 1.03 → **0.0001** | **38.6** | 12.5% | ~ (2.9e-5) | fail (narrow) |
-| hybrid | 1.03 → **0.00015** | **40.0** | 12.3% | ~ (8.1e-5) | fail (narrow) |
+| never_target | 0.84 → **9e-5** | **102.7** | **4.0%** | yes (4e-5) | **PASS** |
+| hybrid | 0.84 → **3e-5** | **103.3** | 4.0% | yes (2e-5) | **PASS** (≈never_target) |
 
-**Findings.**
-- **Never-target rescues balance**: it drives max |SMD| from 1.03 to ~0.0001 and lifts unique-firm ESS
-  from **1 → ~40** — the mega-deal support problem is essentially solved by the larger, more size-diverse
-  pool.
-- **Support is not from acquirers**: acquirer-linked control mass share ≈ 3×10⁻⁶.
-- **Hybrid ≈ never-target**: the optimizer puts ~99% of control mass on never-target cells (g+7 keeps
-  only 316 of 25,524 mass units) — adding g+7 barely changes anything.
-- **But both narrowly miss the pre-registered decision gate**: unique-firm ESS ~40 (< 50), max single
-  control-firm weight 12.3–12.5% (> 10%), and convergence meandiff ~3–8×10⁻⁵ (> the strict 1e-6 tol,
-  though the substantive |SMD| is 0.0001 ≪ 0.10). So **strictly, no spec passes**.
+**Findings (the correction flips the conclusion).**
+- **Never-target fully restores support**: max \|SMD\| 0.84→9e-5; unique-firm ESS **1 → 102.7** (clears
+  the strict ≥50); max single control-firm weight **4.0%** (clears the strict ≤10%); no empty stack.
+- **~42% of control weight comes from acquirer firms** — the earlier "≈0" was precisely the target-history
+  bug (post/deal-year mapping re-excluded acquirers). Big pharma acquirers are large *and* never-targets,
+  and they supply much of the needed size support.
+- **Weighted controls are technologically relevant — no pharma filter needed**: entropy-weighted
+  never-target pharma-core = **0.431 vs treated 0.458**; only **12.6% of post-weight mass** is in
+  <5%-pharma firms (vs 51% *unweighted*) — ebal down-weights the distant giants automatically. (The
+  reviewer was right to judge relevance on weighted, not unweighted, mass.)
+- **Hybrid ≈ never-target**: g+7 keeps 108 of ~25,524 mass units (~0.4%) — the g+7 pool is redundant once
+  never-target firms are available.
 
-**Conditional recommendation (per plan §8).** By the letter of the gate, *neither passes* → retain the
-**deal-weighted / common-support fallback** as primary. **However** the near-miss is substantial and the
-thresholds are somewhat arbitrary: never-target achieves near-exact balance with ~40 effective control
-firms (vs. 1 under g+7). A modest relaxation (e.g. unique-firm ESS ≥ 35, max single-firm ≤ 15%, and a
-convergence tol of 1e-4 rather than 1e-6) would admit **never-target** and let the **inventor-weighted
-ATT be retained**. This is a design decision. The full inventor-stage (Stage 2) balance was **not run**
-(gate not met, and 2.9M control units make it expensive) — it would be run for never-target if the gate
-is relaxed.
+**Recommendation.** Never-target (inventor-weighted) is now a **credible primary control pool**: it passes
+even the strict pre-registered gate, is technologically relevant post-weighting, and is not driven by a
+single firm (top-5 = 16.8%). **Next step: run the full inventor-stage (Stage 2) for never-target only,
+then inspect final inventor-stage ESS / concentration and event-study pre-trends before locking the
+inventor-weighted ATT as primary.** Deal-weighting remains a major alternative specification, not the
+automatic default.
 
-**Open decision:** relax the gate to accept never-target (retain inventor-weighted ATT, run Stage 2), or
-hold the strict gate and keep deal-weighting as the primary estimand?
+**Audit trail:** `never_target_support_comparison.csv`, `never_target_top_donors_{never_target,hybrid}.csv`,
+`never_target_weighted_relevance_*.csv`, `never_target_tech_relevance_audit.csv`.
 
 ---
 

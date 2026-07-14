@@ -106,17 +106,47 @@ comp <- do.call(rbind, lapply(results, function(r) {
   x
 }))
 
-# --- decision gate [§7] applied AFTER the full table [C5] ---
-comp$pass_decision_gate <- with(comp,
-  converged & !error & max_smd_post < 0.10 & !empty_stack &
-  unique_firm_ess >= 50 & max_group_weight_share <= 0.10)
+# --- decision gate [reviewer]: convergence (1e-4) + SMD<0.10 + no empty stack.
+#     ESS>=50 and max single-firm<=10% are WARNINGS, not immutable gates. ---
+comp$warn_low_unique_firm_ess <- comp$unique_firm_ess < 50
+comp$warn_concentration       <- comp$max_group_weight_share > 0.10
+comp$pass_decision_gate <- with(comp, converged & !error & max_smd_post < 0.10 & !empty_stack)
 write_audit(comp, "never_target_support_comparison.csv")
-options(width = 200); print(comp)
-cat("\nPASS/FAIL by spec:\n"); print(comp[, c("spec","converged","max_smd_post","unique_firm_ess",
-  "max_group_weight_share","pass_decision_gate")])
+options(width = 220); print(comp)
 
 passers <- comp$spec[isTRUE_vec(comp$pass_decision_gate)]
-message("\nSpecs passing the decision gate: ",
-        if (length(passers)) paste(passers, collapse=", ") else "NONE")
+message("\nSpecs passing (converge+SMD+stack): ",
+        if (length(passers)) paste(passers, collapse=", ") else "NONE",
+        " | warn low unique-firm ESS: ", paste(comp$spec[comp$warn_low_unique_firm_ess], collapse=","),
+        " | warn concentration: ", paste(comp$spec[comp$warn_concentration], collapse=","))
+
+# --- weighted donor audits (never_target + hybrid) [reviewer] ---
+treated_pc <- weighted.mean(
+  treated_cells$share_small_molecule + treated_cells$share_biotech + treated_cells$share_formulation,
+  treated_cells$n_qualifying_inventors)
+for (s in c("never_target", "hybrid")) {
+  r <- results[[s]]; if (is.null(r$mult)) next
+  fd <- r$fd; mult <- r$mult; ctl <- fd$treated == 0L
+  mass <- (fd$n_qualifying_inventors * mult)[ctl]
+  d <- data.frame(grp = fd$underlying_group_id[ctl], stack = fd$stack[ctl], src = fd$source[ctl],
+    n = fd$n_qualifying_inventors[ctl], mass = mass,
+    pc = (fd$share_small_molecule + fd$share_biotech + fd$share_formulation)[ctl])
+  agg <- aggregate(cbind(mass, n) ~ grp, d, sum)
+  agg$weight_share <- agg$mass / sum(agg$mass)
+  agg$n_stacks <- tapply(d$stack, d$grp, function(x) length(unique(x)))[as.character(agg$grp)]
+  agg$pharma_core <- tapply(seq_along(d$pc), d$grp,
+                            function(ix) weighted.mean(d$pc[ix], d$n[ix]))[as.character(agg$grp)]
+  agg$ever_acquirer <- isTRUE_vec(nt_acq$ever_acquirer[match(agg$grp, nt_acq$underlying_group_id)])
+  agg <- agg[order(-agg$mass), ]
+  write_audit(cbind(spec = s, head(agg, 20)), sprintf("never_target_top_donors_%s.csv", s))
+  w_pc <- weighted.mean(agg$pharma_core, agg$mass)
+  low5_mass <- sum(agg$mass[agg$pharma_core < 0.05]) / sum(agg$mass)
+  acq_share <- sum(agg$mass[agg$ever_acquirer]) / sum(agg$mass)
+  message(sprintf("[%s donors] weighted pharma-core=%.3f (treated=%.3f) | mass <5%%-pharma=%.3f | top5=%.3f | acquirer mass=%.4f",
+    s, w_pc, treated_pc, low5_mass, sum(head(agg$weight_share, 5)), acq_share))
+  write_audit(data.frame(spec = s, weighted_pharma_core = w_pc, treated_pharma_core = treated_pc,
+    mass_share_below_5pct_pharma = low5_mass, top5_weight_share = sum(head(agg$weight_share, 5)),
+    acquirer_weight_share = acq_share), sprintf("never_target_weighted_relevance_%s.csv", s))
+}
 saveRDS(list(comp = comp, passers = passers), file.path(RESULTS_DIR, "support_comparison.rds"))
 banner("11g (firm-stage comparison) DONE")

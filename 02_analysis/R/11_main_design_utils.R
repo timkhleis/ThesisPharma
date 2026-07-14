@@ -516,17 +516,19 @@ build_never_target_arm <- function(con, stacks = STACK_LO:STACK_HI) {
   fam_case <- ipc_family_case_sql("ipc.ipc_code")
   # --- universe: never-observed-target, pharma-relevant groups ---
   # ever_target (target-side only; +/-2y compcod->group window = conservative [C4])
+  # target-side, PRE-DEAL only: exclude target_group + target_group_pre + the target
+  # company's group AT deal_year-1. Do NOT use target_group_post or map through
+  # deal_year -- both can be the merged/acquirer group and would re-exclude acquirers.
   ever_sql <- "
     SELECT DISTINCT id_group FROM (
       SELECT target_group id_group FROM cassi_deal_spine WHERE target_group IS NOT NULL
       UNION ALL SELECT target_group_pre  FROM cassi_deal_spine WHERE target_group_pre IS NOT NULL
-      UNION ALL SELECT target_group_post FROM cassi_deal_spine WHERE target_group_post IS NOT NULL
       UNION ALL SELECT fg.id_group FROM cassi_deal_spine s
-        JOIN firm_group fg ON fg.compcod=s.target_compcod AND fg.year BETWEEN s.deal_year-2 AND s.deal_year
+        JOIN firm_group fg ON fg.compcod=s.target_compcod AND fg.year = s.deal_year - 1
         WHERE s.target_compcod IS NOT NULL
       UNION ALL SELECT fg.id_group FROM cassi_deal_group_spine gs,
           UNNEST(string_split(gs.target_compcod_list, ';')) AS x(c)
-        JOIN firm_group fg ON fg.compcod=CAST(TRIM(x.c) AS DOUBLE) AND fg.year BETWEEN gs.deal_year-2 AND gs.deal_year
+        JOIN firm_group fg ON fg.compcod=CAST(TRIM(x.c) AS DOUBLE) AND fg.year = gs.deal_year - 1
         WHERE TRIM(x.c)<>''
     ) WHERE id_group IS NOT NULL"
   nt <- DBI::dbGetQuery(con, sprintf("

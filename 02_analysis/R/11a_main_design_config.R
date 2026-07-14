@@ -35,7 +35,7 @@ ANNOUNCEMENT_YEAR_PARTIAL <- TRUE # t=0 is partial exposure; reported separately
 COV_TOL              <- 1e-6      # 4b numeric covariate certification tolerance
 IPC_MATCH_MIN        <- 0.99      # 4b modal-IPC-section match-rate floor
 ACQ_TRANSITION_HARD_GATE <- FALSE # [A4] acquirer-transition route: report-first, do not stop
-EBAL_CONSTRAINT_TOL  <- 1e-6      # exact mean-balance tolerance for the EB convergence gate
+EBAL_CONSTRAINT_TOL  <- 1e-4      # convergence tol on weighted model-matrix mean diffs (reviewer: 1e-6 too strict)
 NEAR_ZERO_WEIGHT     <- 1e-4      # control 'near-zero weight' threshold for diagnostics
 SMD_DESIRED          <- 0.05      # desired |SMD|
 SMD_ACCEPTABLE       <- 0.10      # acceptable |SMD| (reported, not an auto-stop under EB)
