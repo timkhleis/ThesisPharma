@@ -112,7 +112,60 @@ the mega-deal concentration explicitly as a scope/limitation of any inventor-wei
 
 ---
 
-*Reproduce:* `Rscript 02_analysis/R/11b_build_main_sample.R` (sample + census + covariates →
-`output/audit/main_did_v1/`, `output/parquet/derived/main_did_v1_units.parquet`), then
-`Rscript 02_analysis/R/11c_balance_main_sample.R` (self-test + balancing; currently stops at the
-gate under the inventor-weighted spec). Requires `WeightIt` + `cobalt` in `.r_libs`.
+## 6. Never-observed-target control feasibility (rev. 5)
+
+**Question:** does opening the control pool to firms **never observed as an acquisition target**
+(they *may* be acquirers) restore support for the **inventor-weighted** ATT, before we abandon it for
+deal-weighting?
+
+**Universe (target-side exclusion only [C2/C4]).** Pharma-patenting groups 25,865 − 903 ever-target
+(target_group / target_group_pre / target_group_post / target-compcod→group ±2y) = **13,781
+never-observed-target pharma groups**. Latest-affiliation assignment over `[g-5,g-1]` →
+**2,913,514 control inventor-units** across **77,370 group×stack cells** (an inventor can be a control
+in multiple stacks). Cleanliness drops (any prior `deal_year<g` or competing `[g,g+3]` real target) are
+tiny (17.4k). Firms reach **10,358 inventors** (treated max 2,422; g+7 max 1,501) — the size support
+g+7 lacked.
+
+**Pharma-relevance caveat [audit].** Treated firms are 44.5% pharma-core (small-molecule + biotech +
+formulation), inventor-weighted; the never-target pool is only **19%**, with **51% of never-target
+inventor mass in cells with <5% pharma content** (technologically distant giants). Entropy balancing
+includes the three tech shares, so it must down-weight those — creating a size-vs-technology tension.
+
+**Firm-stage support comparison** (inventor-weighted target, stack indicators, standardized covariates):
+
+| spec | max |SMD| pre→post | unique-firm ESS | max single-firm wt | converged (meandiff) | gate |
+|---|---|---|---|---|---|---|
+| future_g7 | 0.67 → **1.31** | **1.0** | 100% | no (0.90) | **FAIL** |
+| never_target | 1.03 → **0.0001** | **38.6** | 12.5% | ~ (2.9e-5) | fail (narrow) |
+| hybrid | 1.03 → **0.00015** | **40.0** | 12.3% | ~ (8.1e-5) | fail (narrow) |
+
+**Findings.**
+- **Never-target rescues balance**: it drives max |SMD| from 1.03 to ~0.0001 and lifts unique-firm ESS
+  from **1 → ~40** — the mega-deal support problem is essentially solved by the larger, more size-diverse
+  pool.
+- **Support is not from acquirers**: acquirer-linked control mass share ≈ 3×10⁻⁶.
+- **Hybrid ≈ never-target**: the optimizer puts ~99% of control mass on never-target cells (g+7 keeps
+  only 316 of 25,524 mass units) — adding g+7 barely changes anything.
+- **But both narrowly miss the pre-registered decision gate**: unique-firm ESS ~40 (< 50), max single
+  control-firm weight 12.3–12.5% (> 10%), and convergence meandiff ~3–8×10⁻⁵ (> the strict 1e-6 tol,
+  though the substantive |SMD| is 0.0001 ≪ 0.10). So **strictly, no spec passes**.
+
+**Conditional recommendation (per plan §8).** By the letter of the gate, *neither passes* → retain the
+**deal-weighted / common-support fallback** as primary. **However** the near-miss is substantial and the
+thresholds are somewhat arbitrary: never-target achieves near-exact balance with ~40 effective control
+firms (vs. 1 under g+7). A modest relaxation (e.g. unique-firm ESS ≥ 35, max single-firm ≤ 15%, and a
+convergence tol of 1e-4 rather than 1e-6) would admit **never-target** and let the **inventor-weighted
+ATT be retained**. This is a design decision. The full inventor-stage (Stage 2) balance was **not run**
+(gate not met, and 2.9M control units make it expensive) — it would be run for never-target if the gate
+is relaxed.
+
+**Open decision:** relax the gate to accept never-target (retain inventor-weighted ATT, run Stage 2), or
+hold the strict gate and keep deal-weighting as the primary estimand?
+
+---
+
+*Reproduce:* `Rscript 02_analysis/R/11b_build_main_sample.R` (sample/census/covariates, g+7 arm) →
+`11f_never_target_arm.R` (never-target arm + audits) → `11g_support_comparison.R` (firm-stage
+comparison + decision gate → `results/main_did_v1/never_target_support_comparison.csv`).
+`11c_balance_main_sample.R` runs the g+7 two-stage (self-test passes; stops at the convergence gate
+under inventor-weighting, by design). Requires `WeightIt` + `cobalt` in `.r_libs`.

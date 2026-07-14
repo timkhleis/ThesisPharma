@@ -60,41 +60,38 @@ two_stage_ebal <- function(units, firm_key_cols, firm_covars, inv_covars, inv_fa
 banner("[A1] weighting self-test (synthetic)")
 selftest <- function() {
   set.seed(1)
-  # 4 firms: 2 treated (sizes 2,4), 2 control (sizes 3,5); 1 continuous covar x.
+  # T (x=0,size4); C1 (x=0,size2), C2 (x=0,size4) identical covar -> N-vs-N^2 probe;
+  # C3 (x=1,size3) off-covar forces nontrivial balancing. cont_covars empty (keep x raw).
   fk <- data.frame(
-    focal_deal_id = 1:4, analysis_target_group_id = 1:4, stack = c(2000L,2000L,2000L,2000L),
-    arm = c("treated","treated","control","control"), treated = c(1L,1L,0L,0L),
-    x = c(1.0, 2.0, 0.5, 3.0), n_qualifying_inventors = c(2L,4L,3L,5L))
+    focal_deal_id = 1:4, analysis_target_group_id = 1:4, stack = 2000L,
+    arm = c("treated","control","control","control"), treated = c(1L,0L,0L,0L),
+    x = c(0, 0, 0, 1), n_qualifying_inventors = c(4L, 2L, 4L, 3L))
   units <- do.call(rbind, lapply(seq_len(nrow(fk)), function(i)
     data.frame(fk[i, ], codinv = paste0(i, "_", seq_len(fk$n_qualifying_inventors[i])))))
   units$y <- 1  # dummy inventor covar (constant -> already balanced)
   res <- tryCatch(
     two_stage_ebal(units, c("focal_deal_id","analysis_target_group_id","stack","arm"),
                    firm_covars = "x", inv_covars = "y", inv_factors = character(0),
-                   cont_covars = "x"),
+                   cont_covars = character(0)),
     error = function(e) { message("selftest ebal error: ", conditionMessage(e)); NULL })
-  if (is.null(res)) return(data.frame(check = "selftest", pass = FALSE, note = "ebal_error"))
-  u <- res$units
-  fw <- u$final_weight
-  # (1) treated weights all 1
-  t1 <- max(abs(fw[u$treated == 1L] - 1)) < 1e-8
-  # (2) control mass == treated mass (relative tolerance; ebal converges to ~1e-6)
+  if (is.null(res)) return(data.frame(check = "selftest", pass = FALSE, detail = "ebal_error"))
+  u <- res$units; fw <- u$final_weight
+  t1 <- max(abs(fw[u$treated == 1L] - 1)) < 1e-8                                    # treated == 1
   t2 <- abs(sum(fw[u$treated == 0L]) - sum(fw[u$treated == 1L])) / sum(fw[u$treated == 1L]) < 1e-4
-  # (3) firm mass proportional to N (not N^2): control firm mass / n should be ~const multiplier
-  fm <- tapply(fw[u$treated==0L], u$.fk[u$treated==0L], sum)
-  fn <- tapply(rep(1,sum(u$treated==0L)), u$.fk[u$treated==0L], sum)
-  mult <- fm / fn                          # per-firm multiplier implied by final weights
-  t3 <- all(is.finite(mult))
-  # (4) weighted control covariate mean matches treated (x)
   mt <- weighted.mean(u$x[u$treated==1L], fw[u$treated==1L])
   mc <- weighted.mean(u$x[u$treated==0L], fw[u$treated==0L])
-  t4 <- abs(mt - mc) < 1e-4
-  data.frame(check = c("treated_weights_1","control_mass_eq_treated","firm_mass_finite","cov_mean_match"),
-             pass = c(t1,t2,t3,t4),
-             detail = c(sprintf("max|w_t-1|=%.2e", max(abs(fw[u$treated==1L]-1))),
-                        sprintf("mass_diff=%.2e", sum(fw[u$treated==0L])-sum(fw[u$treated==1L])),
-                        sprintf("mults=%s", paste(round(mult,3), collapse=",")),
-                        sprintf("mt=%.4f mc=%.4f", mt, mc)))
+  t4 <- abs(mt - mc) < 1e-4                                                         # covariate match
+  # [C5] N-vs-N^2: C1(size2,x=0) & C2(size4,x=0) identical covar -> mass ratio ~ 2, NOT 4
+  m1 <- sum(fw[u$focal_deal_id == 2]); m2 <- sum(fw[u$focal_deal_id == 3])
+  ratio <- m2 / m1
+  t5 <- abs(ratio - 2) < 0.05
+  data.frame(
+    check = c("treated_weights_1","control_mass_eq_treated","cov_mean_match","N_not_Nsquared"),
+    pass = c(t1, t2, t4, t5),
+    detail = c(sprintf("max|w_t-1|=%.2e", max(abs(fw[u$treated==1L]-1))),
+               sprintf("rel_mass_diff=%.2e", abs(sum(fw[u$treated==0L])-sum(fw[u$treated==1L]))/sum(fw[u$treated==1L])),
+               sprintf("mt=%.4f mc=%.4f", mt, mc),
+               sprintf("mass2/mass1=%.3f (expect 2, N^2 would be 4)", ratio)))
 }
 st <- selftest()
 write_audit(st, "weighting_selftest.csv"); print(st)
@@ -133,18 +130,26 @@ fit <- tryCatch(
 units <- fit$units
 fw <- units$final_weight
 
-# ---- Hard-stop gates [R5/A1] ----
-conv <- function(W) { v <- tryCatch(W$info$converged, error = function(e) NULL)
-                      if (is.null(v)) TRUE else isTRUE(v) }
+# ---- Hard-stop gates [R5/A1/C5] ----
+# [C5] convergence = max abs WEIGHTED model-matrix column mean diff <= EBAL_CONSTRAINT_TOL
+firm_mass <- fit$firm_data$n_qualifying_inventors * fit$firm_data$firm_multiplier
+firm_meandiff <- ebal_max_meandiff(model_matrix_cols(fit$firm_form, fit$firm_data),
+                                   fit$firm_data$treated, firm_mass)
+inv_meandiff  <- ebal_max_meandiff(model_matrix_cols(fit$inv_form, units), units$treated, fw)
 gate <- data.frame(
   treated_weights_1 = max(abs(fw[units$treated==1L] - 1)) < 1e-8,
-  weights_finite    = all(is.finite(fw)) ,
+  weights_finite    = all(is.finite(fw)),
   weights_positive  = all(fw > 0),
-  firm_conv         = conv(fit$W_firm),
-  inv_conv          = conv(fit$W_inv))
+  firm_meandiff = firm_meandiff, firm_converged = firm_meandiff <= EBAL_CONSTRAINT_TOL,
+  inv_meandiff  = inv_meandiff,  inv_converged  = inv_meandiff  <= EBAL_CONSTRAINT_TOL,
+  control_ess = ess(fw[units$treated==0L]), max_ctrl_weight = max(fw[units$treated==0L]))
 write_audit(gate, "ebal_gates.csv"); print(gate)
 if (!gate$treated_weights_1) stop("[A1] treated final weights != 1 -- inspect W_inv, do not patch.")
 if (!gate$weights_finite || !gate$weights_positive) stop("Non-finite/non-positive final weights.")
+if (!gate$firm_converged || !gate$inv_converged)
+  stop(sprintf("[C5] ebal did NOT converge (firm meandiff=%.2e, inv meandiff=%.2e > tol=%.1e); ",
+               firm_meandiff, inv_meandiff, EBAL_CONSTRAINT_TOL),
+       "the current spec (inventor-weighted g+7) is expected to fail here -- see 11g comparison.")
 
 # ---- Balance tables (cobalt) firm + final ----
 banner("Balance diagnostics")

@@ -121,8 +121,7 @@ write_audit(ctl_res$identity[, c("deal_id","placebo_g","n_distinct_preperiod_gro
 # exclusion flags (non-exclusive) + priority waterfall
 aq <- ctl_res$all_qualified
 write_audit(aq[, c("codinv","deal_id","ref_year", ctl_res$flag_cols)], "exclusion_flags.csv")
-prio <- c("prior_inventor_exposure","competing_inventor_exposure","prior_firm_target_deal",
-          "competing_firm_target_deal","firm_acquirer_event")
+prio <- ctl_res$exclusion_cols   # [C2] acquirer flags are diagnostic, not in the exclusion waterfall
 wf_reason <- rep("retained", nrow(aq)); assigned <- rep(FALSE, nrow(aq))
 for (r in prio) { hit <- aq[[r]] & !assigned; wf_reason[hit] <- r; assigned[hit] <- TRUE }
 waterfall <- as.data.frame(table(reason = wf_reason))
