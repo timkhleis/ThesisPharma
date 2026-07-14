@@ -30,13 +30,24 @@ firms** (acquirers are legitimate never-targets and were wrongly excluded before
 | `11f_never_target_arm.R` | done, validated | never-target universe + assignment + firm covariates + audits → `main_did_v1_never_target_units.parquet` (3.72M rows, 79,087 cells) |
 | `11g_support_comparison.R` | done | firm-stage support: future_g7 / never_target / hybrid + donor audits + decision gate → `never_target_support_comparison.csv` |
 | `11h_never_target_stage2.R` | done | full two-stage for never-target (3.75M units, ~11 min) → `never_target_stage2_*.csv`, `main_did_v1_never_target_weights.parquet` |
-| `11d_build_main_panel.R` | **NOT built** | next task — see below |
-| `11e_estimate_main_results.R` | **NOT built** | next task |
-| `11_run_main_results.R` | **NOT built** | runner (separate processes) |
+| `11d_build_main_panel.R` | done, validated | never-target weighted panel, delta=0 horizon `t=-5..+5`, citation/acquirer/unit audits -> `main_did_v1_panel.parquet` |
+| `11e_estimate_main_results.R` | done, validated | delta=0 event study, weighted/unweighted/one-way robustness, pretrend tests, t1-t5 summaries, figure |
+| `11_run_main_results.R` | done | runner for 11d then 11e in separate R sessions |
 
-Run order to reproduce: `11b` → `11f` → `11g` → `11h` (each `Rscript 02_analysis/R/<f>.R`).
+**Current update (2026-07-14):** `11d_build_main_panel.R` and
+`11e_estimate_main_results.R` are now built and validated for the never-target,
+inventor-weighted delta=0 event study. `11d` writes `main_did_v1_panel.parquet`
+with exactly 11 rows per inventor-stack over `t=-5..+5`. `11e` writes dynamic
+coefficients, pretrend tests, t1-t5 linear-combo summaries, sample audits, and
+`main_event_study_never_target_delta0.png`.
 
-## NEXT TASK: `11d` panel + `11e` event study (pre-trends) for the never-target arm
+Run order to reproduce: `11b` → `11f` → `11g` → `11h` → `11d` → `11e`
+(each `Rscript 02_analysis/R/<f>.R`; after 11h, `11_run_main_results.R` runs 11d then 11e).
+
+## Historical note: 11d/11e task now completed
+
+The block below records the pre-implementation brief for 11d/11e. It is superseded by the
+2026-07-14 update above and by the results in `main_did_v1_first_results.md` Section 7.
 
 This is the only remaining pre-decision check (reviewer's step 6). Build the outcome panel and the
 inventor-weighted event study, δ=0 first.
