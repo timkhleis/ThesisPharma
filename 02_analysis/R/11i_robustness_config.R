@@ -5,7 +5,7 @@
 # access belongs in Phase 1.
 # ============================================================================
 
-ROBUSTNESS_VERSION <- "main_did_v1_robustness_phase1b"
+ROBUSTNESS_VERSION <- "main_did_v1_robustness_phase1c"
 ROBUSTNESS_NOTE <- file.path(BASE, "notes", "main_did_v1_robustness_design_checkpoint.md")
 
 ROBUSTNESS_DESIGN_COMPARISON <- file.path(RESULTS_DIR, "main_robustness_design_comparison.csv")
@@ -24,6 +24,7 @@ P2_WEIGHTS_PARQUET <- file.path(DERIVED_PAR, "main_did_v1_never_target_h5_acquir
 P3_WEIGHTS_PARQUET <- file.path(DERIVED_PAR, "main_did_v1_g7_reduced4x4_weights.parquet")
 P3_DIAGNOSTIC_WEIGHTS_PARQUET <- file.path(DERIVED_PAR, "main_did_v1_g7_reduced4x4_weights_diagnostic.parquet")
 P4_WEIGHTS_PARQUET <- file.path(DERIVED_PAR, "main_did_v1_g7_deal_weighted_weights.parquet")
+P5_WEIGHTS_PARQUET <- file.path(DERIVED_PAR, "main_did_v1_never_target_h5_deal_weighted_weights.parquet")
 
 FIRM_COVARS_REDUCED <- c(
   "log_firm_inventor_count",
@@ -54,20 +55,22 @@ ROBUST_MIN_ESS <- 50
 ROBUST_MAX_SHARE <- 0.10
 
 ROBUSTNESS_SPECS <- data.frame(
-  spec = c("P0", "P0H5", "P1", "P2", "P3", "P4"),
+  spec = c("P0", "P0H5", "P1", "P2", "P3", "P4", "P5"),
   label = c(
     "Frozen legacy never-target benchmark, full covariates, inventor-weighted ATT",
     "Corrected never-target H5, full covariates, inventor-weighted ATT",
     "Reduced numeric covariates on P0H5, with categorical controls retained",
     "Corrected never-target H5, acquirer-clean controls, inventor-weighted ATT",
     "g+7 future-treated controls, reduced 4x4, inventor-weighted ATT",
-    "g+7 future-treated controls, full covariates, proper deal-weighted ATT"
+    "g+7 future-treated controls, full covariates, proper deal-weighted ATT",
+    "Corrected never-target H5, full covariates, deal-weighted ATT"
   ),
   donor_pool = c("never_target_legacy", "never_target_h5", "never_target_h5",
-                 "never_target_h5_acquirer_clean", "future_g7", "future_g7"),
+                 "never_target_h5_acquirer_clean", "future_g7", "future_g7",
+                 "never_target_h5"),
   estimand = c("inventor_weighted_ATT", "inventor_weighted_ATT", "inventor_weighted_ATT",
                "inventor_weighted_ATT",
-               "inventor_weighted_ATT", "deal_weighted_ATT"),
+               "inventor_weighted_ATT", "deal_weighted_ATT", "deal_weighted_ATT"),
   stringsAsFactors = FALSE
 )
 

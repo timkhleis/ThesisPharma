@@ -1,5 +1,5 @@
 # ============================================================================
-# 11j_build_robustness_weights.R -- Main DiD v1 robustness Phase 1B
+# 11j_build_robustness_weights.R -- Main DiD v1 robustness Phase 1C
 # ----------------------------------------------------------------------------
 # Design-only checkpoint. Builds repaired robustness rosters/weights and writes
 # diagnostics. Does not construct outcomes, open patent_enriched, run citation
@@ -16,7 +16,7 @@ for (pkg in c("DBI", "duckdb", "WeightIt"))
 suppressMessages({ library(DBI); library(duckdb); library(WeightIt) })
 set.seed(SEED)
 
-banner("MAIN DiD v1 ROBUSTNESS -- PHASE 1B DESIGN REPAIR")
+banner("MAIN DiD v1 ROBUSTNESS -- PHASE 1C DESIGN REPAIR")
 
 sql_path <- function(path) gsub("\\\\", "/", path)
 
@@ -236,9 +236,14 @@ drop_acquirer_clean_cells <- function(con, control, p0h5_weighted) {
       ON e.underlying_group_id = c.underlying_group_id
      AND e.deal_year BETWEEN c.stack + %d AND c.stack + %d",
     ACQUIRER_CLEAN_LO, ACQUIRER_CLEAN_HI))
-  key_flag <- paste(flagged$underlying_group_id, flagged$stack)
+  key_flag <- cell_key(flagged)
   key_control <- cell_key(control)
+  missing_flagged <- setdiff(key_flag, unique(key_control))
+  if (length(missing_flagged) > 0L)
+    fail_integrity("P2 flagged cells are not present in the control roster.")
   keep <- !(key_control %in% key_flag)
+  if (nrow(flagged) > 0L && sum(!keep) == 0L)
+    fail_integrity("P2 flagged firm-stack cells but excluded zero control units.")
   weighted <- p0h5_weighted[p0h5_weighted$treated == 0L, , drop = FALSE]
   excluded_mass <- sum(weighted$final_weight[cell_key(weighted) %in% key_flag], na.rm = TRUE)
   list(
@@ -574,19 +579,26 @@ normalize_control_by_stack <- function(units, weights) {
   names(wide) <- sub("w\\.0", "control_mass", names(wide))
   names(wide) <- sub("w\\.1", "treated_mass", names(wide))
   if (any(!is.finite(wide$control_mass)) || any(wide$control_mass <= 0))
-    fail_integrity("P4 stack normalization has nonpositive control mass.")
+    fail_integrity("Deal-weighted stack normalization has nonpositive control mass.")
   wide$scale_factor <- wide$treated_mass / wide$control_mass
   if (any(!is.finite(wide$scale_factor)) || any(wide$scale_factor <= 0))
-    fail_integrity("P4 stack normalization scale factor is not positive finite.")
+    fail_integrity("Deal-weighted stack normalization scale factor is not positive finite.")
   out <- weights
   ctl <- units$treated == 0L
   out[ctl] <- weights[ctl] * wide$scale_factor[match(units$stack[ctl], wide$stack)]
   list(weights = out, scales = wide)
 }
 
-run_deal_weighted_p4 <- function(units) {
-  spec <- "P4"
-  section("P4 proper deal-weighted two-stage ebal with within-stack normalization")
+run_deal_weighted <- function(spec, units, out_parquet, firm_key_cols,
+                              require_future_deal_concentration = FALSE,
+                              expected_roster_key = NULL) {
+  section(paste(spec, "deal-weighted two-stage ebal with within-stack normalization"))
+  if (!is.null(expected_roster_key)) {
+    k <- unit_key(units)
+    if (length(setdiff(k, expected_roster_key)) > 0L ||
+        length(setdiff(expected_roster_key, k)) > 0L)
+      fail_integrity(sprintf("%s does not use exactly the expected roster.", spec))
+  }
   treated <- units$treated == 1L
   deal_n <- table(units$focal_deal_id[treated])
   N_T <- sum(treated)
@@ -596,8 +608,8 @@ run_deal_weighted_p4 <- function(units) {
   target_mass <- N_T / D
   pre_mass <- tapply(units$treated_base_weight_id[treated], units$focal_deal_id[treated], sum)
   if (max(abs(pre_mass - target_mass) / target_mass) > P4_DEAL_MASS_TOL)
-    fail_integrity("P4 treated_base_weight_id does not give equal treated deal totals.")
-  fit <- tryCatch(two_stage_deal_ebal(units, c("focal_deal_id", "underlying_group_id", "stack", "arm"),
+    fail_integrity(sprintf("%s treated_base_weight_id does not give equal treated deal totals.", spec))
+  fit <- tryCatch(two_stage_deal_ebal(units, firm_key_cols,
                                       FIRM_COVARS, INV_COVARS, INV_FACTOR_COVARS,
                                       FULL_CONT_COVARS),
                   error = function(e) e)
@@ -624,17 +636,18 @@ run_deal_weighted_p4 <- function(units) {
       units = u, weights = w0, diagnostics = NULL, metrics = row))
   }
   if (max(abs(w0[u$treated == 1L] - u$treated_base_weight_id[u$treated == 1L])) > 1e-8)
-    fail_integrity("P4 treated weights changed before normalization.")
+    fail_integrity(sprintf("%s treated weights changed before normalization.", spec))
   norm <- normalize_control_by_stack(u, w0)
   w <- norm$weights
   if (max(abs(w[u$treated == 1L] - u$treated_base_weight_id[u$treated == 1L])) > 1e-8)
-    fail_integrity("P4 treated weights changed during normalization.")
+    fail_integrity(sprintf("%s treated weights changed during normalization.", spec))
   post_mass <- tapply(w[u$treated == 1L], u$focal_deal_id[u$treated == 1L], sum)
   deal_equal <- max(abs(post_mass - target_mass) / target_mass) <= P4_DEAL_MASS_TOL
-  if (!deal_equal) fail_integrity("P4 treated deal-total equality failed after normalization.")
-  diag <- diagnose_fit(spec, u, w, fit, FULL_NUMERIC_COVARS, p4 = TRUE)
-  pre_diag <- diagnose_fit("P4_pre_norm", u, w0, fit, FULL_NUMERIC_COVARS, p4 = TRUE)
-  conc_deal <- diag$concentration[diag$concentration$level == "future_control_deal", ]
+  if (!deal_equal) fail_integrity(sprintf("%s treated deal-total equality failed after normalization.", spec))
+  diag <- diagnose_fit(spec, u, w, fit, FULL_NUMERIC_COVARS, p4 = require_future_deal_concentration)
+  pre_diag <- diagnose_fit(paste0(spec, "_pre_norm"), u, w0, fit, FULL_NUMERIC_COVARS,
+                           p4 = require_future_deal_concentration)
+  conc_deal <- diag$concentration[diag$concentration$level == "future_control_deal", , drop = FALSE]
   conc_firm <- diag$concentration[diag$concentration$level == "underlying_control_firm", ]
   reasons <- character(0)
   if (!isTRUE(diag$metrics$firm_converged)) reasons <- c(reasons, "firm stage did not converge")
@@ -645,20 +658,29 @@ run_deal_weighted_p4 <- function(units) {
   if (diag$metrics$max_smd_all > ROBUST_MAX_SMD_OMITTED)
     reasons <- c(reasons, sprintf("all original max |SMD| %.4f > %.2f",
                                   diag$metrics$max_smd_all, ROBUST_MAX_SMD_OMITTED))
-  if (conc_deal$ess < ROBUST_MIN_ESS) reasons <- c(reasons, "future-control-deal ESS below 50")
+  if (require_future_deal_concentration && conc_deal$ess < ROBUST_MIN_ESS)
+    reasons <- c(reasons, "future-control-deal ESS below 50")
   if (conc_firm$ess < ROBUST_MIN_ESS) reasons <- c(reasons, "underlying-control-firm ESS below 50")
-  if (conc_deal$max_share > ROBUST_MAX_SHARE) reasons <- c(reasons, "future-control-deal max share above 10%")
+  if (require_future_deal_concentration && conc_deal$max_share > ROBUST_MAX_SHARE)
+    reasons <- c(reasons, "future-control-deal max share above 10%")
   if (conc_firm$max_share > ROBUST_MAX_SHARE) reasons <- c(reasons, "underlying-control-firm max share above 10%")
   if (!isTRUE(diag$metrics$no_empty_stack)) reasons <- c(reasons, "empty positive-control stack")
   if (diag$metrics$max_stack_mass_discrepancy > 1e-8) reasons <- c(reasons, "stack mass discrepancy above numerical precision")
+  if (!is.null(expected_roster_key)) {
+    k <- unit_key(u)
+    if (length(setdiff(k, expected_roster_key)) > 0L ||
+        length(setdiff(expected_roster_key, k)) > 0L)
+      reasons <- c(reasons, "roster differs from expected roster")
+  }
   status <- if (length(reasons) == 0) "FEASIBLE" else "INFEASIBLE"
   reason <- if (status == "FEASIBLE") "all post-normalization gates passed" else paste(reasons, collapse = "; ")
   if (status == "FEASIBLE") {
-    out <- u[, c("codinv", "underlying_group_id", "stack", "treated",
-                 "n_qualifying_inventors", "focal_deal_id", "real_control_deal_id",
-                 "treated_base_weight_id")]
+    keep_cols <- intersect(c("codinv", "underlying_group_id", "stack", "treated",
+      "n_qualifying_inventors", "focal_deal_id", "real_control_deal_id",
+      "treated_base_weight_id"), names(u))
+    out <- u[, keep_cols, drop = FALSE]
     out$final_weight <- w
-    save_weights(con, out, P4_WEIGHTS_PARQUET, "out_P4")
+    save_weights(con, out, out_parquet, paste0("out_", spec))
   }
   list(status = status, reason = reason, units = u, weights = w,
        pre_weights = w0, diagnostics = diag, pre_diagnostics = pre_diag,
@@ -695,6 +717,7 @@ write_checkpoint_note <- function() {
   p1_omitted <- p1_omitted[order(-p1_omitted$abs_smd_weighted), ]
   p1_max <- if (nrow(p1_omitted)) p1_omitted[1, ] else NULL
   p4_pre <- design[design$spec == "P4_pre_norm", , drop = FALSE]
+  p5_pre <- design[design$spec == "P5_pre_norm", , drop = FALSE]
   lines <- c(
     "# Main DiD v1 Robustness Design Checkpoint",
     "",
@@ -702,9 +725,16 @@ write_checkpoint_note <- function() {
     "",
     "## Scope",
     "",
-    "This Phase 1B checkpoint repairs the design horizon and reruns design-only robustness diagnostics. It does not build outcomes, open `patent_enriched`, run citation checks, or estimate treatment effects.",
+    "This Phase 1C checkpoint repairs the P2 acquirer-clean exclusion, adds P5, and reruns design-only robustness diagnostics. It does not build outcomes, open `patent_enriched`, run citation checks, or estimate treatment effects.",
     "",
-    "P0 remains the frozen legacy benchmark from commit `99923f8`; its never-target control-inventor contamination screening ended at g+3. P0H5 is the corrected candidate primary never-target design with control-inventor competing acquisitions excluded through g+5.",
+    "P0 remains the frozen legacy benchmark from commit `99923f8`; its never-target control-inventor contamination screening ended at g+3. P0H5 is the corrected candidate primary never-target design with control-inventor competing acquisitions excluded through g+5. P5 uses exactly the P0H5 roster but changes the estimand to a deal-weighted ATT.",
+    "",
+    "## Design Matrix",
+    "",
+    "| Control pool | Inventor-weighted ATT | Deal-weighted ATT |",
+    "| --- | --- | --- |",
+    "| Never-target | P0H5; P2 acquirer-clean restriction | P5 |",
+    "| g+7 future-treated | P3 (infeasible) | P4 |",
     "",
     "## Final Design Decisions",
     "",
@@ -719,6 +749,7 @@ write_checkpoint_note <- function() {
       P2 = "No observed acquirer event g-1..g+5",
       P3 = "g+7, inventor ATT",
       P4 = "g+7, deal ATT",
+      P5 = "Corrected never-target, deal ATT",
       feasibility$spec[i])
     lines <- c(lines, sprintf("| %s | %s | %s | %s |",
       md_cell(feasibility$spec[i]), md_cell(roster), md_cell(feasibility$status[i]),
@@ -768,10 +799,21 @@ write_checkpoint_note <- function() {
       fmt(min(p4_scales$scale_factor), 6), fmt(max(p4_scales$scale_factor), 6),
       fmt(max(abs(p4_scales$scale_factor - 1)), 6)))
   }
+  lines <- c(lines, "", "## P5 Deal-Weighted Never-Target Diagnostics", "")
+  if (nrow(p5_pre)) {
+    lines <- c(lines, sprintf("- Pre-normalization max stack-mass discrepancy: %s.",
+                              fmt(p5_pre$max_stack_mass_discrepancy[1], 6)))
+  }
+  if (!is.null(p5_scales)) {
+    lines <- c(lines, sprintf("- Stack scale factors: min %s, max %s, max absolute deviation from one %s.",
+      fmt(min(p5_scales$scale_factor), 6), fmt(max(p5_scales$scale_factor), 6),
+      fmt(max(abs(p5_scales$scale_factor - 1)), 6)))
+    lines <- c(lines, "- P5 uses exactly the P0H5 analysis-unit roster; only the treated estimand and weights change.")
+  }
   lines <- c(lines, "", "## g+7 Sample Count Reconciliation", "",
     sprintf("- Authoritative current `main_did_v1_units.parquet` control count: %s.", g7_count_current),
     "- The older `10,630` count appears in `main_did_v1_first_results.md` and is a stale memo count from an earlier cleanliness/artifact state.",
-    sprintf("- The Phase 1B runner uses the current derived artifact and records %s g+7 controls for P3/P4.", g7_count_current),
+    sprintf("- The Phase 1C runner uses the current derived artifact and records %s g+7 controls for P3/P4.", g7_count_current),
     "",
     "## Core Diagnostics",
     "")
@@ -796,7 +838,7 @@ write_checkpoint_note <- function() {
       unit_diff$only_in_p0[i], unit_diff$shared_with_p0h5[i],
       unit_diff$only_in_spec_vs_p0h5[i], unit_diff$only_in_p0h5[i]))
   }
-  lines <- c(lines, "", "## P4 Contract Self-Test", "")
+  lines <- c(lines, "", "## Deal-Weighted Contract Self-Test", "")
   for (i in seq_len(nrow(p4_st))) {
     lines <- c(lines, sprintf("- %s: %s (%s).", p4_st$check[i],
                               ifelse(p4_st$pass[i], "pass", "fail"), p4_st$detail[i]))
@@ -828,12 +870,13 @@ feasibility <- NULL
 unit_diff <- NULL
 p3_zero_summary <- NULL
 p4_scales <- NULL
+p5_scales <- NULL
 p2_diag_extra <- data.frame(metric = character(0), value = numeric(0))
 
-banner("P4 synthetic self-test")
+banner("Deal-weighted synthetic self-test")
 p4_st <- p4_selftest()
 print(p4_st)
-if (!all(p4_st$pass)) fail_integrity("P4 synthetic self-test failed.")
+if (!all(p4_st$pass)) fail_integrity("Deal-weighted synthetic self-test failed.")
 
 banner("Load frozen P0 and base rosters")
 treated <- load_treated_units(con)
@@ -897,7 +940,7 @@ if (!identical(res_p0h5$status, "FEASIBLE")) {
   write_phase_csv(quantiles_all, ROBUSTNESS_QUANTILES)
   write_phase_csv(feasibility, ROBUSTNESS_FEASIBILITY)
   write_checkpoint_note()
-  stop("P0H5 is infeasible; stopping before P1-P4 as requested.", call. = FALSE)
+  stop("P0H5 is infeasible; stopping before P1-P5 as requested.", call. = FALSE)
 }
 
 banner("P1 reduced numeric covariates on P0H5 units")
@@ -926,6 +969,27 @@ res_p2 <- run_inventor_weighted("P2", p2_units, c("underlying_group_id", "stack"
   FIRM_COVARS, INV_COVARS, constrained_covars = FULL_NUMERIC_COVARS,
   out_parquet = P2_WEIGHTS_PARQUET, full_gate = TRUE)
 add_result("P2", res_p2)
+
+banner("P5 corrected never-target deal-weighted normalized diagnostics")
+p5_units <- p0h5_units_pre[unit_key(p0h5_units_pre) %in% p0h5_key, , drop = FALSE]
+if (length(setdiff(p0h5_key, unit_key(p5_units))) > 0L ||
+    length(setdiff(unit_key(p5_units), p0h5_key)) > 0L)
+  fail_integrity("P5 does not use exactly P0H5 units.")
+res_p5 <- run_deal_weighted("P5", p5_units, P5_WEIGHTS_PARQUET,
+  firm_key_cols = c("focal_deal_id", "underlying_group_id", "stack", "arm"),
+  require_future_deal_concentration = FALSE,
+  expected_roster_key = p0h5_key)
+p5_scales <- res_p5$scale_factors
+if (!is.null(res_p5$pre_diagnostics)) {
+  pre <- res_p5$pre_diagnostics
+  design <- append_rows(design, pre$metrics)
+  balance_all <- append_rows(balance_all, pre$balance)
+  concentration_all <- append_rows(concentration_all, pre$concentration)
+  stack_mass_all <- append_rows(stack_mass_all, pre$stack_mass)
+}
+if (!is.null(p5_scales))
+  write_phase_csv(p5_scales, file.path(RESULTS_DIR, "main_robustness_p5_stack_scale_factors.csv"))
+add_result("P5", res_p5)
 
 banner("P3/P4 g+7 design and clock checks")
 g7_raw <- load_g7_units(con)
@@ -956,7 +1020,9 @@ if (!is.null(res_p3$zero_diag)) {
 add_result("P3", res_p3)
 
 banner("P4 g+7 deal-weighted normalized diagnostics")
-res_p4 <- run_deal_weighted_p4(g7)
+res_p4 <- run_deal_weighted("P4", g7, P4_WEIGHTS_PARQUET,
+  firm_key_cols = c("focal_deal_id", "underlying_group_id", "stack", "arm"),
+  require_future_deal_concentration = TRUE)
 p4_scales <- res_p4$scale_factors
 if (!is.null(res_p4$pre_diagnostics)) {
   pre <- res_p4$pre_diagnostics
@@ -969,7 +1035,7 @@ if (!is.null(p4_scales))
   write_phase_csv(p4_scales, file.path(RESULTS_DIR, "main_robustness_p4_stack_scale_factors.csv"))
 add_result("P4", res_p4)
 
-banner("Writing Phase 1B diagnostics and checkpoint note")
+banner("Writing Phase 1C diagnostics and checkpoint note")
 write_phase_csv(design, ROBUSTNESS_DESIGN_COMPARISON)
 write_phase_csv(balance_all, ROBUSTNESS_BALANCE_ALL)
 write_phase_csv(concentration_all, ROBUSTNESS_CONCENTRATION)
@@ -984,4 +1050,4 @@ write_checkpoint_note()
 
 options(width = 220)
 print(feasibility[, c("spec", "status", "reason")])
-banner("11j Phase 1B DONE -- stop before outcome estimation")
+banner("11j Phase 1C DONE -- stop before outcome estimation")
