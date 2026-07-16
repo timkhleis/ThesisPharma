@@ -15,8 +15,8 @@ FIRM_MATCH_LO    <- -6L    # firm matching window [g-6, g-3]
 FIRM_MATCH_HI    <- -3L
 INV_MATCH_LO     <- -5L    # inventor matching window [g-5, g-1]  (B1: full pre-window)
 INV_MATCH_HI     <- -1L
-EVENT_LO         <- -5L    # estimation event window [-5, +3]
-EVENT_HI         <-  3L
+EVENT_LO         <- -5L    # estimation event window [-5, +5]
+EVENT_HI         <-  5L
 
 # --- Control design ---------------------------------------------------------
 CONTROL_LAG <- 7L                 # primary future-treated control lag (G_c = g + 7)
@@ -28,8 +28,14 @@ STACK_HI <- 2008L                 # for L=7; the census uses STACK_HI = 2015 - L
 
 # --- Anticipation conventions ----------------------------------------------
 ANTICIPATION_GRID <- c(0L, 1L)    # delta=0 ref t=-1; delta=1 ref t=-2 (t=-1 = anticipation)
-PRIMARY_POST      <- 1:3          # primary post-treatment summary: mean of t=1,2,3
+PRIMARY_POST      <- 1:5          # primary post-treatment summary: mean of t=1..5
 ANNOUNCEMENT_YEAR_PARTIAL <- TRUE # t=0 is partial exposure; reported separately
+
+# --- Cleanliness windows ----------------------------------------------------
+CONTROL_CLEAN_LO <- 0L
+CONTROL_CLEAN_HI <- EVENT_HI
+ACQUIRER_CLEAN_LO <- -1L
+ACQUIRER_CLEAN_HI <- EVENT_HI
 
 # --- Gates / thresholds -----------------------------------------------------
 COV_TOL              <- 1e-6      # 4b numeric covariate certification tolerance

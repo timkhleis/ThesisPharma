@@ -15,9 +15,9 @@ for (pkg in c("DBI", "duckdb", "fixest", "ggplot2"))
   if (!requireNamespace(pkg, quietly = TRUE)) stop("Missing package: ", pkg)
 suppressMessages({ library(DBI); library(duckdb); library(fixest); library(ggplot2) })
 
-EVENT_WINDOW_11E <- -5L:5L
-PRE_PERIODS_11E <- -5L:-2L
-POST_PERIODS_11E <- 1L:5L
+EVENT_WINDOW_11E <- EVENT_LO:EVENT_HI
+PRE_PERIODS_11E <- EVENT_LO:-2L
+POST_PERIODS_11E <- PRIMARY_POST
 REFERENCE_11E <- -1L
 EXPECTED_EVENT_TIMES <- setdiff(EVENT_WINDOW_11E, REFERENCE_11E)
 PANEL_PARQUET_11E <- file.path(DERIVED_PAR, "main_did_v1_panel.parquet")

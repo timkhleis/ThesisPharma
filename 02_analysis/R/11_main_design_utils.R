@@ -534,7 +534,7 @@ compute_inventor_covariates <- function(con, inv_keys) {
 #   acquirers retained; ambiguous target histories conservatively excluded [C4]).
 #   Assignment: latest affiliation in [g-5,g-1] resolves to a never-target group.
 #   Cleanliness [C3]: drop (codinv,stack) with any prior (deal_year<g) or competing
-#   ([g,g+3]) real target acquisition.
+#   ([g,g+CONTROL_CLEAN_HI]) real target acquisition.
 # ============================================================================
 build_never_target_arm <- function(con, stacks = STACK_LO:STACK_HI) {
   fam_case <- ipc_family_case_sql("ipc.ipc_code")
@@ -600,12 +600,12 @@ build_never_target_arm <- function(con, stacks = STACK_LO:STACK_HI) {
   assigned$underlying_group_id <- as.numeric(assigned$underlying_group_id)
   n_assigned <- nrow(assigned)
 
-  # --- [C3] cleanliness: drop prior (<g) or competing ([g,g+3]) real target exposure ---
+  # --- [C3] cleanliness: drop prior (<g) or competing ([g,g+CONTROL_CLEAN_HI]) real target exposure ---
   tco <- DBI::dbGetQuery(con, "SELECT DISTINCT CAST(codinv AS DOUBLE) codinv,
                                CAST(deal_year AS INTEGER) dy FROM target_cohort_own")
   im <- merge(assigned[, c("codinv", "stack")], tco, by = "codinv")
   im$prior     <- im$dy <  im$stack
-  im$competing <- im$dy >= im$stack & im$dy <= im$stack + 3L
+  im$competing <- im$dy >= im$stack + CONTROL_CLEAN_LO & im$dy <= im$stack + CONTROL_CLEAN_HI
   agg <- aggregate(cbind(prior, competing) ~ codinv + stack, data = im, FUN = any)
   assigned <- merge(assigned, agg, by = c("codinv", "stack"), all.x = TRUE)
   assigned$prior_target_exposure     <- isTRUE_vec(assigned$prior)
@@ -618,12 +618,12 @@ build_never_target_arm <- function(con, stacks = STACK_LO:STACK_HI) {
                                 MIN(deal_year) miny, MAX(deal_year) maxy
                                 FROM cassi_deal_spine WHERE acquirer_group IS NOT NULL GROUP BY acquirer_group")
   assigned$ever_acquirer <- assigned$underlying_group_id %in% acq_groups$g
-  # acquirer event in [g-5,g+3]
+  # acquirer event in the event window
   acq_events <- DBI::dbGetQuery(con, "SELECT CAST(acquirer_group AS DOUBLE) g, CAST(deal_year AS INTEGER) dy
                                 FROM cassi_deal_spine WHERE acquirer_group IS NOT NULL")
   ae <- merge(assigned[, c("codinv","stack","underlying_group_id")], acq_events,
               by.x = "underlying_group_id", by.y = "g")
-  ae$inwin <- ae$dy >= ae$stack - 5L & ae$dy <= ae$stack + 3L
+  ae$inwin <- ae$dy >= ae$stack + EVENT_LO & ae$dy <= ae$stack + EVENT_HI
   ae_agg <- aggregate(inwin ~ codinv + stack + underlying_group_id, data = ae, FUN = any)
   assigned <- merge(assigned, ae_agg, by = c("codinv","stack","underlying_group_id"), all.x = TRUE)
   assigned$acquirer_event_in_window <- isTRUE_vec(assigned$inwin); assigned$inwin <- NULL

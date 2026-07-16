@@ -5,7 +5,7 @@
 # access belongs in Phase 1.
 # ============================================================================
 
-ROBUSTNESS_VERSION <- "main_did_v1_robustness_phase1"
+ROBUSTNESS_VERSION <- "main_did_v1_robustness_phase1b"
 ROBUSTNESS_NOTE <- file.path(BASE, "notes", "main_did_v1_robustness_design_checkpoint.md")
 
 ROBUSTNESS_DESIGN_COMPARISON <- file.path(RESULTS_DIR, "main_robustness_design_comparison.csv")
@@ -18,9 +18,11 @@ ROBUSTNESS_FEASIBILITY <- file.path(RESULTS_DIR, "main_robustness_feasibility_de
 NT_UNITS_PARQUET <- file.path(DERIVED_PAR, "main_did_v1_never_target_units.parquet")
 P0_WEIGHTS_PARQUET <- file.path(DERIVED_PAR, "main_did_v1_never_target_weights.parquet")
 
-P1_WEIGHTS_PARQUET <- file.path(DERIVED_PAR, "main_did_v1_never_target_reduced4x4_weights.parquet")
-P2_WEIGHTS_PARQUET <- file.path(DERIVED_PAR, "main_did_v1_never_target_acquirer_clean_weights.parquet")
+P0H5_WEIGHTS_PARQUET <- file.path(DERIVED_PAR, "main_did_v1_never_target_h5_weights.parquet")
+P1_WEIGHTS_PARQUET <- file.path(DERIVED_PAR, "main_did_v1_never_target_h5_reduced_numeric_weights.parquet")
+P2_WEIGHTS_PARQUET <- file.path(DERIVED_PAR, "main_did_v1_never_target_h5_acquirer_clean_weights.parquet")
 P3_WEIGHTS_PARQUET <- file.path(DERIVED_PAR, "main_did_v1_g7_reduced4x4_weights.parquet")
+P3_DIAGNOSTIC_WEIGHTS_PARQUET <- file.path(DERIVED_PAR, "main_did_v1_g7_reduced4x4_weights_diagnostic.parquet")
 P4_WEIGHTS_PARQUET <- file.path(DERIVED_PAR, "main_did_v1_g7_deal_weighted_weights.parquet")
 
 FIRM_COVARS_REDUCED <- c(
@@ -52,16 +54,19 @@ ROBUST_MIN_ESS <- 50
 ROBUST_MAX_SHARE <- 0.10
 
 ROBUSTNESS_SPECS <- data.frame(
-  spec = c("P0", "P1", "P2", "P3", "P4"),
+  spec = c("P0", "P0H5", "P1", "P2", "P3", "P4"),
   label = c(
-    "Frozen primary never-target, full covariates, inventor-weighted ATT",
-    "Never-target, reduced 4x4, inventor-weighted ATT",
-    "Never-target, full covariates, acquirer-clean controls, inventor-weighted ATT",
+    "Frozen legacy never-target benchmark, full covariates, inventor-weighted ATT",
+    "Corrected never-target H5, full covariates, inventor-weighted ATT",
+    "Reduced numeric covariates on P0H5, with categorical controls retained",
+    "Corrected never-target H5, acquirer-clean controls, inventor-weighted ATT",
     "g+7 future-treated controls, reduced 4x4, inventor-weighted ATT",
     "g+7 future-treated controls, full covariates, proper deal-weighted ATT"
   ),
-  donor_pool = c("never_target", "never_target", "never_target_acquirer_clean", "future_g7", "future_g7"),
+  donor_pool = c("never_target_legacy", "never_target_h5", "never_target_h5",
+                 "never_target_h5_acquirer_clean", "future_g7", "future_g7"),
   estimand = c("inventor_weighted_ATT", "inventor_weighted_ATT", "inventor_weighted_ATT",
+               "inventor_weighted_ATT",
                "inventor_weighted_ATT", "deal_weighted_ATT"),
   stringsAsFactors = FALSE
 )

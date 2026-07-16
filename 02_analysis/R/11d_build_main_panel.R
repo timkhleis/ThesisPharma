@@ -16,9 +16,9 @@ for (pkg in c("DBI", "duckdb"))
   if (!requireNamespace(pkg, quietly = TRUE)) stop("Missing package: ", pkg)
 suppressMessages({ library(DBI); library(duckdb) })
 
-EVENT_WINDOW_11D <- -5L:5L
+EVENT_WINDOW_11D <- EVENT_LO:EVENT_HI
 REFERENCE_11D <- -1L
-POST_PERIODS_11D <- 1L:5L
+POST_PERIODS_11D <- PRIMARY_POST
 WEIGHTS_PARQUET <- file.path(DERIVED_PAR, "main_did_v1_never_target_weights.parquet")
 PANEL_PARQUET_11D <- file.path(DERIVED_PAR, "main_did_v1_panel.parquet")
 
