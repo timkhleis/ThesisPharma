@@ -1,6 +1,6 @@
 scripts <- c(
-  file.path("analysis", "R", "01_build_data_foundation.R"),
-  file.path("analysis", "R", "02_build_derived_tables.R")
+  file.path("02_analysis", "R", "01_build_data_foundation.R"),
+  file.path("02_analysis", "R", "02_build_derived_tables.R")
 )
 
 rscript <- file.path(R.home("bin"), "Rscript.exe")

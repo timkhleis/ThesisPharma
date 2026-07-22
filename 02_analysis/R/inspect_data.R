@@ -1,4 +1,4 @@
-source(file.path("analysis", "R", "00_utils.R"))
+source(file.path("02_analysis", "R", "00_utils.R"))
 
 load_packages()
 
@@ -72,10 +72,10 @@ print(data.frame(table_name = tables))
 
 print_section("Metadata Files")
 metadata_files <- c(
-  project_path("analysis", "output", "metadata", "table_inventory.csv"),
-  project_path("analysis", "output", "metadata", "derived_inventory.csv"),
-  project_path("analysis", "output", "metadata", "key_checks.csv"),
-  project_path("analysis", "output", "metadata", "duckdb_tables.csv")
+  project_path("02_analysis", "output", "metadata", "table_inventory.csv"),
+  project_path("02_analysis", "output", "metadata", "derived_inventory.csv"),
+  project_path("02_analysis", "output", "metadata", "key_checks.csv"),
+  project_path("02_analysis", "output", "metadata", "duckdb_tables.csv")
 )
 print(data.frame(path = metadata_files, exists = file.exists(metadata_files)))
 
