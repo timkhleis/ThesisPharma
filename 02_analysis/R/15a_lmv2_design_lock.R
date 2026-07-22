@@ -149,6 +149,38 @@ LMV2_LOCK <- list(
     stayer_window = 1:5,
     event_year_zero_can_define_stayer = FALSE
   ),
+  stayer_design = list(
+    cohorts = 1994:2008,
+    treated_and_control_definition = "at_least_one_focal_entity_patent_in_event_time_1_to_5",
+    event_year_zero_excluded = TRUE,
+    preferred = list(
+      pooled_smd = 0.05,
+      era_smd = 0.075,
+      inventor_retention = 0.90,
+      deal_retention = 0.90,
+      minimum_matched_deal_ess = 20
+    ),
+    acceptable = list(
+      max_smd = 0.10,
+      inventor_retention = 0.80,
+      deal_retention = 0.85,
+      minimum_cohort_retention = 0.50,
+      preserve_target_size_categories = TRUE,
+      minimum_matched_deal_ess = 20
+    ),
+    first_pool = "frozen_five_firm_stage_1_pool",
+    fallback_pool = "predeclared_ten_firm_stayer_extension",
+    if_both_fail = "report_selection_and_descriptive_results_without_matched_stayer_att"
+  ),
+  production = list(
+    restartable_cohort_shards = TRUE,
+    required_validations = c(
+      "firm_and_inventor_match_counts", "two_firm_diversification",
+      "weight_sums", "balance_and_retention", "concentration",
+      "design_hashes", "no_stale_shards"
+    ),
+    stage_1_must_remain_frozen_during_stage_2 = TRUE
+  ),
   placebo = list(
     replications = 200L,
     seed = 20260722L,
@@ -196,4 +228,3 @@ lmv2_design_hash <- function() {
 }
 
 LMV2_DESIGN_HASH <- lmv2_design_hash()
-
