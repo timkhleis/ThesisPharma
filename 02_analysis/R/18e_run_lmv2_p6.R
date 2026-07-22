@@ -1,0 +1,209 @@
+# ============================================================================
+# 18e_run_lmv2_p6.R -- P6 runner: provenance gate, double build, certification
+# ============================================================================
+# Dormant by construction: every data path must be supplied explicitly on the
+# command line. The runner never auto-locates or copies data from a sibling
+# worktree; the one-time copy of the frozen database and P2 audit directory
+# into this worktree is a separate external command executed by the operator
+# (documented in local_match_v2_p6_outcomes.md).
+#
+# Usage (execution stage only, after P3-P5a):
+#   Rscript 02_analysis/R/18e_run_lmv2_p6.R \
+#     --db=<path to P6 working copy of thesis_foundation.duckdb> \
+#     --p2-manifest=<path to p2_interface_manifest.csv> \
+#     --audit-dir=<output directory for P6 audit artifacts> \
+#     [--roster=<certified P5a roster parquet>] [--allow-restart]
+
+args <- commandArgs(trailingOnly = TRUE)
+get_arg <- function(flag) {
+  hit <- grep(paste0("^", flag, "="), args, value = TRUE)
+  if (length(hit) != 1) return(NA_character_)
+  sub(paste0("^", flag, "="), "", hit)
+}
+
+DB_PATH <- get_arg("--db")
+P2_MANIFEST <- get_arg("--p2-manifest")
+AUDIT_DIR <- get_arg("--audit-dir")
+ROSTER_PATH <- get_arg("--roster")
+ALLOW_RESTART <- "--allow-restart" %in% args
+
+if (is.na(DB_PATH) || is.na(P2_MANIFEST) || is.na(AUDIT_DIR)) {
+  stop("P6 runner requires explicit --db=, --p2-manifest=, and --audit-dir= ",
+       "arguments. It never locates or copies data on its own.")
+}
+
+BASE <- normalizePath("02_analysis", mustWork = TRUE)
+source(file.path(BASE, "R", "00_utils.R"))
+use_project_library()
+for (pkg in c("DBI", "duckdb", "digest")) {
+  if (!requireNamespace(pkg, quietly = TRUE)) stop("Missing package: ", pkg)
+}
+source(file.path(BASE, "R", "15a_lmv2_design_lock.R"))
+source(file.path(BASE, "R", "18a_lmv2_outcome_config.R"))
+source(file.path(BASE, "R", "18b_build_lmv2_outcome_ingredients.R"))
+source(file.path(BASE, "R", "18c_materialize_lmv2_outcome_panel.R"))
+source(file.path(BASE, "R", "18d_certify_lmv2_outcomes.R"))
+
+t_start <- Sys.time()
+dir.create(AUDIT_DIR, recursive = TRUE, showWarnings = FALSE)
+write_audit <- function(x, name) {
+  utils::write.csv(x, file.path(AUDIT_DIR, name), row.names = FALSE, na = "")
+}
+
+# ---------------------------------------------------------------------------
+# Provenance gate: abort before any build if inputs are missing/inconsistent.
+# ---------------------------------------------------------------------------
+if (!file.exists(DB_PATH)) stop("Database not found: ", DB_PATH)
+if (!file.exists(P2_MANIFEST)) stop("P2 manifest not found: ", P2_MANIFEST)
+AMENDMENTS_PATH <- file.path(BASE, "notes", "local_match_v2_amendments.md")
+amendments_sha <- lmv2_file_sha256(AMENDMENTS_PATH)
+
+con <- DBI::dbConnect(duckdb::duckdb(), DB_PATH)
+on.exit(DBI::dbDisconnect(con, shutdown = TRUE), add = TRUE)
+DBI::dbExecute(con, sprintf("PRAGMA memory_limit='%s'",
+                            LMV2_P6_CONFIG$memory_limit))
+DBI::dbExecute(con, sprintf("PRAGMA threads=%d", LMV2_P6_CONFIG$threads))
+
+p2_gate <- lmv2_check_p2_interfaces(con, P2_MANIFEST)
+write_audit(p2_gate, "p6_p2_interface_gate.csv")
+before_p1 <- lmv2_p1_upstream_checksums(con)
+write_audit(before_p1, "p6_p1_upstream_before.csv")
+
+provenance <- list(
+  p0_design_hash = LMV2_DESIGN_HASH,
+  p6_design_hash = lmv2_p6_design_hash(),
+  amendments_sha256 = amendments_sha,
+  p2_interface_hashes = setNames(p2_gate$actual_hash, p2_gate$table),
+  ingredient_build_hash = NA_character_ # filled after publish
+)
+
+# ---------------------------------------------------------------------------
+# True double build: two independent builds into isolated schemas, logical
+# hash comparison, publish only on equality. Restart-skipping never
+# substitutes for the second build.
+# ---------------------------------------------------------------------------
+ingredient_checksums <- function(schema) {
+  out <- lapply(LMV2_P6_CONFIG$ingredient_tables, function(tbl) {
+    lmv2_p1_logical_checksum(con, sprintf("%s.%s", schema, tbl))
+  })
+  do.call(rbind, out)
+}
+
+for (schema in LMV2_P6_CONFIG$build_schemas) {
+  build_lmv2_outcome_ingredients(con, schema)
+}
+hash_a <- ingredient_checksums(LMV2_P6_CONFIG$build_schemas[1])
+hash_b <- ingredient_checksums(LMV2_P6_CONFIG$build_schemas[2])
+hash_a$table_name <- sub("^[^.]+\\.", "", hash_a$table_name)
+hash_b$table_name <- sub("^[^.]+\\.", "", hash_b$table_name)
+if (!lmv2_df_equal(hash_a[order(hash_a$table_name), ],
+                   hash_b[order(hash_b$table_name), ])) {
+  write_audit(hash_a, "p6_build_a_checksums.csv")
+  write_audit(hash_b, "p6_build_b_checksums.csv")
+  stop("Double-build determinism failed: build_a and build_b differ.")
+}
+
+PUBLISH_SCHEMA <- "p6"
+DBI::dbExecute(con, sprintf("CREATE SCHEMA IF NOT EXISTS %s", PUBLISH_SCHEMA))
+for (tbl in c("lmv2_relevant_inventors", LMV2_P6_CONFIG$ingredient_tables)) {
+  DBI::dbExecute(con, sprintf(
+    "CREATE OR REPLACE TABLE %s.%s AS SELECT * FROM %s.%s",
+    PUBLISH_SCHEMA, tbl, LMV2_P6_CONFIG$build_schemas[1], tbl))
+}
+for (schema in LMV2_P6_CONFIG$build_schemas) {
+  DBI::dbExecute(con, sprintf("DROP SCHEMA %s CASCADE", schema))
+}
+provenance$ingredient_build_hash <- digest::digest(hash_a, algo = "sha256",
+                                                   serialize = TRUE)
+write_audit(hash_a, "p6_ingredient_checksums.csv")
+
+# ---------------------------------------------------------------------------
+# Synthetic fixture certification (18d): exact hand-derivable expectations
+# plus the roster-validation unit tests.
+# ---------------------------------------------------------------------------
+build_lmv2_p6_fixture(con, "p6_fixture")
+fixture_dir <- file.path(AUDIT_DIR, "panel_synthetic_fixture")
+materialize_lmv2_event_panel(con, "p6_fixture.lmv2_fixture_roster",
+                             "p6_fixture", fixture_dir, provenance,
+                             allow_restart = FALSE)
+fixture_checks <- run_lmv2_fixture_assertions(
+  con, file.path(fixture_dir, "lmv2_event_panel_c2000.parquet"))
+roster_checks <- run_lmv2_roster_validation_tests(con, "p6_fixture")
+
+# ---------------------------------------------------------------------------
+# Treated fixture: mechanical self-matched roster from the frozen P2
+# interface; the materializer must reproduce P2's stayer classification
+# exactly (certification test 7).
+# ---------------------------------------------------------------------------
+derive_treated_fixture_roster(con, "p6.lmv2_treated_fixture_roster")
+treated_dir <- file.path(AUDIT_DIR, "panel_treated_fixture")
+treated_manifest <- materialize_lmv2_event_panel(
+  con, "p6.lmv2_treated_fixture_roster", PUBLISH_SCHEMA, treated_dir,
+  provenance, allow_restart = ALLOW_RESTART)
+write_audit(treated_manifest, "p6_treated_fixture_shards.csv")
+
+cert <- run_lmv2_p6_certification(
+  con, PUBLISH_SCHEMA, treated_dir, "p6.lmv2_treated_fixture_roster",
+  before_p1, P2_MANIFEST, r_dir = file.path(BASE, "R"))
+all_checks <- rbind(
+  cert[, c("check", "pass")],
+  fixture_checks,
+  roster_checks
+)
+write_audit(cert, "p6_certification.csv")
+write_audit(fixture_checks, "p6_synthetic_fixture_checks.csv")
+write_audit(roster_checks, "p6_roster_validation_checks.csv")
+write_audit(attr(cert, "oecd_field_availability"),
+            "p6_oecd_field_availability_by_filing_year.csv")
+
+# ---------------------------------------------------------------------------
+# Optional production stage: certified P5a roster.
+# ---------------------------------------------------------------------------
+if (!is.na(ROSTER_PATH)) {
+  if (!file.exists(ROSTER_PATH)) stop("P5a roster not found: ", ROSTER_PATH)
+  DBI::dbExecute(con, sprintf(
+    "CREATE OR REPLACE TABLE p6.lmv2_p5a_roster AS
+     SELECT * FROM read_parquet('%s')", gsub("\\\\", "/", ROSTER_PATH)))
+  matched_dir <- file.path(AUDIT_DIR, "panel_matched")
+  matched_manifest <- materialize_lmv2_event_panel(
+    con, "p6.lmv2_p5a_roster", PUBLISH_SCHEMA, matched_dir,
+    provenance, allow_restart = ALLOW_RESTART)
+  write_audit(matched_manifest, "p6_matched_panel_shards.csv")
+}
+
+# ---------------------------------------------------------------------------
+# Manifest. Memory: the configured cap is recorded as a setting, never as an
+# observed peak; DuckDB memory statistics are included when the installed
+# version exposes them; process peak is NA unless a reliable method exists.
+# ---------------------------------------------------------------------------
+duckdb_mem <- tryCatch(
+  DBI::dbGetQuery(con, "SELECT * FROM duckdb_memory()"),
+  error = function(e) data.frame(note = "duckdb_memory() unavailable"))
+write_audit(duckdb_mem, "p6_duckdb_memory_stats.csv")
+
+manifest <- data.frame(
+  p6_version = LMV2_P6_VERSION,
+  p6_design_hash = provenance$p6_design_hash,
+  p0_design_hash = provenance$p0_design_hash,
+  amendments_sha256 = provenance$amendments_sha256,
+  ingredient_build_hash = provenance$ingredient_build_hash,
+  db_path = DB_PATH,
+  p2_manifest_path = P2_MANIFEST,
+  roster_path = ifelse(is.na(ROSTER_PATH), "", ROSTER_PATH),
+  n_checks = nrow(all_checks),
+  n_failed = sum(!all_checks$pass),
+  configured_memory_limit = LMV2_P6_CONFIG$memory_limit,
+  configured_threads = LMV2_P6_CONFIG$threads,
+  observed_process_peak_memory = NA_character_,
+  runtime_minutes = round(as.numeric(difftime(Sys.time(), t_start,
+                                              units = "mins")), 2),
+  stringsAsFactors = FALSE
+)
+write_audit(manifest, "p6_manifest.csv")
+
+failed <- all_checks$check[!all_checks$pass]
+if (length(failed)) {
+  stop("P6 certification failed: ", paste(failed, collapse = ", "))
+}
+message("P6 PASS | design_hash=", provenance$p6_design_hash,
+        " | checks=", nrow(all_checks))
