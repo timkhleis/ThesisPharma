@@ -34,6 +34,7 @@ add_check <- function(name, observed, expected, pass) {
 
 interfaces <- c(
   "lmv2_treated_primary", "lmv2_treated_broad",
+  "lmv2_treated_unique_affiliation_robustness",
   "lmv2_control_firm_eligibility", "lmv2_control_inventor_eligibility"
 )
 present <- vapply(interfaces, DBI::dbExistsTable, logical(1), conn = con)
@@ -79,6 +80,21 @@ WHERE b.codinv IS NULL
 ")
 add_check("primary_is_subset_of_broad", primary_not_broad, 0, primary_not_broad == 0)
 
+unique_not_primary <- scalar("
+SELECT COUNT(*)
+FROM lmv2_treated_unique_affiliation_robustness u
+LEFT JOIN lmv2_treated_primary p USING (codinv, deal_id)
+WHERE p.codinv IS NULL
+")
+add_check("unique_affiliation_is_subset_of_primary", unique_not_primary, 0,
+          unique_not_primary == 0)
+unique_bad <- scalar("
+SELECT COUNT(*) FROM lmv2_treated_unique_affiliation_robustness
+WHERE latest_pre_candidate_group_count <> 1
+")
+add_check("unique_affiliation_robustness_is_unique", unique_bad, 0,
+          unique_bad == 0)
+
 invalid_routes <- scalar("
 SELECT COUNT(*) FROM lmv2_treated_primary
 WHERE qualification_route IS NULL
@@ -105,6 +121,40 @@ FROM lmv2_treated_primary
 ")
 add_check("transition_share_overall", transition$overall, "<=0.05", transition$overall <= 0.05)
 add_check("transition_share_max_era", transition$max_era, "<=0.10", transition$max_era <= 0.10)
+
+promoted <- DBI::dbGetQuery(con, "
+SELECT
+  string_agg(CAST(deal_id AS VARCHAR), ',' ORDER BY deal_id) AS all_ids,
+  string_agg(
+    CASE WHEN target_year BETWEEN 1994 AND 2010
+         THEN CAST(deal_id AS VARCHAR) END,
+    ',' ORDER BY deal_id
+  ) AS analysis_ids
+FROM deal_assignment
+WHERE strict_eligible AND match_source = 'MERGE_ID_SUPPLEMENT'
+")
+add_check("supplementary_promotions_all_years", promoted$all_ids,
+          "62,97,98,374,451", identical(promoted$all_ids, "62,97,98,374,451"))
+add_check("supplementary_promotions_analysis_window", promoted$analysis_ids,
+          "62,97,98,374", identical(promoted$analysis_ids, "62,97,98,374"))
+
+invalid_promotion <- scalar("
+SELECT COUNT(*)
+FROM deal_assignment
+WHERE strict_eligible
+  AND match_source = 'MERGE_ID_SUPPLEMENT'
+  AND NOT (
+    n_target_nmb = 1
+    AND matched_year = target_year
+    AND matched_value = target_value
+    AND n_target_groups = 1 AND target_group IS NOT NULL
+    AND n_acquirer_groups = 1 AND acquirer_group IS NOT NULL
+    AND acquirer_group_history_consistent
+    AND NOT todrop_tar AND NOT todrop_acq AND NOT divest
+  )
+")
+add_check("supplementary_promotions_satisfy_locked_rule", invalid_promotion, 0,
+          invalid_promotion == 0)
 
 firm_contamination <- scalar("
 WITH target_groups AS (
@@ -176,36 +226,55 @@ FROM lmv2_control_firm_eligibility
 add_check("control_firm_exit_diagnostic_populated", exit_rows, ">0", exit_rows > 0)
 
 stayer_mismatch <- scalar("
-WITH acquirer_stayer AS (
-  SELECT DISTINCT p.codinv, p.deal_id
+WITH first_post AS (
+  SELECT
+    p.codinv,
+    p.deal_id,
+    MIN(CAST(ia.year AS INTEGER)) AS first_post_patent_year
   FROM lmv2_treated_primary p
   JOIN inventor_affiliation_own ia
     ON CAST(ia.codinv AS BIGINT) = p.codinv
-   AND ia.year BETWEEN p.cohort + 1 AND p.cohort + 5
-   AND ia.resolved_group = p.acquirer_group
+   AND ia.year BETWEEN p.cohort AND p.cohort + 5
+  GROUP BY p.codinv, p.deal_id
+), group_stayer AS (
+  SELECT DISTINCT p.codinv, p.deal_id
+  FROM lmv2_treated_primary p
+  JOIN first_post fp USING (codinv, deal_id)
+  JOIN inventor_affiliation_own ia
+    ON CAST(ia.codinv AS BIGINT) = p.codinv
+   AND ia.year = fp.first_post_patent_year
+   AND ia.resolved_group IN (p.target_group, p.acquirer_group)
 ), target_company_stayer AS (
   SELECT DISTINCT p.codinv, p.deal_id
   FROM lmv2_treated_primary p
+  JOIN first_post fp USING (codinv, deal_id)
   JOIN deal_target_company_strict dtc ON dtc.deal_id = p.deal_id
   JOIN patent_company_link pcl
     ON CAST(pcl.compcod AS BIGINT) = dtc.target_compcod
-   AND pcl.year BETWEEN p.cohort + 1 AND p.cohort + 5
+   AND pcl.year = fp.first_post_patent_year
   JOIN patent_inventor pi
     ON pi.appln_id = pcl.appln_id
    AND CAST(pi.codinv AS BIGINT) = p.codinv
 ), truth AS (
-  SELECT p.codinv, p.deal_id,
-         (a.codinv IS NOT NULL OR t.codinv IS NOT NULL) expected
+  SELECT
+    p.codinv,
+    p.deal_id,
+    fp.first_post_patent_year,
+    (g.codinv IS NOT NULL OR t.codinv IS NOT NULL) expected
   FROM lmv2_treated_primary p
-  LEFT JOIN acquirer_stayer a USING (codinv, deal_id)
+  LEFT JOIN first_post fp USING (codinv, deal_id)
+  LEFT JOIN group_stayer g USING (codinv, deal_id)
   LEFT JOIN target_company_stayer t USING (codinv, deal_id)
 )
 SELECT COUNT(*)
 FROM lmv2_treated_primary p JOIN truth t USING (codinv, deal_id)
-WHERE p.stayer_focal_entity_t1_t5 <> t.expected
-   OR p.status_eligible_stayer_t1_t5 <> (p.status_eligible AND t.expected)
+WHERE p.first_post_patent_year IS DISTINCT FROM t.first_post_patent_year
+   OR p.stayer_focal_entity_first_post_t0_t5 <> t.expected
+   OR p.status_eligible_stayer_first_post_t0_t5
+      <> (p.status_eligible AND t.expected)
 ")
-add_check("stayer_t1_t5_recomputed_exactly", stayer_mismatch, 0, stayer_mismatch == 0)
+add_check("stayer_first_post_recomputed_exactly", stayer_mismatch, 0,
+          stayer_mismatch == 0)
 
 co <- utils::read.csv(file.path(AUDIT_DIR, "cassi_ornaghi_exact_reproduction.csv"),
                       stringsAsFactors = FALSE)

@@ -10,6 +10,7 @@ source(file.path(BASE, "R", "15a_lmv2_design_lock.R"))
 AUDIT_DIR <- file.path(BASE, "output", "audit", "local_match_v2", "P2")
 dir.create(AUDIT_DIR, recursive = TRUE, showWarnings = FALSE)
 rscript <- file.path(R.home("bin"), "Rscript.exe")
+assignment_script <- file.path(BASE, "R", "04c_build_prelim_own_status.R")
 build_script <- file.path(BASE, "R", "15e_build_lmv2_p2.R")
 cert_script <- file.path(BASE, "R", "15f_certify_lmv2_p2.R")
 manifest_path <- file.path(AUDIT_DIR, "p2_interface_manifest.csv")
@@ -19,6 +20,7 @@ run_script <- function(path) {
   if (!identical(status, 0L)) stop("P2 script failed: ", basename(path))
 }
 
+run_script(assignment_script)
 run_script(build_script)
 first <- utils::read.csv(manifest_path, stringsAsFactors = FALSE)
 run_script(build_script)
@@ -42,4 +44,3 @@ status <- utils::read.csv(file.path(AUDIT_DIR, "p2_package_status.csv"),
                           stringsAsFactors = FALSE)
 print(det)
 print(status)
-

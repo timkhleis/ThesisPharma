@@ -87,36 +87,58 @@ WITH base AS (
     END AS qualification_route
   FROM lmv2_treated_broad b
   WHERE b.target_resolved_latest OR b.target_to_acquirer_transition_strict
-), acquirer_stayer AS (
-  SELECT DISTINCT b.codinv, b.deal_id
+), first_post AS (
+  SELECT
+    b.codinv,
+    b.deal_id,
+    MIN(CAST(ia.year AS INTEGER)) AS first_post_patent_year
   FROM base b
   JOIN inventor_affiliation_own ia
     ON CAST(ia.codinv AS BIGINT) = b.codinv
-   AND ia.year BETWEEN CAST(b.deal_year AS INTEGER) + 1
+   AND ia.year BETWEEN CAST(b.deal_year AS INTEGER)
                    AND CAST(b.deal_year AS INTEGER) + 5
-   AND ia.resolved_group = b.acquirer_group
-), target_company_stayer AS (
+  GROUP BY b.codinv, b.deal_id
+), first_post_group_stayer AS (
   SELECT DISTINCT b.codinv, b.deal_id
   FROM base b
+  JOIN first_post fp USING (codinv, deal_id)
+  JOIN inventor_affiliation_own ia
+    ON CAST(ia.codinv AS BIGINT) = b.codinv
+   AND ia.year = fp.first_post_patent_year
+   AND ia.resolved_group IN (b.target_group, b.acquirer_group)
+), first_post_target_company_stayer AS (
+  SELECT DISTINCT b.codinv, b.deal_id
+  FROM base b
+  JOIN first_post fp USING (codinv, deal_id)
   JOIN deal_target_company_strict dtc ON dtc.deal_id = b.deal_id
   JOIN patent_company_link pcl
     ON CAST(pcl.compcod AS BIGINT) = dtc.target_compcod
-   AND pcl.year BETWEEN CAST(b.deal_year AS INTEGER) + 1
-                    AND CAST(b.deal_year AS INTEGER) + 5
+   AND pcl.year = fp.first_post_patent_year
   JOIN patent_inventor pi
     ON pi.appln_id = pcl.appln_id
    AND CAST(pi.codinv AS BIGINT) = b.codinv
 )
 SELECT
   b.*,
-  (a.codinv IS NOT NULL) AS stayer_acquirer_t1_t5,
-  (tc.codinv IS NOT NULL) AS stayer_target_company_t1_t5,
-  (a.codinv IS NOT NULL OR tc.codinv IS NOT NULL) AS stayer_focal_entity_t1_t5,
-  (b.status_eligible AND (a.codinv IS NOT NULL OR tc.codinv IS NOT NULL))
-    AS status_eligible_stayer_t1_t5
+  fp.first_post_patent_year,
+  (g.codinv IS NOT NULL) AS stayer_group_first_post_t0_t5,
+  (tc.codinv IS NOT NULL) AS stayer_target_company_first_post_t0_t5,
+  (g.codinv IS NOT NULL OR tc.codinv IS NOT NULL)
+    AS stayer_focal_entity_first_post_t0_t5,
+  (b.status_eligible AND (g.codinv IS NOT NULL OR tc.codinv IS NOT NULL))
+    AS status_eligible_stayer_first_post_t0_t5
 FROM base b
-LEFT JOIN acquirer_stayer a USING (codinv, deal_id)
-LEFT JOIN target_company_stayer tc USING (codinv, deal_id)
+LEFT JOIN first_post fp USING (codinv, deal_id)
+LEFT JOIN first_post_group_stayer g USING (codinv, deal_id)
+LEFT JOIN first_post_target_company_stayer tc USING (codinv, deal_id)
+")
+
+DBI::dbExecute(con, "
+CREATE OR REPLACE TABLE lmv2_treated_unique_affiliation_robustness AS
+SELECT *
+FROM lmv2_treated_primary
+WHERE latest_pre_candidate_group_count = 1
+ORDER BY cohort, deal_id, codinv
 ")
 
 # ---------------------------------------------------------------------------
@@ -252,8 +274,8 @@ SELECT
   COUNT(*) AS treated_inventors,
   COUNT(DISTINCT deal_id) AS treated_deals,
   SUM(status_eligible::INTEGER) AS status_eligible_inventors,
-  SUM(status_eligible_stayer_t1_t5::INTEGER) AS status_eligible_stayers,
-  COUNT(DISTINCT CASE WHEN status_eligible_stayer_t1_t5 THEN deal_id END)
+  SUM(status_eligible_stayer_first_post_t0_t5::INTEGER) AS status_eligible_stayers,
+  COUNT(DISTINCT CASE WHEN status_eligible_stayer_first_post_t0_t5 THEN deal_id END)
     AS deals_with_status_eligible_stayers,
   SUM((qualification_route = 'strict_target_to_acquirer_transition')::INTEGER)
     AS transition_inventors,
@@ -296,13 +318,77 @@ FROM lmv2_treated_primary
 ")
 write_csv(affiliation_audit, "treated_affiliation_certification.csv")
 
+tie_breaker_audit <- DBI::dbGetQuery(con, "
+SELECT
+  qualification_route,
+  latest_pre_candidate_group_count,
+  latest_pre_resolved_by,
+  COUNT(*) AS treated_inventors,
+  COUNT(DISTINCT deal_id) AS treated_deals
+FROM lmv2_treated_primary
+GROUP BY ALL
+ORDER BY qualification_route, latest_pre_candidate_group_count,
+         treated_inventors DESC
+")
+write_csv(tie_breaker_audit, "treated_tie_breaker_audit.csv")
+
+unique_robustness <- DBI::dbGetQuery(con, "
+WITH scoped AS (
+  SELECT '1994-2010' AS sample, *
+  FROM lmv2_treated_unique_affiliation_robustness
+  UNION ALL
+  SELECT '1994-2008' AS sample, *
+  FROM lmv2_treated_unique_affiliation_robustness
+  WHERE cohort <= 2008
+), deal_sizes AS (
+  SELECT sample, deal_id, COUNT(*) AS n_stayers
+  FROM scoped
+  WHERE status_eligible_stayer_first_post_t0_t5
+  GROUP BY sample, deal_id
+), deal_summary AS (
+  SELECT
+    sample,
+    SUM(n_stayers) * SUM(n_stayers) / SUM(n_stayers * n_stayers)
+      AS raw_inventor_weighted_deal_ess
+  FROM deal_sizes
+  GROUP BY sample
+)
+SELECT
+  s.sample,
+  COUNT(*) AS treated_inventors,
+  COUNT(DISTINCT s.deal_id) AS treated_deals,
+  SUM(s.status_eligible_stayer_first_post_t0_t5::INTEGER)
+    AS status_eligible_stayers,
+  COUNT(DISTINCT CASE
+    WHEN s.status_eligible_stayer_first_post_t0_t5 THEN s.deal_id END)
+    AS deals_with_stayers,
+  d.raw_inventor_weighted_deal_ess
+FROM scoped s
+JOIN deal_summary d USING (sample)
+GROUP BY s.sample, d.raw_inventor_weighted_deal_ess
+ORDER BY s.sample
+")
+write_csv(unique_robustness, "treated_unique_affiliation_robustness.csv")
+
+promotion_audit <- DBI::dbGetQuery(con, "
+SELECT
+  deal_id, target_year, target_value, target_nmb, matched_dealnumber,
+  match_source, n_target_groups, target_group, n_acquirer_groups,
+  acquirer_group, acquirer_group_history_consistent,
+  todrop_tar, todrop_acq, divest, strict_eligible
+FROM deal_assignment
+WHERE match_source = 'MERGE_ID_SUPPLEMENT'
+ORDER BY deal_id
+")
+write_csv(promotion_audit, "supplementary_deal_promotion_audit.csv")
+
 composition <- DBI::dbGetQuery(con, "
 SELECT
   CASE WHEN cohort <= 2008 THEN '1994-2008' ELSE '2009-2010' END AS cohort_block,
   COUNT(*) AS treated_inventors,
   COUNT(DISTINCT deal_id) AS treated_deals,
-  SUM(status_eligible_stayer_t1_t5::INTEGER) AS status_eligible_stayers,
-  COUNT(DISTINCT CASE WHEN status_eligible_stayer_t1_t5 THEN deal_id END)
+  SUM(status_eligible_stayer_first_post_t0_t5::INTEGER) AS status_eligible_stayers,
+  COUNT(DISTINCT CASE WHEN status_eligible_stayer_first_post_t0_t5 THEN deal_id END)
     AS deals_with_stayers,
   AVG(big_deal::INTEGER) AS big_deal_inventor_share,
   AVG(multi_exposure_inventor::INTEGER) AS repeated_exposure_share
@@ -319,7 +405,7 @@ WITH scoped AS (
 ), deal_sizes AS (
   SELECT sample, deal_id, COUNT(*) AS n_stayers
   FROM scoped
-  WHERE status_eligible_stayer_t1_t5
+  WHERE status_eligible_stayer_first_post_t0_t5
   GROUP BY sample, deal_id
 ), summary AS (
   SELECT
@@ -370,11 +456,11 @@ benchmark$post_repair_buffered_1994_2008 <- c(
   buf$raw_inventor_weighted_deal_ess
 )
 benchmark$explanation <- c(
-  "same locked latest-affiliation/transition cohort rule",
-  "same locked latest-affiliation/transition cohort rule",
-  "post-repair count excludes event year zero and requires focal-entity patent in t=1..5",
-  "post-repair count excludes event year zero and requires focal-entity patent in t=1..5",
-  "recomputed from corrected t=1..5 stayer deal shares"
+  "latest-affiliation/transition rule plus approved supplementary promotions",
+  "latest-affiliation/transition rule plus approved supplementary promotions",
+  "first observed post-event patent in t=0..5 must remain with focal entity",
+  "same first-post status rule; event year zero does not enter post outcomes",
+  "recomputed from corrected first-post stayer deal shares"
 )
 write_csv(benchmark, "provisional_benchmark_reconciliation.csv")
 
@@ -383,30 +469,52 @@ WITH scoped AS (
   SELECT '1994-2010' AS sample, * FROM lmv2_treated_primary
   UNION ALL
   SELECT '1994-2008' AS sample, * FROM lmv2_treated_primary WHERE cohort <= 2008
-), old_rule AS (
+), positive_group_t1_t5 AS (
   SELECT DISTINCT s.sample, s.codinv, s.deal_id
   FROM scoped s
   JOIN inventor_affiliation_own ia
     ON CAST(ia.codinv AS BIGINT) = s.codinv
-   AND ia.year BETWEEN s.cohort AND s.cohort + 5
-   AND ia.resolved_group = s.acquirer_group
+   AND ia.year BETWEEN s.cohort + 1 AND s.cohort + 5
+   AND ia.resolved_group IN (s.target_group, s.acquirer_group)
   WHERE s.status_eligible
+), positive_target_company_t1_t5 AS (
+  SELECT DISTINCT s.sample, s.codinv, s.deal_id
+  FROM scoped s
+  JOIN deal_target_company_strict dtc ON dtc.deal_id = s.deal_id
+  JOIN patent_company_link pcl
+    ON CAST(pcl.compcod AS BIGINT) = dtc.target_compcod
+   AND pcl.year BETWEEN s.cohort + 1 AND s.cohort + 5
+  JOIN patent_inventor pi
+    ON pi.appln_id = pcl.appln_id
+   AND CAST(pi.codinv AS BIGINT) = s.codinv
+  WHERE s.status_eligible
+), positive_focal_t1_t5 AS (
+  SELECT * FROM positive_group_t1_t5
+  UNION
+  SELECT * FROM positive_target_company_t1_t5
 )
 SELECT
   s.sample,
-  SUM((o.codinv IS NOT NULL)::INTEGER) AS old_acquirer_t0_t5,
-  SUM((s.status_eligible AND s.stayer_acquirer_t1_t5)::INTEGER)
-    AS acquirer_t1_t5,
-  SUM((s.status_eligible AND s.stayer_target_company_t1_t5)::INTEGER)
-    AS target_company_t1_t5,
-  SUM(s.status_eligible_stayer_t1_t5::INTEGER) AS focal_either_t1_t5,
-  SUM((o.codinv IS NOT NULL AND NOT s.status_eligible_stayer_t1_t5)::INTEGER)
-    AS old_only_due_to_no_t1_t5_focal_patent,
-  SUM((o.codinv IS NULL AND s.status_eligible_stayer_t1_t5)::INTEGER)
-    AS new_only_due_to_target_company_path
+  SUM((p.codinv IS NOT NULL)::INTEGER) AS positive_focal_t1_t5,
+  SUM(s.status_eligible_stayer_first_post_t0_t5::INTEGER)
+    AS first_post_focal_t0_t5,
+  SUM((s.status_eligible AND s.stayer_group_first_post_t0_t5)::INTEGER)
+    AS first_post_group_path,
+  SUM((s.status_eligible
+       AND s.stayer_target_company_first_post_t0_t5)::INTEGER)
+    AS first_post_target_company_path,
+  SUM((s.status_eligible_stayer_first_post_t0_t5
+       AND s.first_post_patent_year = s.cohort)::INTEGER)
+    AS first_post_focal_at_t0,
+  SUM((p.codinv IS NOT NULL
+       AND NOT s.status_eligible_stayer_first_post_t0_t5)::INTEGER)
+    AS positive_rule_only,
+  SUM((p.codinv IS NULL
+       AND s.status_eligible_stayer_first_post_t0_t5)::INTEGER)
+    AS first_post_rule_only
 FROM scoped s
-LEFT JOIN old_rule o
-  ON o.sample = s.sample AND o.codinv = s.codinv AND o.deal_id = s.deal_id
+LEFT JOIN positive_focal_t1_t5 p
+  ON p.sample = s.sample AND p.codinv = s.codinv AND p.deal_id = s.deal_id
 GROUP BY s.sample ORDER BY s.sample
 ")
 write_csv(stayer_definition, "stayer_definition_reconciliation.csv")
@@ -500,8 +608,9 @@ thesis_summary <- DBI::dbGetQuery(con, "
 SELECT
   COUNT(*) AS primary_treated_inventors,
   COUNT(DISTINCT deal_id) AS primary_treated_deals,
-  SUM(status_eligible_stayer_t1_t5::INTEGER) AS full_status_eligible_stayers,
-  SUM((cohort <= 2008 AND status_eligible_stayer_t1_t5)::INTEGER)
+  SUM(status_eligible_stayer_first_post_t0_t5::INTEGER)
+    AS full_status_eligible_stayers,
+  SUM((cohort <= 2008 AND status_eligible_stayer_first_post_t0_t5)::INTEGER)
     AS buffered_status_eligible_stayers,
   SUM((n_target_pre_years >= 2)::INTEGER) AS recurrent_preperiod_inventors
 FROM lmv2_treated_primary
@@ -546,14 +655,14 @@ sample_crosswalk <- data.frame(
     "exact paper separation-sample filters",
     "paper-specific exit model restrictions; no thesis analogue",
     "sum of separation and exit-model samples, not one panel",
-    "paper post-selected status; thesis uses deal-specific cohort and t=1..5 focal entity",
+    "paper post-selected status; thesis uses deal-specific cohort and first-post focal entity",
     "paper post-selected status; thesis does not make leavers a contribution",
     "paper non-target status sample; thesis controls are cohort-specific and certified",
     "paper non-target status sample; thesis controls are cohort-specific and certified",
     "deal-specific target company + latest affiliation/transition + earliest exposure",
-    "1994-2010 strict deal assignment",
-    "event year zero excluded; focal entity is acquirer group or deal-specific target company",
-    "same rule with censoring-buffered cohorts",
+    "1994-2010 primary deal assignment including rule-based supplementary promotions",
+    "first post patent in t=0..5 identifies status; post outcomes remain t=1..5",
+    "same first-post status rule with buffered cohorts",
     "diagnostic only: at least two distinct target-company patent years in g-5..g-1"
   ),
   stringsAsFactors = FALSE
@@ -563,6 +672,7 @@ write_csv(sample_crosswalk, "cassi_ornaghi_thesis_sample_crosswalk.csv")
 # Export stable interfaces and a manifest with logical (order-invariant) hashes.
 interface_tables <- c(
   "lmv2_treated_primary", "lmv2_treated_broad",
+  "lmv2_treated_unique_affiliation_robustness",
   "lmv2_control_firm_eligibility", "lmv2_control_inventor_eligibility"
 )
 paths <- vapply(interface_tables, copy_table, character(1))
