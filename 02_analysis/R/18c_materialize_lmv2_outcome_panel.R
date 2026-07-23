@@ -194,7 +194,7 @@ lmv2_shard_stamp <- function(provenance, cohort, roster_hash,
     amendments_sha256 = provenance$amendments_sha256,
     interface_hashes = paste(provenance$p2_interface_hashes, collapse = ";"),
     ingredient_build_hash = provenance$ingredient_build_hash,
-    materializer_sha256 = provenance$materializer_sha256,
+    source_bundle_sha256 = provenance$source_bundle_sha256,
     roster_rows = roster_hash$roster_rows,
     roster_hash_sum = roster_hash$roster_hash_sum,
     roster_hash_xor = roster_hash$roster_hash_xor,
@@ -202,6 +202,50 @@ lmv2_shard_stamp <- function(provenance, cohort, roster_hash,
     shard_parquet_md5 = shard_parquet_md5,
     stringsAsFactors = FALSE
   )
+}
+
+# ---------------------------------------------------------------------------
+# Production-only membership certification against the frozen P2 interfaces.
+# Separate from structural validation so fixture harnesses (which carry no
+# P2 tables) remain runnable; the runner calls this on every production
+# roster and fails the run on any nonzero count.
+# ---------------------------------------------------------------------------
+certify_lmv2_roster_membership <- function(con, roster_tbl) {
+  q <- function(sql) DBI::dbGetQuery(con, sql)
+  checks <- list(
+    treated_rows_missing_from_p2 = q(sprintf(
+      "SELECT COUNT(*) n FROM %s r
+       WHERE r.arm = 'treated' AND NOT EXISTS (
+         SELECT 1 FROM lmv2_treated_primary t
+         WHERE t.deal_id = r.deal_id
+           AND CAST(t.codinv AS BIGINT) = r.codinv)", roster_tbl))$n,
+    treated_fields_differ_from_p2 = q(sprintf(
+      "SELECT COUNT(*) n FROM %s r
+       JOIN lmv2_treated_primary t
+         ON t.deal_id = r.deal_id AND CAST(t.codinv AS BIGINT) = r.codinv
+       WHERE r.arm = 'treated' AND (
+         r.cohort <> t.cohort
+         OR r.focal_group_1 IS DISTINCT FROM CAST(t.target_group AS BIGINT)
+         OR r.focal_group_2 IS DISTINCT FROM CAST(t.acquirer_group AS BIGINT)
+         OR r.status_eligible IS DISTINCT FROM t.status_eligible)",
+      roster_tbl))$n,
+    control_rows_missing_from_eligibility = q(sprintf(
+      "SELECT COUNT(*) n FROM %s r
+       WHERE r.arm = 'control' AND NOT EXISTS (
+         SELECT 1 FROM lmv2_control_inventor_eligibility c
+         WHERE c.cohort = r.cohort
+           AND CAST(c.codinv AS BIGINT) = r.codinv
+           AND CAST(c.control_group AS BIGINT) = r.focal_group_1)",
+      roster_tbl))$n
+  )
+  out <- data.frame(
+    check = paste0("roster_membership_", names(checks)),
+    observed = unlist(checks),
+    pass = unlist(checks) == 0,
+    stringsAsFactors = FALSE
+  )
+  rownames(out) <- NULL
+  out
 }
 
 check_lmv2_shard_stamp <- function(stamp_path, shard_path, expected_stamp,

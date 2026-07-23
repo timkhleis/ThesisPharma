@@ -459,6 +459,7 @@ run_lmv2_p6_certification <- function(con, schema, panel_dirs,
     add(paste0("shards_present_", dir_label), length(shards) > 0)
     left_violations <- onset_violations <- grain_violations <- 0
     stamp_row_mismatch <- stayer_mism <- silent_zero <- 0
+    treated_not_in_p2 <- 0
     for (sh in shards) {
       p <- gsub("\\\\", "/", sh)
       stamp_file <- sub("\\.parquet$", "_stamp.csv", sh)
@@ -496,6 +497,17 @@ run_lmv2_p6_certification <- function(con, schema, panel_dirs,
                   OR %s_conditional_mean IS NOT NULL))",
           p, ncol_, v, ncol_, v, v, v))$n
       }
+      # Anti-join membership: the stayer-equality inner join below would let
+      # treated rows absent from P2 vanish silently, so their absence is a
+      # separate, explicit failure.
+      treated_not_in_p2 <- treated_not_in_p2 + q(sprintf("
+        SELECT COUNT(*) n
+        FROM (SELECT DISTINCT deal_id, codinv
+              FROM read_parquet('%s') WHERE arm = 'treated') f
+        WHERE NOT EXISTS (
+          SELECT 1 FROM lmv2_treated_primary t
+          WHERE t.deal_id = f.deal_id
+            AND CAST(t.codinv AS BIGINT) = f.codinv)", p))$n
       stayer_mism <- stayer_mism + q(sprintf("
         SELECT COUNT(*) n
         FROM (SELECT DISTINCT deal_id, codinv, first_post_patent_year,
@@ -522,6 +534,8 @@ run_lmv2_p6_certification <- function(con, schema, panel_dirs,
     add(paste0("left_onset_at_most_once_", dir_label), onset_violations == 0)
     add(paste0("shard_grain_unique_", dir_label), grain_violations == 0)
     add(paste0("no_silent_zero_", dir_label), silent_zero == 0)
+    add(paste0("treated_rows_all_in_p2_", dir_label), treated_not_in_p2 == 0,
+        sprintf("missing_rows=%d", treated_not_in_p2))
     add(paste0("treated_stayers_match_p2_", dir_label), stayer_mism == 0,
         sprintf("mismatch_rows=%d", stayer_mism))
   }

@@ -97,8 +97,15 @@ Columns: `deal_id` BIGINT, `cohort` INTEGER, `arm` ∈ {treated, control},
 BOOLEAN, `focal_group_1` BIGINT (non-missing), `focal_group_2` BIGINT
 (nullable), `use_target_company_path` BOOLEAN (TRUE ⟺ treated).
 
-Weights arrive **entropy-balanced from certified P5 output**; P6 never
-recomputes, rebalances, repairs, or renormalizes them. Matched-set rules at
+Weights arrive as **certified P5a weights** (no balancing rule is assumed);
+P6 never recomputes, rebalances, repairs, or renormalizes them. Production
+runs additionally require a **P5a certification manifest**
+(`--roster-manifest`, one row: `roster_sha256`, `roster_rows`,
+`p5a_design_hash`, `certification_pass`); the runner verifies the roster
+file hash and row count against it, refuses uncertified rosters, and
+certifies membership against the frozen P2 interfaces (every treated row in
+`lmv2_treated_primary` with identical focal groups and `status_eligible`;
+every control in `lmv2_control_inventor_eligibility`). Matched-set rules at
 `(deal_id, cohort, match_id)`: exactly three distinct controls, ≥2 distinct
 control firms, nonnegative finite weights summing to one within 1e-8, every
 control `match_id` referencing a treated row in the same deal and cohort.
@@ -138,10 +145,11 @@ control firms); it is required to reproduce
   estimation. The deliberate semantic split — resolved affiliations for
   stayer status, patent-level links for Left — mirrors P2 exactly on one
   side and the locked Left formula on the other.
-- **TechDrift**: stored measure is **cosine similarity** (`tech_similarity`);
-  drift = 1 − similarity at analysis time. IPC4 subclass level, integer
-  weights, baseline `g−5…g−1`. NA (never 0 or 1) when the baseline is empty
-  or the current year has no classified patents.
+- **TechDrift**: **both directions are stored** — `tech_similarity` (cosine)
+  and `tech_drift = 1 − tech_similarity` — to prevent downstream sign
+  mistakes. IPC4 subclass level, integer weights, baseline `g−5…g−1`. Both
+  NA (never 0 or 1) when the baseline is empty or the current year has no
+  classified patents.
 - `late_tail_flag` marks calendar years ≥ 2014 (patent-layer tail).
 
 ## OECD audits (diagnostic only)
@@ -167,8 +175,11 @@ mismatches); current-year-only Active Patenting; the full zero-vs-missing
 matrix on a synthetic fixture plus global no-silent-zero assertions; no
 `filing` reference in the materializer; Left weakly increasing / onset ≤ 1;
 **exact stayer equality with P2's four columns on the treated fixture**;
-panel rows ≡ roster × 11; roster-validation unit tests (15 corruption
-cases, exact messages); true double-build determinism (isolated schemas
+panel rows ≡ roster × 11; roster-validation unit tests (19 cases: 18
+corruptions with exact messages plus the fixture-mode positive case);
+treated-membership anti-join against P2 (absent treated rows fail
+explicitly instead of vanishing from the inner-join equality test); true
+double-build determinism (isolated schemas
 `p6_build_a`/`p6_build_b` in the working copy plus separate output
 locations; publish only on hash equality; restart-skipping never substitutes
 for the second build); memory reporting (configured cap recorded as a
@@ -180,11 +191,17 @@ integrity before vs after.
 ## Shard provenance
 
 Every shard stamp records: P0 design hash, P6 design hash, amendments file
-SHA-256, all five P2 interface hashes, the ingredient-build hash, and the
-order-invariant logical hash of the supplied roster cohort. A shard matching
-on design but differing on any field — including the roster hash — is
-**refused with an explicit error**, never skipped. Reruns skip only shards
-matching the complete stamp, and only when `--allow-restart` is set.
+SHA-256, all five P2 interface hashes, the ingredient-build hash, the
+**source-bundle SHA-256** (over the individual hashes of `18a`, `18b`, and
+`18c` — `18a` hosts the outcome-variant SQL generator, so hashing `18c`
+alone would let an `18a` change leave stale shards looking current; the
+three individual hashes are recorded in the P6 manifest), the strong roster
+cohort hash (rows + hash-sum + hash-XOR), and the output's own row count
+and parquet MD5. A shard matching on design but differing on any identity
+field is **refused with an explicit error**, never skipped; a stamped shard
+whose parquet no longer matches its recorded checksum is likewise refused.
+Reruns skip only shards matching the complete stamp with an intact file,
+and only when `--allow-restart` is set.
 
 ## Expectations (not results)
 
