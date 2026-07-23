@@ -211,6 +211,9 @@ if (!FIXTURE_ONLY) {
     stop("P5a manifest does not attest a passing certification; refusing ",
          "to materialize an uncertified roster.")
   }
+  if (is.na(p5a$p5a_design_hash) || !nzchar(p5a$p5a_design_hash)) {
+    stop("P5a manifest must carry a nonempty p5a_design_hash.")
+  }
   p5a_design_hash <- p5a$p5a_design_hash
 
   DBI::dbExecute(con, sprintf(
@@ -283,6 +286,9 @@ manifest <- data.frame(
   p2_manifest_path = P2_MANIFEST,
   roster_path = ifelse(is.na(ROSTER_PATH), "", ROSTER_PATH),
   roster_sha256 = ifelse(is.na(roster_sha), "", roster_sha),
+  roster_manifest_path = ifelse(is.na(ROSTER_MANIFEST), "", ROSTER_MANIFEST),
+  roster_manifest_sha256 = ifelse(
+    is.na(ROSTER_MANIFEST), "", lmv2_file_sha256(ROSTER_MANIFEST)),
   p5a_design_hash = ifelse(is.na(p5a_design_hash), "", p5a_design_hash),
   n_checks = nrow(all_checks),
   n_failed = sum(!all_checks$pass),

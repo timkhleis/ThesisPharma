@@ -273,7 +273,7 @@ run_lmv2_roster_validation_tests <- function(con, fixture_schema = "p6_fixture",
   work <- s("lmv2_corrupt_roster")
 
   # A valid two-arm roster: one treated unit, three controls over two firms,
-  # entropy-balanced weights summing to one.
+  # certified P5a-style weights summing to one.
   DBI::dbExecute(con, sprintf("
     CREATE OR REPLACE TABLE %s AS
     SELECT CAST(deal_id AS BIGINT) AS deal_id,
@@ -359,7 +359,15 @@ run_lmv2_roster_validation_tests <- function(con, fixture_schema = "p6_fixture",
          sql = sprintf("INSERT INTO %s VALUES
                         (9001, 2000, 'treated', 205, 205, 1.0, TRUE,
                          501, 502, TRUE)", work),
-         msg = "complete three-control matched set in production mode")
+         msg = "complete three-control matched set in production mode"),
+    list(name = "control_status_eligible_false",
+         sql = sprintf("UPDATE %s SET status_eligible = FALSE
+                        WHERE codinv = 202", work),
+         msg = "Control rows must have status_eligible = TRUE"),
+    list(name = "control_focal_group_2_set",
+         sql = sprintf("UPDATE %s SET focal_group_2 = 999
+                        WHERE codinv = 202", work),
+         msg = "Control rows must have focal_group_2 NULL")
   )
 
   out <- lapply(cases, function(cs) {

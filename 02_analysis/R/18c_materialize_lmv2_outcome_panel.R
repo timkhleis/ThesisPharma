@@ -85,9 +85,20 @@ validate_lmv2_roster <- function(con, roster_tbl, config = LMV2_P6_CONFIG,
   fail_if(q(sprintf(
     "SELECT COUNT(*) n FROM %s WHERE arm = 'control' AND weight < 0", r))$n,
     "Control weights must be nonnegative")
+  # Both fields below enter outcome construction directly (stayer status via
+  # status_eligible; stayer and absorbing Left via focal groups), so the
+  # contract is enforced, not assumed.
+  fail_if(q(sprintf(
+    "SELECT COUNT(*) n FROM %s
+     WHERE arm = 'control' AND NOT status_eligible", r))$n,
+    "Control rows must have status_eligible = TRUE")
+  fail_if(q(sprintf(
+    "SELECT COUNT(*) n FROM %s
+     WHERE arm = 'control' AND focal_group_2 IS NOT NULL", r))$n,
+    "Control rows must have focal_group_2 NULL")
 
-  # Matched-set rules at (deal_id, cohort, match_id). Weights arrive
-  # entropy-balanced from certified P5 output; P6 never recomputes,
+  # Matched-set rules at (deal_id, cohort, match_id). Weights arrive as
+  # certified P5a weights (no balancing rule assumed); P6 never recomputes,
   # rebalances, repairs, or renormalizes them.
   fail_if(q(sprintf(
     "SELECT COUNT(*) n FROM (
