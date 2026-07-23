@@ -10,8 +10,13 @@
 
 # ---------------------------------------------------------------------------
 # Roster validation: row-level and matched-set rules with exact messages.
+# mode = "production" (default) additionally requires every treated row to
+# carry a complete certified control set; mode = "treated_fixture" is for the
+# self-matched treated fixture, which has no control arm by construction.
 # ---------------------------------------------------------------------------
-validate_lmv2_roster <- function(con, roster_tbl, config = LMV2_P6_CONFIG) {
+validate_lmv2_roster <- function(con, roster_tbl, config = LMV2_P6_CONFIG,
+                                 mode = c("production", "treated_fixture")) {
+  mode <- match.arg(mode)
   q <- function(sql) DBI::dbGetQuery(con, sql)
   r <- roster_tbl
   failures <- character(0)
@@ -26,8 +31,17 @@ validate_lmv2_roster <- function(con, roster_tbl, config = LMV2_P6_CONFIG) {
          paste(missing_cols, collapse = ", "))
   }
 
+  # NULL keys first: NULLs escape ordinary SQL predicates, so every key
+  # column is checked explicitly before the rule checks below.
   fail_if(q(sprintf(
-    "SELECT COUNT(*) n FROM %s WHERE arm NOT IN ('treated','control')", r))$n,
+    "SELECT COUNT(*) n FROM %s
+     WHERE deal_id IS NULL OR cohort IS NULL OR arm IS NULL
+        OR codinv IS NULL OR match_id IS NULL
+        OR use_target_company_path IS NULL", r))$n,
+    "Roster key columns (deal_id, cohort, arm, codinv, match_id, use_target_company_path) must be non-missing")
+  fail_if(q(sprintf(
+    "SELECT COUNT(*) n FROM %s
+     WHERE arm IS NULL OR arm NOT IN ('treated','control')", r))$n,
     "Roster arm values must be 'treated' or 'control'")
   fail_if(q(sprintf(
     "SELECT COUNT(*) - COUNT(DISTINCT (deal_id, arm, codinv, match_id)) n
@@ -104,6 +118,17 @@ validate_lmv2_roster <- function(con, roster_tbl, config = LMV2_P6_CONFIG) {
          AND t.cohort = c.cohort AND t.codinv = c.match_id)", r, r))$n,
     "Every control match_id must reference a treated row in the same deal and cohort")
 
+  if (mode == "production") {
+    fail_if(q(sprintf(
+      "SELECT COUNT(*) n FROM %s t
+       WHERE t.arm = 'treated' AND (
+         SELECT COUNT(DISTINCT c.codinv) FROM %s c
+         WHERE c.arm = 'control' AND c.deal_id = t.deal_id
+           AND c.cohort = t.cohort AND c.match_id = t.codinv) <> %d",
+      r, r, config$controls_per_treated))$n,
+      "Every treated row must have a complete three-control matched set in production mode")
+  }
+
   if (length(failures)) {
     stop("Roster validation failed:\n  - ",
          paste(failures, collapse = "\n  - "))
@@ -134,21 +159,34 @@ derive_treated_fixture_roster <- function(con, out_tbl) {
   invisible(out_tbl)
 }
 
-# Order-invariant logical hash of one roster cohort (shard provenance).
+# Strong order-invariant logical hash of one roster cohort: row count plus
+# hash-sum plus hash-XOR (a single 64-bit XOR is too weak to identify a
+# roster on its own).
 lmv2_roster_cohort_hash <- function(con, roster_tbl, cohort) {
   DBI::dbGetQuery(con, sprintf("
-    SELECT CAST(bit_xor(hash(deal_id, arm, codinv, match_id, weight,
-                             status_eligible, focal_group_1, focal_group_2,
-                             use_target_company_path)) AS VARCHAR) AS h
-    FROM %s WHERE cohort = %d", roster_tbl, cohort))$h
+    SELECT
+      COUNT(*) AS roster_rows,
+      CAST(SUM(CAST(hash(deal_id, arm, codinv, match_id, weight,
+                         status_eligible, focal_group_1, focal_group_2,
+                         use_target_company_path) AS HUGEINT)) AS VARCHAR)
+        AS roster_hash_sum,
+      CAST(bit_xor(hash(deal_id, arm, codinv, match_id, weight,
+                        status_eligible, focal_group_1, focal_group_2,
+                        use_target_company_path)) AS VARCHAR) AS roster_hash_xor
+    FROM %s WHERE cohort = %d", roster_tbl, cohort))
 }
 
 # ---------------------------------------------------------------------------
-# Shard provenance stamps: a shard is identified by the full stamp. A shard
-# matching on design but differing on any field (including the roster hash)
-# is refused with an explicit error, never skipped as valid.
+# Shard provenance stamps. A shard is identified by the full stamp: design
+# hashes, amendments hash, interface hashes, ingredient hash, materializer
+# source hash, the strong roster hash, and the output's own row count and
+# parquet checksum. A shard matching on design but differing on any field is
+# refused with an explicit error, never skipped as valid; a stamped shard
+# whose parquet no longer matches its recorded checksum is likewise refused.
 # ---------------------------------------------------------------------------
-lmv2_shard_stamp <- function(provenance, cohort, roster_hash) {
+lmv2_shard_stamp <- function(provenance, cohort, roster_hash,
+                             shard_rows = NA_integer_,
+                             shard_parquet_md5 = NA_character_) {
   data.frame(
     cohort = cohort,
     p0_design_hash = provenance$p0_design_hash,
@@ -156,19 +194,38 @@ lmv2_shard_stamp <- function(provenance, cohort, roster_hash) {
     amendments_sha256 = provenance$amendments_sha256,
     interface_hashes = paste(provenance$p2_interface_hashes, collapse = ";"),
     ingredient_build_hash = provenance$ingredient_build_hash,
-    roster_cohort_hash = roster_hash,
+    materializer_sha256 = provenance$materializer_sha256,
+    roster_rows = roster_hash$roster_rows,
+    roster_hash_sum = roster_hash$roster_hash_sum,
+    roster_hash_xor = roster_hash$roster_hash_xor,
+    shard_rows = shard_rows,
+    shard_parquet_md5 = shard_parquet_md5,
     stringsAsFactors = FALSE
   )
 }
 
-check_lmv2_shard_stamp <- function(stamp_path, stamp, allow_restart) {
+check_lmv2_shard_stamp <- function(stamp_path, shard_path, expected_stamp,
+                                   allow_restart) {
   if (!file.exists(stamp_path)) return(FALSE)
   existing <- utils::read.csv(stamp_path, colClasses = "character")
-  if (!lmv2_df_equal(existing, stamp)) {
-    stop("Shard stamp mismatch for cohort ", stamp$cohort,
+  # Provenance and roster identity must match exactly (output fields are
+  # recorded by the prior run and validated against the file below).
+  identity_cols <- setdiff(names(expected_stamp),
+                           c("shard_rows", "shard_parquet_md5"))
+  if (!lmv2_df_equal(existing[identity_cols], expected_stamp[identity_cols])) {
+    stop("Shard stamp mismatch for cohort ", expected_stamp$cohort,
          ": an existing shard was built under different provenance ",
-         "(design, amendments, interfaces, ingredients, or roster). ",
-         "Refusing to overwrite or skip; remove the stale shard explicitly.")
+         "(design, amendments, interfaces, ingredients, materializer, or ",
+         "roster). Refusing to overwrite or skip; remove the stale shard ",
+         "explicitly.")
+  }
+  if (!file.exists(shard_path)) return(FALSE)
+  actual_md5 <- unname(tools::md5sum(shard_path))
+  if (!identical(actual_md5, existing$shard_parquet_md5)) {
+    stop("Shard parquet for cohort ", expected_stamp$cohort,
+         " does not match its stamped checksum; the file is stale or ",
+         "corrupted. Refusing to skip; remove the shard and its stamp ",
+         "explicitly.")
   }
   isTRUE(allow_restart)
 }
@@ -180,8 +237,9 @@ check_lmv2_shard_stamp <- function(stamp_path, stamp, allow_restart) {
 materialize_lmv2_event_panel <- function(con, roster_tbl, schema, out_dir,
                                          provenance,
                                          config = LMV2_P6_CONFIG,
-                                         allow_restart = FALSE) {
-  validate_lmv2_roster(con, roster_tbl, config)
+                                         allow_restart = FALSE,
+                                         roster_mode = "production") {
+  validate_lmv2_roster(con, roster_tbl, config, mode = roster_mode)
   dir.create(out_dir, recursive = TRUE, showWarnings = FALSE)
   s <- function(tbl) sprintf("%s.%s", schema, tbl)
   cohorts <- DBI::dbGetQuery(con, sprintf(
@@ -195,11 +253,10 @@ materialize_lmv2_event_panel <- function(con, roster_tbl, schema, out_dir,
     roster_hash <- lmv2_roster_cohort_hash(con, roster_tbl, g)
     stamp <- lmv2_shard_stamp(provenance, g, roster_hash)
 
-    if (check_lmv2_shard_stamp(stamp_path, stamp, allow_restart) &&
-        file.exists(shard_path)) {
+    if (check_lmv2_shard_stamp(stamp_path, shard_path, stamp, allow_restart)) {
       manifest[[i]] <- data.frame(cohort = g, shard = shard_path,
                                   status = "restart_skip",
-                                  roster_cohort_hash = roster_hash)
+                                  roster_hash_xor = roster_hash$roster_hash_xor)
       next
     }
 
@@ -300,13 +357,14 @@ SELECT
   COALESCE(oy.n_pqii_nonmiss, 0) AS n_pqii_nonmiss,
   %8$s,
   %9$s,
-  -- absorbing Left from patent-level focal evidence
+  -- absorbing Left from patent-level focal evidence. Units with no focal
+  -- evidence are NA (missing, audited via left_defined), never coded 1.
   lf.last_focal_patent_year,
   (lf.last_focal_patent_year IS NOT NULL) AS left_defined,
-  CASE WHEN lf.last_focal_patent_year IS NULL THEN 1
+  CASE WHEN lf.last_focal_patent_year IS NULL THEN NULL
        ELSE (e.calendar_year > lf.last_focal_patent_year)::INTEGER
   END AS left_focal,
-  CASE WHEN lf.last_focal_patent_year IS NULL THEN 0
+  CASE WHEN lf.last_focal_patent_year IS NULL THEN NULL
        ELSE (e.calendar_year = lf.last_focal_patent_year + 1)::INTEGER
   END AS left_onset,
   -- stayer status (constant within the unit-stack)
@@ -319,20 +377,32 @@ SELECT
   (e.status_eligible AND (st.stayer_group_first_post_t0_t5
    OR st.stayer_target_company_first_post_t0_t5))
     AS status_eligible_stayer_first_post_t0_t5,
-  -- TechDrift: stored measure is cosine similarity; drift = 1 - similarity
+  -- Matched-control firm-exit diagnostic (NULL for treated rows)
+  %12$s AS control_firm_exits_before_g_plus_5,
+  -- TechDrift: both directions stored to prevent downstream sign mistakes
   CASE
     WHEN bn.bnorm IS NULL OR bn.bnorm = 0 THEN NULL
     WHEN cn.cnorm IS NULL OR cn.cnorm = 0 THEN NULL
     ELSE COALESCE(d.dot, 0) / (bn.bnorm * cn.cnorm)
-  END AS tech_similarity
+  END AS tech_similarity,
+  CASE
+    WHEN bn.bnorm IS NULL OR bn.bnorm = 0 THEN NULL
+    WHEN cn.cnorm IS NULL OR cn.cnorm = 0 THEN NULL
+    ELSE 1 - COALESCE(d.dot, 0) / (bn.bnorm * cn.cnorm)
+  END AS tech_drift
 FROM events e
 LEFT JOIN %10$s oy
   ON oy.codinv = e.codinv AND oy.year = e.calendar_year
-LEFT JOIN stay st USING (deal_id, arm, codinv, match_id)
-LEFT JOIN last_focal lf USING (deal_id, arm, codinv, match_id)
+LEFT JOIN stay st
+  ON st.deal_id = e.deal_id AND st.arm = e.arm
+ AND st.codinv = e.codinv AND st.match_id = e.match_id
+LEFT JOIN last_focal lf
+  ON lf.deal_id = e.deal_id AND lf.arm = e.arm
+ AND lf.codinv = e.codinv AND lf.match_id = e.match_id
 LEFT JOIN bnorm bn ON bn.codinv = e.codinv
 LEFT JOIN cnorm cn ON cn.codinv = e.codinv AND cn.year = e.calendar_year
 LEFT JOIN dot d ON d.codinv = e.codinv AND d.year = e.calendar_year
+%13$s
 ORDER BY ALL
 ) TO '%11$s' (FORMAT PARQUET, COMPRESSION ZSTD, OVERWRITE TRUE)",
       roster_tbl, g,
@@ -350,13 +420,19 @@ ORDER BY ALL
                                "COALESCE(oy.n_pqii_nonmiss, 0)",
                                "oy.sum_pqii_obs"),
       s("lmv2_outcome_inventor_year"),
-      gsub("\\\\", "/", shard_path))
+      gsub("\\\\", "/", shard_path),
+      if (DBI::dbExistsTable(con, "lmv2_control_firm_eligibility")) {
+        "cfe.control_firm_exits_before_g_plus_5"
+      } else "NULL::BOOLEAN",
+      if (DBI::dbExistsTable(con, "lmv2_control_firm_eligibility")) {
+        "LEFT JOIN lmv2_control_firm_eligibility cfe
+           ON e.arm = 'control' AND cfe.cohort = e.cohort
+          AND CAST(cfe.control_group AS BIGINT) = e.focal_group_1"
+      } else "")
 
     DBI::dbExecute(con, sql)
-    utils::write.csv(stamp, stamp_path, row.names = FALSE, na = "")
 
-    n_roster <- DBI::dbGetQuery(con, sprintf(
-      "SELECT COUNT(*) n FROM %s WHERE cohort = %d", roster_tbl, g))$n
+    n_roster <- roster_hash$roster_rows
     n_panel <- DBI::dbGetQuery(con, sprintf(
       "SELECT COUNT(*) n FROM read_parquet('%s')",
       gsub("\\\\", "/", shard_path)))$n
@@ -364,9 +440,13 @@ ORDER BY ALL
       stop("Shard cohort ", g, ": panel rows (", n_panel,
            ") do not equal roster rows x 11 (", n_roster * 11L, ").")
     }
+    stamp <- lmv2_shard_stamp(provenance, g, roster_hash,
+                              shard_rows = n_panel,
+                              shard_parquet_md5 = unname(tools::md5sum(shard_path)))
+    utils::write.csv(stamp, stamp_path, row.names = FALSE, na = "")
     manifest[[i]] <- data.frame(cohort = g, shard = shard_path,
                                 status = "built",
-                                roster_cohort_hash = roster_hash)
+                                roster_hash_xor = roster_hash$roster_hash_xor)
   }
   do.call(rbind, manifest)
 }

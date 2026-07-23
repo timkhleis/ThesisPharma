@@ -151,7 +151,23 @@ build_lmv2_p6_fixture <- function(con, schema = "p6_fixture") {
     ) AS t(codinv, year, ipc4, weight)",
     s("lmv2_inventor_ipc4_year")))
 
-  # Fixture roster: five treated units, self-matched.
+  # Inventor 106: patents but no focal evidence at all (resolved to group
+  # 999, no group-501/502 links, no target-company rows) -> Left must be NA
+  # and audited via left_defined, never coded 1; not a stayer.
+  DBI::dbExecute(con, sprintf(
+    "INSERT INTO %s VALUES (106, 2001, 1, 1.0, 1, 1, 1.0, 1, 0.1)",
+    s("lmv2_outcome_inventor_year")))
+  DBI::dbExecute(con, sprintf(
+    "INSERT INTO %s VALUES (106, 2001, 999, 1)",
+    s("lmv2_outcome_inventor_affiliation_year")))
+  DBI::dbExecute(con, sprintf(
+    "INSERT INTO %s VALUES (106, 2001, 999, 1)",
+    s("lmv2_inventor_group_patent_year")))
+  DBI::dbExecute(con, sprintf(
+    "INSERT INTO %s VALUES (106, 2001, 'A61K', 1)",
+    s("lmv2_inventor_ipc4_year")))
+
+  # Fixture roster: six treated units, self-matched.
   DBI::dbExecute(con, sprintf("
     CREATE OR REPLACE TABLE %s AS
     SELECT CAST(9001 AS BIGINT) AS deal_id, CAST(2000 AS INTEGER) AS cohort,
@@ -160,7 +176,7 @@ build_lmv2_p6_fixture <- function(con, schema = "p6_fixture") {
            TRUE AS status_eligible, CAST(501 AS BIGINT) AS focal_group_1,
            CAST(502 AS BIGINT) AS focal_group_2,
            TRUE AS use_target_company_path
-    FROM (SELECT UNNEST([101, 102, 103, 104, 105]) AS c)",
+    FROM (SELECT UNNEST([101, 102, 103, 104, 105, 106]) AS c)",
     s("lmv2_fixture_roster")))
 
   invisible(schema)
@@ -227,6 +243,16 @@ run_lmv2_fixture_assertions <- function(con, fixture_shard_path) {
       !r105$stayer_group_first_post_t0_t5 &&
         r105$stayer_target_company_first_post_t0_t5 &&
         r105$stayer_focal_entity_first_post_t0_t5)
+
+  p106 <- panel[panel$codinv == 106, , drop = FALSE]
+  add("fixture_106_undefined_left_is_na_and_audited",
+      all(is.na(p106$left_focal)) && all(is.na(p106$left_onset)) &&
+        all(!p106$left_defined))
+  add("fixture_106_no_focal_evidence_not_stayer",
+      all(!p106$stayer_focal_entity_first_post_t0_t5))
+  add("fixture_101_tech_drift_is_one_minus_similarity",
+      abs((1 - row_of(101, 1)$tech_similarity) -
+            row_of(101, 1)$tech_drift) < 1e-12)
 
   # Active Patenting refers strictly to the current year: 103 patents only in
   # 1999, so every other event year must be inactive despite later panel rows.
@@ -321,7 +347,19 @@ run_lmv2_roster_validation_tests <- function(con, fixture_schema = "p6_fixture",
     list(name = "dangling_match_id",
          sql = sprintf("UPDATE %s SET match_id = 999
                         WHERE arm = 'control'", work),
-         msg = "must reference a treated row")
+         msg = "must reference a treated row"),
+    list(name = "null_arm_caught",
+         sql = sprintf("UPDATE %s SET arm = NULL WHERE codinv = 202", work),
+         msg = "must be non-missing"),
+    list(name = "null_match_id_caught",
+         sql = sprintf("UPDATE %s SET match_id = NULL
+                        WHERE codinv = 203", work),
+         msg = "must be non-missing"),
+    list(name = "treated_without_control_set",
+         sql = sprintf("INSERT INTO %s VALUES
+                        (9001, 2000, 'treated', 205, 205, 1.0, TRUE,
+                         501, 502, TRUE)", work),
+         msg = "complete three-control matched set in production mode")
   )
 
   out <- lapply(cases, function(cs) {
@@ -329,20 +367,34 @@ run_lmv2_roster_validation_tests <- function(con, fixture_schema = "p6_fixture",
       "CREATE OR REPLACE TABLE %s AS SELECT * FROM %s", work, base))
     DBI::dbExecute(con, cs$sql)
     err <- tryCatch({
-      validate_lmv2_roster(con, work, config); ""
+      validate_lmv2_roster(con, work, config, mode = "production"); ""
     }, error = function(e) conditionMessage(e))
     data.frame(check = paste0("roster_validation_", cs$name),
                pass = grepl(cs$msg, err, fixed = TRUE),
                stringsAsFactors = FALSE)
   })
-  do.call(rbind, out)
+  out <- do.call(rbind, out)
+
+  # Fixture mode must accept a treated-only roster (no control arm at all).
+  DBI::dbExecute(con, sprintf(
+    "CREATE OR REPLACE TABLE %s AS SELECT * FROM %s WHERE arm = 'treated'",
+    work, base))
+  fixture_ok <- tryCatch({
+    validate_lmv2_roster(con, work, config, mode = "treated_fixture"); TRUE
+  }, error = function(e) FALSE)
+  rbind(out, data.frame(check = "roster_validation_fixture_mode_treated_only",
+                        pass = fixture_ok, stringsAsFactors = FALSE))
 }
 
 # ---------------------------------------------------------------------------
 # Full-data certification against the published ingredient schema and the
 # treated fixture panel. `before_p1` / `before_p2` are the pre-build hashes.
 # ---------------------------------------------------------------------------
-run_lmv2_p6_certification <- function(con, schema, panel_dir, roster_tbl,
+# `panel_dirs` is a NAMED character vector of materialized panel directories
+# (e.g. c(treated_fixture = ..., matched = ...)); every directory passes the
+# full shard-level families, and treated rows in every directory must match
+# the certified P2 stayer classification exactly.
+run_lmv2_p6_certification <- function(con, schema, panel_dirs,
                                       before_p1, before_p2_manifest_path,
                                       r_dir, config = LMV2_P6_CONFIG) {
   s <- function(tbl) sprintf("%s.%s", schema, tbl)
@@ -394,85 +446,85 @@ run_lmv2_p6_certification <- function(con, schema, panel_dir, roster_tbl,
   add("no_filing_reference_in_materializer",
       !any(grepl("filing", src_18c, fixed = TRUE)))
 
-  # 6 + 8. Shard-level checks over every materialized shard.
-  shards <- list.files(panel_dir, pattern = "^lmv2_event_panel_c\\d+\\.parquet$",
-                       full.names = TRUE)
-  add("shards_present", length(shards) > 0)
-  n_roster <- q(sprintf("SELECT COUNT(*) n FROM %s", roster_tbl))$n
-  n_panel_total <- 0
-  left_violations <- 0
-  onset_violations <- 0
-  grain_violations <- 0
-  for (sh in shards) {
-    p <- gsub("\\\\", "/", sh)
-    n_panel_total <- n_panel_total + q(sprintf(
-      "SELECT COUNT(*) n FROM read_parquet('%s')", p))$n
-    left_violations <- left_violations + q(sprintf("
-      SELECT COUNT(*) n FROM (
-        SELECT left_focal - LAG(left_focal) OVER (
-          PARTITION BY deal_id, arm, codinv, match_id
-          ORDER BY event_time) AS d
-        FROM read_parquet('%s')) WHERE d < 0", p))$n
-    onset_violations <- onset_violations + q(sprintf("
-      SELECT COUNT(*) n FROM (
-        SELECT deal_id, arm, codinv, match_id, SUM(left_onset) so
-        FROM read_parquet('%s')
-        GROUP BY 1, 2, 3, 4 HAVING so > 1)", p))$n
-    grain_violations <- grain_violations + q(sprintf("
-      SELECT COUNT(*) - COUNT(DISTINCT
-        (deal_id, arm, codinv, match_id, event_time)) n
-      FROM read_parquet('%s')", p))$n
+  # 4 + 6 + 7 + 8. Shard-level families over EVERY materialized panel
+  # directory: grain, stamped row counts, Left monotonicity/onset,
+  # zero-vs-missing, and exact P2 stayer equality for treated rows.
+  if (is.null(names(panel_dirs)) || any(names(panel_dirs) == "")) {
+    stop("panel_dirs must be a named character vector")
   }
-  add("panel_rows_equal_roster_times_11", n_panel_total == n_roster * 11L,
-      sprintf("panel=%d roster_x11=%d", n_panel_total, n_roster * 11L))
-  add("left_weakly_increasing", left_violations == 0)
-  add("left_onset_at_most_once", onset_violations == 0)
-  add("shard_grain_unique", grain_violations == 0)
-
-  # 4. Global zero-vs-missing assertions on the real panel.
-  for (v in c("fwd_cits5", "pqii")) {
-    ncol_ <- if (v == "fwd_cits5") "n_fwd_nonmiss" else "n_pqii_nonmiss"
-    bad <- 0
+  for (dir_label in names(panel_dirs)) {
+    pd <- panel_dirs[[dir_label]]
+    shards <- list.files(pd, pattern = "^lmv2_event_panel_c\\d+\\.parquet$",
+                         full.names = TRUE)
+    add(paste0("shards_present_", dir_label), length(shards) > 0)
+    left_violations <- onset_violations <- grain_violations <- 0
+    stamp_row_mismatch <- stayer_mism <- silent_zero <- 0
     for (sh in shards) {
       p <- gsub("\\\\", "/", sh)
-      bad <- bad + q(sprintf("
-        SELECT COUNT(*) n FROM read_parquet('%s')
-        WHERE (patent_count > %s AND %s_complete IS NOT NULL)
-           OR (patent_count > 0 AND %s = 0 AND (
-                %s_observed IS NOT NULL OR %s_scaled IS NOT NULL
-                OR %s_conditional_mean IS NOT NULL))",
-        p, ncol_, v, ncol_, v, v, v))$n
+      stamp_file <- sub("\\.parquet$", "_stamp.csv", sh)
+      n_shard <- q(sprintf("SELECT COUNT(*) n FROM read_parquet('%s')", p))$n
+      if (!file.exists(stamp_file)) {
+        stamp_row_mismatch <- stamp_row_mismatch + 1L
+      } else {
+        st <- utils::read.csv(stamp_file, colClasses = "character")
+        if (n_shard != as.integer(st$shard_rows)) {
+          stamp_row_mismatch <- stamp_row_mismatch + 1L
+        }
+      }
+      left_violations <- left_violations + q(sprintf("
+        SELECT COUNT(*) n FROM (
+          SELECT left_focal - LAG(left_focal) OVER (
+            PARTITION BY deal_id, arm, codinv, match_id
+            ORDER BY event_time) AS d
+          FROM read_parquet('%s')) WHERE d < 0", p))$n
+      onset_violations <- onset_violations + q(sprintf("
+        SELECT COUNT(*) n FROM (
+          SELECT deal_id, arm, codinv, match_id, SUM(left_onset) so
+          FROM read_parquet('%s')
+          GROUP BY 1, 2, 3, 4 HAVING so > 1)", p))$n
+      grain_violations <- grain_violations + q(sprintf("
+        SELECT COUNT(*) - COUNT(DISTINCT
+          (deal_id, arm, codinv, match_id, event_time)) n
+        FROM read_parquet('%s')", p))$n
+      for (v in c("fwd_cits5", "pqii")) {
+        ncol_ <- if (v == "fwd_cits5") "n_fwd_nonmiss" else "n_pqii_nonmiss"
+        silent_zero <- silent_zero + q(sprintf("
+          SELECT COUNT(*) n FROM read_parquet('%s')
+          WHERE (patent_count > %s AND %s_complete IS NOT NULL)
+             OR (patent_count > 0 AND %s = 0 AND (
+                  %s_observed IS NOT NULL OR %s_scaled IS NOT NULL
+                  OR %s_conditional_mean IS NOT NULL))",
+          p, ncol_, v, ncol_, v, v, v))$n
+      }
+      stayer_mism <- stayer_mism + q(sprintf("
+        SELECT COUNT(*) n
+        FROM (SELECT DISTINCT deal_id, codinv, first_post_patent_year,
+                     stayer_group_first_post_t0_t5,
+                     stayer_target_company_first_post_t0_t5,
+                     stayer_focal_entity_first_post_t0_t5,
+                     status_eligible_stayer_first_post_t0_t5
+              FROM read_parquet('%s') WHERE arm = 'treated') f
+        JOIN lmv2_treated_primary t
+          ON t.deal_id = f.deal_id AND CAST(t.codinv AS BIGINT) = f.codinv
+        WHERE f.first_post_patent_year IS DISTINCT FROM t.first_post_patent_year
+           OR f.stayer_group_first_post_t0_t5
+              IS DISTINCT FROM t.stayer_group_first_post_t0_t5
+           OR f.stayer_target_company_first_post_t0_t5
+              IS DISTINCT FROM t.stayer_target_company_first_post_t0_t5
+           OR f.stayer_focal_entity_first_post_t0_t5
+              IS DISTINCT FROM t.stayer_focal_entity_first_post_t0_t5
+           OR f.status_eligible_stayer_first_post_t0_t5
+              IS DISTINCT FROM t.status_eligible_stayer_first_post_t0_t5",
+        p))$n
     }
-    add(paste0("no_silent_zero_", v), bad == 0)
+    add(paste0("shard_rows_match_stamps_", dir_label), stamp_row_mismatch == 0)
+    add(paste0("left_weakly_increasing_", dir_label), left_violations == 0)
+    add(paste0("left_onset_at_most_once_", dir_label), onset_violations == 0)
+    add(paste0("shard_grain_unique_", dir_label), grain_violations == 0)
+    add(paste0("no_silent_zero_", dir_label), silent_zero == 0)
+    add(paste0("treated_stayers_match_p2_", dir_label), stayer_mism == 0,
+        sprintf("mismatch_rows=%d", stayer_mism))
   }
-
-  # 7. Treated stayer fixture: exact equality with P2 for every treated row.
-  stayer_mism <- 0
-  for (sh in shards) {
-    p <- gsub("\\\\", "/", sh)
-    stayer_mism <- stayer_mism + q(sprintf("
-      SELECT COUNT(*) n
-      FROM (SELECT DISTINCT deal_id, codinv, first_post_patent_year,
-                   stayer_group_first_post_t0_t5,
-                   stayer_target_company_first_post_t0_t5,
-                   stayer_focal_entity_first_post_t0_t5,
-                   status_eligible_stayer_first_post_t0_t5
-            FROM read_parquet('%s') WHERE arm = 'treated') f
-      JOIN lmv2_treated_primary t
-        ON t.deal_id = f.deal_id AND CAST(t.codinv AS BIGINT) = f.codinv
-      WHERE f.first_post_patent_year IS DISTINCT FROM t.first_post_patent_year
-         OR f.stayer_group_first_post_t0_t5
-            IS DISTINCT FROM t.stayer_group_first_post_t0_t5
-         OR f.stayer_target_company_first_post_t0_t5
-            IS DISTINCT FROM t.stayer_target_company_first_post_t0_t5
-         OR f.stayer_focal_entity_first_post_t0_t5
-            IS DISTINCT FROM t.stayer_focal_entity_first_post_t0_t5
-         OR f.status_eligible_stayer_first_post_t0_t5
-            IS DISTINCT FROM t.status_eligible_stayer_first_post_t0_t5",
-      p))$n
-  }
-  add("stayer_fixture_matches_p2_exactly", stayer_mism == 0,
-      sprintf("mismatch_rows=%d", stayer_mism))
 
   # 11. OECD field availability among linked patents by filing year. This is
   # availability, NOT citation-window completeness: a non-missing fwd_cits5

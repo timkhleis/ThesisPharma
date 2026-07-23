@@ -55,8 +55,8 @@ LMV2_P6_CONFIG <- list(
   ),
 
   # -- P5a roster contract (frozen interface) --------------------------------
-  # Weights arrive entropy-balanced from certified P5 output. P6 never
-  # recomputes, rebalances, repairs, or renormalizes them.
+  # Weights arrive as certified P5a weights (whatever balancing rule P5
+  # certifies). P6 never recomputes, rebalances, repairs, or renormalizes them.
   roster_columns = c(
     deal_id = "BIGINT", cohort = "INTEGER", arm = "VARCHAR",
     codinv = "BIGINT", match_id = "BIGINT", weight = "DOUBLE",
@@ -154,10 +154,20 @@ lmv2_p2_table_hash <- function(con, table_name) {
   digest::digest(rows, algo = "sha256", serialize = TRUE)
 }
 
+# Quote a possibly schema-qualified table name part-by-part:
+# "p6_build_a.tbl" -> "p6_build_a"."tbl". dbQuoteIdentifier on the raw string
+# would quote it as one identifier and break schema-qualified lookups.
+lmv2_quote_qualified <- function(con, table_name) {
+  parts <- strsplit(table_name, ".", fixed = TRUE)[[1]]
+  paste(vapply(parts, function(p) {
+    as.character(DBI::dbQuoteIdentifier(con, p))
+  }, character(1)), collapse = ".")
+}
+
 # P1 hash method: order-invariant hash-sum / hash-XOR over named columns
 # (identical construction to 15c logical checksums).
 lmv2_p1_logical_checksum <- function(con, table_name, columns = NULL) {
-  qtn <- DBI::dbQuoteIdentifier(con, table_name)
+  qtn <- lmv2_quote_qualified(con, table_name)
   if (is.null(columns)) {
     columns <- DBI::dbGetQuery(con, sprintf("PRAGMA table_info(%s)", qtn))$name
   }

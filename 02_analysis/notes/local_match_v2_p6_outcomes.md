@@ -1,10 +1,41 @@
 # Local matching v2: P6 certified outcome panel
 
-Status: **implementation-ready, not executed or certified.** No data was
-provisioned, no database was opened or copied, no table was built, no panel
-was materialized, and no certification ran. Every count, runtime, and memory
-figure below is an expectation, not a result. Execution waits until P3–P5a
-are complete.
+Status: **implementation-ready, synthetic-fixture-verified, not certified on
+real data.** After Codex's review found runtime blockers that syntax-only
+parsing could not detect, a repair round fixed all seven findings and the
+synthetic fixture now executes green against an in-memory database
+(hand-built data only): 16/16 outcome assertions, 19/19 roster-validation
+tests, restart-skip honored, stale-provenance shards refused. No thesis data
+was provisioned or opened; no ingredient tables, treated fixture, or
+production certification ran. Those wait until P3–P5a are complete.
+
+## Repair round (post-review)
+
+1. Ambiguous `codinv` joins in the materializer replaced with explicit
+   qualified joins (the immediate runtime failure).
+2. `lmv2_quote_qualified` quotes schema-qualified names part-by-part; the
+   double-build checksum works on `p6_build_a.table` names.
+3. The runner reuses the repository-level `.r_libs` from the nested worktree
+   (same pattern as P3's `16a`).
+4. Production runs now REQUIRE `--roster`; `--fixture-only` is the explicit
+   pre-P5 mode, labeled in the manifest and pass message. A supplied
+   production roster is materialized BEFORE certification and passes through
+   every shard-level family (grain, stamped rows, Left monotonicity/onset,
+   zero-vs-missing, exact P2 stayer equality for treated rows).
+5. Shard stamps now include the materializer source hash, a strong roster
+   hash (rows + hash-sum + hash-XOR), and the output's row count and parquet
+   MD5; a stamped shard whose parquet no longer matches its checksum is
+   refused, never skipped.
+6. Undefined Left is **NA and audited** via `left_defined`, never coded 1.
+7. Roster validation catches NULL keys explicitly, and production mode
+   requires every treated row to carry a complete three-control matched set;
+   the treated fixture uses a separate `treated_fixture` validation mode.
+
+Additional: `tech_drift = 1 − tech_similarity` stored alongside the
+similarity; weights are described as certified P5a weights (no balancing
+rule assumed); the matched-control firm-exit diagnostic
+(`control_firm_exits_before_g_plus_5`) is attached to control rows in the
+panel from the frozen P2 interface.
 
 Base commit: `5d602a7` (frozen P2). Branch: `claude/lmv2-p6-outcomes`.
 Authority order: approved amendments (`local_match_v2_amendments.md`) >

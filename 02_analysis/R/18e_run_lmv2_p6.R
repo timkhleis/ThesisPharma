@@ -12,7 +12,11 @@
 #     --db=<path to P6 working copy of thesis_foundation.duckdb> \
 #     --p2-manifest=<path to p2_interface_manifest.csv> \
 #     --audit-dir=<output directory for P6 audit artifacts> \
-#     [--roster=<certified P5a roster parquet>] [--allow-restart]
+#     --roster=<certified P5a roster parquet> | --fixture-only \
+#     [--allow-restart]
+#
+# Production runs REQUIRE --roster; --fixture-only is the explicit pre-P5
+# testing mode and is labeled as such in the manifest and pass message.
 
 args <- commandArgs(trailingOnly = TRUE)
 get_arg <- function(flag) {
@@ -26,15 +30,29 @@ P2_MANIFEST <- get_arg("--p2-manifest")
 AUDIT_DIR <- get_arg("--audit-dir")
 ROSTER_PATH <- get_arg("--roster")
 ALLOW_RESTART <- "--allow-restart" %in% args
+FIXTURE_ONLY <- "--fixture-only" %in% args
 
 if (is.na(DB_PATH) || is.na(P2_MANIFEST) || is.na(AUDIT_DIR)) {
   stop("P6 runner requires explicit --db=, --p2-manifest=, and --audit-dir= ",
        "arguments. It never locates or copies data on its own.")
 }
+if (!FIXTURE_ONLY && is.na(ROSTER_PATH)) {
+  stop("Production runs require --roster=<certified P5a roster parquet>. ",
+       "Use --fixture-only for explicit pre-P5 testing.")
+}
 
 BASE <- normalizePath("02_analysis", mustWork = TRUE)
 source(file.path(BASE, "R", "00_utils.R"))
 use_project_library()
+# A nested git worktree has its own empty .r_libs; reuse the repository-level
+# project library without modifying shared utilities (same pattern as 16a).
+LMV2_P6_SHARED_R_LIB <- normalizePath(
+  file.path(BASE, "..", "..", "..", ".r_libs"),
+  winslash = "/", mustWork = FALSE
+)
+if (dir.exists(LMV2_P6_SHARED_R_LIB)) {
+  .libPaths(unique(c(LMV2_P6_SHARED_R_LIB, .libPaths())))
+}
 for (pkg in c("DBI", "duckdb", "digest")) {
   if (!requireNamespace(pkg, quietly = TRUE)) stop("Missing package: ", pkg)
 }
@@ -74,6 +92,8 @@ provenance <- list(
   p6_design_hash = lmv2_p6_design_hash(),
   amendments_sha256 = amendments_sha,
   p2_interface_hashes = setNames(p2_gate$actual_hash, p2_gate$table),
+  materializer_sha256 = lmv2_file_sha256(
+    file.path(BASE, "R", "18c_materialize_lmv2_outcome_panel.R")),
   ingredient_build_hash = NA_character_ # filled after publish
 )
 
@@ -125,7 +145,8 @@ build_lmv2_p6_fixture(con, "p6_fixture")
 fixture_dir <- file.path(AUDIT_DIR, "panel_synthetic_fixture")
 materialize_lmv2_event_panel(con, "p6_fixture.lmv2_fixture_roster",
                              "p6_fixture", fixture_dir, provenance,
-                             allow_restart = FALSE)
+                             allow_restart = FALSE,
+                             roster_mode = "treated_fixture")
 fixture_checks <- run_lmv2_fixture_assertions(
   con, file.path(fixture_dir, "lmv2_event_panel_c2000.parquet"))
 roster_checks <- run_lmv2_roster_validation_tests(con, "p6_fixture")
@@ -139,11 +160,33 @@ derive_treated_fixture_roster(con, "p6.lmv2_treated_fixture_roster")
 treated_dir <- file.path(AUDIT_DIR, "panel_treated_fixture")
 treated_manifest <- materialize_lmv2_event_panel(
   con, "p6.lmv2_treated_fixture_roster", PUBLISH_SCHEMA, treated_dir,
-  provenance, allow_restart = ALLOW_RESTART)
+  provenance, allow_restart = ALLOW_RESTART,
+  roster_mode = "treated_fixture")
 write_audit(treated_manifest, "p6_treated_fixture_shards.csv")
+panel_dirs <- c(treated_fixture = treated_dir)
 
+# ---------------------------------------------------------------------------
+# Production stage: certified P5a roster, validated in production mode and
+# certified through the same shard families as the fixtures.
+# ---------------------------------------------------------------------------
+if (!FIXTURE_ONLY) {
+  if (!file.exists(ROSTER_PATH)) stop("P5a roster not found: ", ROSTER_PATH)
+  DBI::dbExecute(con, sprintf(
+    "CREATE OR REPLACE TABLE p6.lmv2_p5a_roster AS
+     SELECT * FROM read_parquet('%s')", gsub("\\\\", "/", ROSTER_PATH)))
+  matched_dir <- file.path(AUDIT_DIR, "panel_matched")
+  matched_manifest <- materialize_lmv2_event_panel(
+    con, "p6.lmv2_p5a_roster", PUBLISH_SCHEMA, matched_dir,
+    provenance, allow_restart = ALLOW_RESTART,
+    roster_mode = "production")
+  write_audit(matched_manifest, "p6_matched_panel_shards.csv")
+  panel_dirs <- c(panel_dirs, matched = matched_dir)
+}
+
+# Certification runs over every materialized panel directory, so a supplied
+# production roster is always inside the certified scope, never after it.
 cert <- run_lmv2_p6_certification(
-  con, PUBLISH_SCHEMA, treated_dir, "p6.lmv2_treated_fixture_roster",
+  con, PUBLISH_SCHEMA, panel_dirs,
   before_p1, P2_MANIFEST, r_dir = file.path(BASE, "R"))
 all_checks <- rbind(
   cert[, c("check", "pass")],
@@ -157,21 +200,6 @@ write_audit(attr(cert, "oecd_field_availability"),
             "p6_oecd_field_availability_by_filing_year.csv")
 
 # ---------------------------------------------------------------------------
-# Optional production stage: certified P5a roster.
-# ---------------------------------------------------------------------------
-if (!is.na(ROSTER_PATH)) {
-  if (!file.exists(ROSTER_PATH)) stop("P5a roster not found: ", ROSTER_PATH)
-  DBI::dbExecute(con, sprintf(
-    "CREATE OR REPLACE TABLE p6.lmv2_p5a_roster AS
-     SELECT * FROM read_parquet('%s')", gsub("\\\\", "/", ROSTER_PATH)))
-  matched_dir <- file.path(AUDIT_DIR, "panel_matched")
-  matched_manifest <- materialize_lmv2_event_panel(
-    con, "p6.lmv2_p5a_roster", PUBLISH_SCHEMA, matched_dir,
-    provenance, allow_restart = ALLOW_RESTART)
-  write_audit(matched_manifest, "p6_matched_panel_shards.csv")
-}
-
-# ---------------------------------------------------------------------------
 # Manifest. Memory: the configured cap is recorded as a setting, never as an
 # observed peak; DuckDB memory statistics are included when the installed
 # version exposes them; process peak is NA unless a reliable method exists.
@@ -183,9 +211,11 @@ write_audit(duckdb_mem, "p6_duckdb_memory_stats.csv")
 
 manifest <- data.frame(
   p6_version = LMV2_P6_VERSION,
+  run_mode = ifelse(FIXTURE_ONLY, "fixture_only_pre_p5", "production"),
   p6_design_hash = provenance$p6_design_hash,
   p0_design_hash = provenance$p0_design_hash,
   amendments_sha256 = provenance$amendments_sha256,
+  materializer_sha256 = provenance$materializer_sha256,
   ingredient_build_hash = provenance$ingredient_build_hash,
   db_path = DB_PATH,
   p2_manifest_path = P2_MANIFEST,
@@ -205,5 +235,8 @@ failed <- all_checks$check[!all_checks$pass]
 if (length(failed)) {
   stop("P6 certification failed: ", paste(failed, collapse = ", "))
 }
-message("P6 PASS | design_hash=", provenance$p6_design_hash,
+message(ifelse(FIXTURE_ONLY,
+               "P6 FIXTURE PASS (pre-P5 testing mode; NOT a production run)",
+               "P6 PASS (production)"),
+        " | design_hash=", provenance$p6_design_hash,
         " | checks=", nrow(all_checks))
