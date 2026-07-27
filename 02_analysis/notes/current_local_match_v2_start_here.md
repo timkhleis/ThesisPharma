@@ -9,6 +9,14 @@ use the archived Main-DiD-v1 scripts for headline results.
 inventor, patent, firm-group, merger, and replication files, together with the
 OECD patent-quality files. The replication package contains this folder.
 
+## Materialized research database
+
+`05_Database/thesis_foundation.duckdb` is the authoritative P6 DuckDB snapshot
+used to inspect the constructed research tables without rebuilding the raw
+data foundation. It is a derived, read-only convenience snapshot; the raw
+inputs and P0--P3 code remain the provenance source. Do not substitute the
+older databases from the root or other worktrees.
+
 ## P0--P3: construct the research data and matching inputs
 
 Source folder: `02_Code/P0_P3_foundation/`.
