@@ -33,6 +33,8 @@ The detailed source-to-artifact map is
 
 ## Where to start
 
+- [`02_analysis/notes/current_local_match_v2_start_here.md`](02_analysis/notes/current_local_match_v2_start_here.md)
+  is the linear P0--P6 guide used by the full replication handover bundle.
 - [`02_analysis/README.md`](02_analysis/README.md) explains the active data
   lineage and script sequence.
 - [`02_analysis/notes/local_match_v2_quantity_results_for_supervisors.md`](02_analysis/notes/local_match_v2_quantity_results_for_supervisors.md)
