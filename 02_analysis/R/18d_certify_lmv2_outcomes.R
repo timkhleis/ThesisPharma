@@ -8,6 +8,14 @@
 # Provenance gates
 # ---------------------------------------------------------------------------
 
+# Ignore DuckDB's safe profiling controls, then reject every remaining
+# occurrence of "filing".  Keep this broad: identifiers such as
+# lmv2_oecd_coverage_filingyear are exactly the leak paths this guard targets.
+lmv2_has_forbidden_filing_reference <- function(src_lines) {
+  src_scan <- gsub("profiling", "", src_lines, fixed = TRUE)
+  any(grepl("filing", src_scan, fixed = TRUE))
+}
+
 # All five P2 interfaces must match the P2 manifest (hash + row count),
 # using P2's exact serialized-SHA-256 method. Never replaced.
 lmv2_check_p2_interfaces <- function(con, p2_manifest_path,
@@ -167,16 +175,51 @@ build_lmv2_p6_fixture <- function(con, schema = "p6_fixture") {
     "INSERT INTO %s VALUES (106, 2001, 'A61K', 1)",
     s("lmv2_inventor_ipc4_year")))
 
-  # Fixture roster: six treated units, self-matched.
+  # Inventor 107 is the NULL-safety regression fixture for the split
+  # last-focal joins: a control with focal_group_2 = NULL, no target-company
+  # path, and no focal evidence. The result must remain undefined rather than
+  # being converted to a sentinel year or a false Left event.
+  DBI::dbExecute(con, sprintf(
+    "INSERT INTO %s VALUES (107, 2001, 1, 1.0, 1, 1, 1.0, 1, 0.1)",
+    s("lmv2_outcome_inventor_year")))
+  DBI::dbExecute(con, sprintf(
+    "INSERT INTO %s VALUES (107, 2001, 999, 1)",
+    s("lmv2_outcome_inventor_affiliation_year")))
+  DBI::dbExecute(con, sprintf(
+    "INSERT INTO %s VALUES (107, 2001, 999, 1)",
+    s("lmv2_inventor_group_patent_year")))
+  DBI::dbExecute(con, sprintf(
+    "INSERT INTO %s VALUES (107, 2001, 'A61K', 1)",
+    s("lmv2_inventor_ipc4_year")))
+
+  # Fixture roster: six treated units plus the control-path NULL fixture.
   DBI::dbExecute(con, sprintf("
     CREATE OR REPLACE TABLE %s AS
-    SELECT CAST(9001 AS BIGINT) AS deal_id, CAST(2000 AS INTEGER) AS cohort,
-           'treated' AS arm, CAST(c AS BIGINT) AS codinv,
-           CAST(c AS BIGINT) AS match_id, 1.0 AS weight,
-           TRUE AS status_eligible, CAST(501 AS BIGINT) AS focal_group_1,
-           CAST(502 AS BIGINT) AS focal_group_2,
-           TRUE AS use_target_company_path
-    FROM (SELECT UNNEST([101, 102, 103, 104, 105, 106]) AS c)",
+    SELECT *
+    FROM (
+      SELECT CAST(9001 AS BIGINT) AS deal_id,
+             CAST(2000 AS INTEGER) AS cohort,
+             'treated' AS arm, CAST(c AS BIGINT) AS codinv,
+             'fixture:' || CAST(c AS VARCHAR) AS roster_row_id,
+             1.0 AS weight,
+             TRUE AS status_eligible,
+             CAST(501 AS BIGINT) AS focal_group_1,
+             CAST(502 AS BIGINT) AS focal_group_2,
+             TRUE AS use_target_company_path,
+             'fixture_route' AS qualification_route,
+             TRUE AS target_to_acquirer_transition_strict,
+             CAST(1 AS INTEGER) AS latest_pre_candidate_group_count,
+             FALSE AS multi_exposure_inventor,
+             FALSE AS big_deal
+      FROM (SELECT UNNEST([101, 102, 103, 104, 105, 106]) AS c)
+      UNION ALL
+      SELECT CAST(9001 AS BIGINT), CAST(2000 AS INTEGER),
+             'control', CAST(107 AS BIGINT), 'fixture:107',
+             1.0, TRUE, CAST(601 AS BIGINT), CAST(NULL AS BIGINT),
+             FALSE, CAST(NULL AS VARCHAR), CAST(NULL AS BOOLEAN),
+             CAST(NULL AS INTEGER), CAST(NULL AS BOOLEAN),
+             CAST(NULL AS BOOLEAN)
+    )",
     s("lmv2_fixture_roster")))
 
   invisible(schema)
@@ -250,6 +293,15 @@ run_lmv2_fixture_assertions <- function(con, fixture_shard_path) {
         all(!p106$left_defined))
   add("fixture_106_no_focal_evidence_not_stayer",
       all(!p106$stayer_focal_entity_first_post_t0_t5))
+  p107 <- panel[panel$codinv == 107, , drop = FALSE]
+  add("fixture_107_control_null_focal2_false_target_path_is_null_safe",
+      all(p107$arm == "control") &&
+        all(is.na(p107$focal_group_2)) &&
+        all(!p107$use_target_company_path) &&
+        all(is.na(p107$last_focal_patent_year)) &&
+        all(!p107$left_defined) &&
+        all(is.na(p107$left_focal)) &&
+        all(is.na(p107$left_onset)))
   add("fixture_101_tech_drift_is_one_minus_similarity",
       abs((1 - row_of(101, 1)$tech_similarity) -
             row_of(101, 1)$tech_drift) < 1e-12)
@@ -271,29 +323,43 @@ run_lmv2_roster_validation_tests <- function(con, fixture_schema = "p6_fixture",
   s <- function(tbl) sprintf("%s.%s", fixture_schema, tbl)
   base <- s("lmv2_valid_control_roster")
   work <- s("lmv2_corrupt_roster")
+  test_config <- config
+  test_config$cohorts <- 2000L
 
-  # A valid two-arm roster: one treated unit, three controls over two firms,
-  # certified P5a-style weights summing to one.
+  # A valid weighted two-arm roster: treated and control mass are equal and
+  # the deal-level control pool spans two firms.
   DBI::dbExecute(con, sprintf("
     CREATE OR REPLACE TABLE %s AS
     SELECT CAST(deal_id AS BIGINT) AS deal_id,
            CAST(cohort AS INTEGER) AS cohort, arm,
            CAST(codinv AS BIGINT) AS codinv,
-           CAST(match_id AS BIGINT) AS match_id,
+           CAST(roster_row_id AS VARCHAR) AS roster_row_id,
            CAST(weight AS DOUBLE) AS weight,
            status_eligible,
            CAST(focal_group_1 AS BIGINT) AS focal_group_1,
            CAST(focal_group_2 AS BIGINT) AS focal_group_2,
-           use_target_company_path
+           use_target_company_path, qualification_route,
+           target_to_acquirer_transition_strict,
+           CAST(latest_pre_candidate_group_count AS INTEGER)
+             AS latest_pre_candidate_group_count,
+           multi_exposure_inventor, big_deal
     FROM (VALUES
-      (9001, 2000, 'treated', 201, 201, 1.0, TRUE, 501, 502, TRUE),
-      (9001, 2000, 'control', 202, 201, 0.5, TRUE, 601, NULL, FALSE),
-      (9001, 2000, 'control', 203, 201, 0.3, TRUE, 601, NULL, FALSE),
-      (9001, 2000, 'control', 204, 201, 0.2, TRUE, 602, NULL, FALSE)
-    ) AS t(deal_id, cohort, arm, codinv, match_id, weight, status_eligible,
-           focal_group_1, focal_group_2, use_target_company_path)",
+      (9001, 2000, 'treated', 201, 't201', 1.0, TRUE, 501, 502, TRUE,
+       'fixture_route', TRUE, 1, FALSE, FALSE),
+      (9001, 2000, 'control', 202, 'c202', 0.5, TRUE, 601, NULL, FALSE,
+       NULL, NULL, NULL, NULL, NULL),
+      (9001, 2000, 'control', 203, 'c203', 0.3, TRUE, 601, NULL, FALSE,
+       NULL, NULL, NULL, NULL, NULL),
+      (9001, 2000, 'control', 204, 'c204', 0.2, TRUE, 602, NULL, FALSE,
+       NULL, NULL, NULL, NULL, NULL)
+    ) AS t(deal_id, cohort, arm, codinv, roster_row_id, weight,
+           status_eligible, focal_group_1, focal_group_2,
+           use_target_company_path, qualification_route,
+           target_to_acquirer_transition_strict,
+           latest_pre_candidate_group_count, multi_exposure_inventor,
+           big_deal)",
     base))
-  validate_lmv2_roster(con, base, config) # must pass
+  validate_lmv2_roster(con, base, test_config) # must pass
 
   cases <- list(
     list(name = "invalid_arm",
@@ -303,6 +369,11 @@ run_lmv2_roster_validation_tests <- function(con, fixture_schema = "p6_fixture",
          sql = sprintf("INSERT INTO %s SELECT * FROM %s WHERE codinv = 202",
                        work, work),
          msg = "must be unique"),
+    list(name = "duplicate_conceptual_row",
+         sql = sprintf(
+           "INSERT INTO %s SELECT * REPLACE ('different-row-id' AS roster_row_id)
+            FROM %s WHERE codinv = 202", work, work),
+         msg = "Conceptual roster rows must be unique"),
     list(name = "two_cohorts_per_deal",
          sql = sprintf("UPDATE %s SET cohort = 2001 WHERE codinv = 204", work),
          msg = "exactly one cohort"),
@@ -317,9 +388,6 @@ run_lmv2_roster_validation_tests <- function(con, fixture_schema = "p6_fixture",
          sql = sprintf("UPDATE %s SET status_eligible = NULL
                         WHERE codinv = 201", work),
          msg = "status_eligible must be non-missing"),
-    list(name = "treated_match_id",
-         sql = sprintf("UPDATE %s SET match_id = 999 WHERE codinv = 201", work),
-         msg = "match_id = codinv"),
     list(name = "treated_weight",
          sql = sprintf("UPDATE %s SET weight = 2 WHERE codinv = 201", work),
          msg = "weight = 1"),
@@ -336,30 +404,30 @@ run_lmv2_roster_validation_tests <- function(con, fixture_schema = "p6_fixture",
          msg = "nonnegative"),
     list(name = "two_controls_only",
          sql = sprintf("DELETE FROM %s WHERE codinv = 204", work),
-         msg = "exactly three distinct control inventors"),
+         msg = "equal mass within each cohort"),
     list(name = "single_control_firm",
          sql = sprintf("UPDATE %s SET focal_group_1 = 601
                         WHERE codinv = 204", work),
-         msg = "at least two distinct control firms"),
+         msg = "at least two firms"),
     list(name = "weights_do_not_sum_to_one",
          sql = sprintf("UPDATE %s SET weight = 0.4 WHERE codinv = 204", work),
-         msg = "sum to one"),
-    list(name = "dangling_match_id",
-         sql = sprintf("UPDATE %s SET match_id = 999
-                        WHERE arm = 'control'", work),
-         msg = "must reference a treated row"),
+         msg = "equal mass within each cohort"),
     list(name = "null_arm_caught",
          sql = sprintf("UPDATE %s SET arm = NULL WHERE codinv = 202", work),
          msg = "must be non-missing"),
-    list(name = "null_match_id_caught",
-         sql = sprintf("UPDATE %s SET match_id = NULL
+    list(name = "null_roster_row_id_caught",
+         sql = sprintf("UPDATE %s SET roster_row_id = NULL
                         WHERE codinv = 203", work),
          msg = "must be non-missing"),
     list(name = "treated_without_control_set",
          sql = sprintf("INSERT INTO %s VALUES
-                        (9001, 2000, 'treated', 205, 205, 1.0, TRUE,
-                         501, 502, TRUE)", work),
-         msg = "complete three-control matched set in production mode"),
+                        (9001, 2000, 'treated', 205, 't205', 1.0, TRUE,
+                         501, 502, TRUE, 'fixture_route', TRUE, 1,
+                         FALSE, FALSE)", work),
+         msg = "equal mass within each cohort"),
+    list(name = "missing_control_arm",
+         sql = sprintf("DELETE FROM %s WHERE arm = 'control'", work),
+         msg = "must contain treated and control rows"),
     list(name = "control_status_eligible_false",
          sql = sprintf("UPDATE %s SET status_eligible = FALSE
                         WHERE codinv = 202", work),
@@ -375,7 +443,8 @@ run_lmv2_roster_validation_tests <- function(con, fixture_schema = "p6_fixture",
       "CREATE OR REPLACE TABLE %s AS SELECT * FROM %s", work, base))
     DBI::dbExecute(con, cs$sql)
     err <- tryCatch({
-      validate_lmv2_roster(con, work, config, mode = "production"); ""
+      validate_lmv2_roster(
+        con, work, test_config, mode = "production"); ""
     }, error = function(e) conditionMessage(e))
     data.frame(check = paste0("roster_validation_", cs$name),
                pass = grepl(cs$msg, err, fixed = TRUE),
@@ -392,6 +461,116 @@ run_lmv2_roster_validation_tests <- function(con, fixture_schema = "p6_fixture",
   }, error = function(e) FALSE)
   rbind(out, data.frame(check = "roster_validation_fixture_mode_treated_only",
                         pass = fixture_ok, stringsAsFactors = FALSE))
+}
+
+# ---------------------------------------------------------------------------
+# Frozen reporting metadata and coverage diagnostics. These describe outcome
+# availability; they do not estimate an ATT or choose among designs.
+# ---------------------------------------------------------------------------
+write_lmv2_p6_reporting_diagnostics <- function(
+    con, panel_dirs, audit_dir, config = LMV2_P6_CONFIG) {
+  utils::write.csv(
+    data.frame(
+      outcome = c(
+        config$outcome_status$primary,
+        config$outcome_status$secondary),
+      designation = c(
+        rep("primary", length(config$outcome_status$primary)),
+        rep("secondary", length(config$outcome_status$secondary))),
+      leading_variant = c(
+        rep("as_materialized", length(config$outcome_status$primary)),
+        rep(config$outcome_status$oecd_leading_variant,
+            length(config$outcome_status$secondary))),
+      stringsAsFactors = FALSE),
+    file.path(audit_dir, "p6_outcome_designations.csv"),
+    row.names = FALSE)
+
+  panel_label <- if ("matched" %in% names(panel_dirs)) {
+    "matched"
+  } else {
+    "treated_fixture"
+  }
+  shards <- list.files(
+    panel_dirs[[panel_label]],
+    pattern = "^lmv2_event_panel_c\\d+\\.parquet$",
+    full.names = TRUE)
+  if (length(shards)) {
+    quoted <- paste0(
+      "'", gsub("'", "''", gsub("\\\\", "/", shards)), "'",
+      collapse = ",")
+    coverage <- DBI::dbGetQuery(con, sprintf("
+      WITH p AS (SELECT * FROM read_parquet([%s]))
+      SELECT
+        cohort, event_time, calendar_year, arm, late_tail_flag,
+        (cohort <= 2008) AS censoring_clean_cohort,
+        COUNT(*) AS roster_rows,
+        SUM(weight) AS weight_mass,
+        SUM(weight * patent_count) AS weighted_patents,
+        SUM(weight * n_linked_oecd) AS weighted_oecd_links,
+        SUM(weight * n_fwd_nonmiss) AS weighted_fwd_nonmissing,
+        SUM(weight * n_pqii_nonmiss) AS weighted_pqii_nonmissing,
+        CASE WHEN SUM(weight * patent_count) > 0
+          THEN SUM(weight * n_linked_oecd) /
+               SUM(weight * patent_count) ELSE NULL END
+          AS oecd_linkage_rate,
+        CASE WHEN SUM(weight * patent_count) > 0
+          THEN SUM(weight * n_fwd_nonmiss) /
+               SUM(weight * patent_count) ELSE NULL END
+          AS fwd_cits5_availability_rate,
+        CASE WHEN SUM(weight * patent_count) > 0
+          THEN SUM(weight * n_pqii_nonmiss) /
+               SUM(weight * patent_count) ELSE NULL END
+          AS pqii_availability_rate
+      FROM p
+      GROUP BY ALL
+      ORDER BY cohort, event_time, arm", quoted))
+    utils::write.csv(
+      coverage, file.path(audit_dir, "p6_event_time_coverage.csv"),
+      row.names = FALSE, na = "")
+  }
+
+  # Only characteristics observed before the OECD join can compare linked
+  # and unlinked applications. OECD family size and forward citations are
+  # missing by construction for unlinked applications.
+  linkage <- DBI::dbGetQuery(con, "
+    WITH inv AS (
+      SELECT appln_id, COUNT(DISTINCT codinv) AS inventor_count
+      FROM patent_inventor GROUP BY appln_id
+    ), app AS (
+      SELECT
+        pa.appln_id, pa.patent_year, pa.patent_row_count,
+        pa.compcod_count, COALESCE(inv.inventor_count, 0) AS inventor_count,
+        (oq.appln_id IS NOT NULL) AS oecd_linked
+      FROM patent_application pa
+      LEFT JOIN inv USING (appln_id)
+      LEFT JOIN oecd_quality oq USING (appln_id)
+    )
+    SELECT
+      patent_year, oecd_linked, COUNT(*) AS applications,
+      AVG(patent_row_count) AS mean_patent_rows,
+      AVG(compcod_count) AS mean_linked_companies,
+      AVG(inventor_count) AS mean_inventors
+    FROM app
+    GROUP BY patent_year, oecd_linked
+    ORDER BY patent_year, oecd_linked")
+  utils::write.csv(
+    linkage,
+    file.path(audit_dir, "p6_oecd_linkage_nonrandomness.csv"),
+    row.names = FALSE, na = "")
+  utils::write.csv(
+    data.frame(
+      requested_characteristic = c(
+        "family_size", "forward_citations", "applicant_type"),
+      available_for_linked_and_unlinked = c(FALSE, FALSE, FALSE),
+      reason = c(
+        "family_size exists only in oecd_quality",
+        "forward-citation fields exist only in oecd_quality",
+        "no applicant-type field exists in the certified patent spine"),
+      stringsAsFactors = FALSE),
+    file.path(
+      audit_dir, "p6_oecd_linkage_diagnostic_field_limits.csv"),
+    row.names = FALSE)
+  invisible(TRUE)
 }
 
 # ---------------------------------------------------------------------------
@@ -452,7 +631,7 @@ run_lmv2_p6_certification <- function(con, schema, panel_dirs,
   src_18c <- readLines(file.path(r_dir, "18c_materialize_lmv2_outcome_panel.R"),
                        warn = FALSE)
   add("no_filing_reference_in_materializer",
-      !any(grepl("filing", src_18c, fixed = TRUE)))
+      !lmv2_has_forbidden_filing_reference(src_18c))
 
   # 4 + 6 + 7 + 8. Shard-level families over EVERY materialized panel
   # directory: grain, stamped row counts, Left monotonicity/onset,
@@ -483,17 +662,17 @@ run_lmv2_p6_certification <- function(con, schema, panel_dirs,
       left_violations <- left_violations + q(sprintf("
         SELECT COUNT(*) n FROM (
           SELECT left_focal - LAG(left_focal) OVER (
-            PARTITION BY deal_id, arm, codinv, match_id
+            PARTITION BY deal_id, arm, codinv, roster_row_id
             ORDER BY event_time) AS d
           FROM read_parquet('%s')) WHERE d < 0", p))$n
       onset_violations <- onset_violations + q(sprintf("
         SELECT COUNT(*) n FROM (
-          SELECT deal_id, arm, codinv, match_id, SUM(left_onset) so
+          SELECT deal_id, arm, codinv, roster_row_id, SUM(left_onset) so
           FROM read_parquet('%s')
           GROUP BY 1, 2, 3, 4 HAVING so > 1)", p))$n
       grain_violations <- grain_violations + q(sprintf("
         SELECT COUNT(*) - COUNT(DISTINCT
-          (deal_id, arm, codinv, match_id, event_time)) n
+          (deal_id, arm, codinv, roster_row_id, event_time)) n
         FROM read_parquet('%s')", p))$n
       for (v in c("fwd_cits5", "pqii")) {
         ncol_ <- if (v == "fwd_cits5") "n_fwd_nonmiss" else "n_pqii_nonmiss"

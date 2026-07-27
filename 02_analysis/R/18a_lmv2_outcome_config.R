@@ -6,13 +6,24 @@
 # It performs no data access. Authority order: approved amendments
 # (02_analysis/notes/local_match_v2_amendments.md) > frozen P0 lock (15a).
 
-LMV2_P6_VERSION <- "local_match_v2_p6"
+LMV2_P6_VERSION <- "local_match_v2_p6_v3"
+
+LMV2_P6_PREANALYSIS_FREEZE_SHA256 <-
+  "1ed37807124f72ae85d10fed00c3959016530f1e6fade61c416227d8350ff2d4"
+LMV2_P6_APPROVED_PRIMARY_ROSTER_SHA256 <-
+  "19c8245b499a5186b3c8a83e796def82dba522303eccd3507ab7cdc362f26107"
+LMV2_P6_APPROVED_P5_DESIGN_HASH <-
+  "188f7735a6fe39dd090c03eb7a15b01b7bafc7e3118e5a75f411020cf5423507"
+LMV2_P6_APPROVED_P5_PRODUCTION_FREEZE_SHA256 <-
+  "637e7535239a835ffadc5cbba17a96c2f9a2410d997f36ff127568493b9b33d4"
 
 LMV2_P6_CONFIG <- list(
   # -- sample clocks (P0 lock + P2 amendments) -------------------------------
   cohorts = 1994:2010,
   buffered_cohorts = 1994:2008,
   event_window = -5:5,
+  headline_post_window = 1:5,
+  headline_terminal_event_time = 5L,
   late_tail_calendar_year = 2014L,   # calendar years >= this are flagged
   patent_clock = "application_year", # authoritative; OECD `filing` audit-only
 
@@ -54,20 +65,57 @@ LMV2_P6_CONFIG <- list(
     "lmv2_oecd_linkage_decline_filingyear"
   ),
 
-  # -- P5a roster contract (frozen interface) --------------------------------
+  # -- P5 weighted-roster contract --------------------------------------------
   # Weights arrive as certified P5a weights (whatever balancing rule P5
   # certifies). P6 never recomputes, rebalances, repairs, or renormalizes them.
   roster_columns = c(
     deal_id = "BIGINT", cohort = "INTEGER", arm = "VARCHAR",
-    codinv = "BIGINT", match_id = "BIGINT", weight = "DOUBLE",
+    codinv = "BIGINT", roster_row_id = "VARCHAR", weight = "DOUBLE",
     status_eligible = "BOOLEAN",
     focal_group_1 = "BIGINT", focal_group_2 = "BIGINT",
-    use_target_company_path = "BOOLEAN"
+    use_target_company_path = "BOOLEAN",
+    qualification_route = "VARCHAR",
+    target_to_acquirer_transition_strict = "BOOLEAN",
+    latest_pre_candidate_group_count = "INTEGER",
+    multi_exposure_inventor = "BOOLEAN",
+    big_deal = "BOOLEAN"
   ),
   roster_arms = c("treated", "control"),
-  controls_per_treated = 3L,
-  min_control_firms_per_treated = 2L,
-  control_weight_sum_tolerance = 1e-8,
+  min_control_firms_per_deal = 2L,
+  cohort_weight_mass_tolerance = 1e-7,
+  approved_primary = list(
+    roster_sha256 = LMV2_P6_APPROVED_PRIMARY_ROSTER_SHA256,
+    roster_rows = 500906L,
+    p5_design_hash = LMV2_P6_APPROVED_P5_DESIGN_HASH,
+    p5_production_freeze_sha256 =
+      LMV2_P6_APPROVED_P5_PRODUCTION_FREEZE_SHA256
+  ),
+
+  outcome_status = list(
+    primary = c("patent_count", "active_patenting", "techdrift"),
+    secondary = c("pqii", "fwd_cits5"),
+    oecd_leading_variant = "scaled"
+  ),
+  inference = list(
+    headline = "deal_cluster_wild_bootstrap_t",
+    package = "fwildclusterboot",
+    package_version = "0.14.3",
+    weights = "webb",
+    replications = 9999L,
+    seed = 20260722L,
+    impose_null = TRUE,
+    confidence_level = 0.95,
+    prominent_companion = "two_way_deal_inventor_cluster",
+    deal_only_companion = "deal_cluster_robust",
+    disagreement_rule = "use_wider_interval_wild_on_exact_width_tie"
+  ),
+  sensitivity_designs = c(
+    "equal_deal_feasible",
+    "primary_equal_deal_feasible_sample",
+    "no_deal70_resolved",
+    "deal70_single_firm_deletions",
+    "omit_henkel_exact_without_ess_gate"
+  ),
 
   # -- TechDrift -------------------------------------------------------------
   techdrift = list(
@@ -80,9 +128,20 @@ LMV2_P6_CONFIG <- list(
 
   # -- execution settings ----------------------------------------------------
   memory_limit = "9GB",
-  threads = 4L,
+  # Five-cohort exact-A/B benchmark: 8 threads = 9.07s versus 4 threads =
+  # 10.01s. JSON profiling at 8 threads records a 1.45GB peak and zero spill.
+  threads = 8L,
   build_schemas = c("p6_build_a", "p6_build_b") # isolated double-build
 )
+
+LMV2_P6_PREANALYSIS_FREEZE_PATH <- file.path(
+  BASE, "notes", "local_match_v2_p6_preanalysis_freeze.md")
+if (!identical(
+    digest::digest(
+      file = LMV2_P6_PREANALYSIS_FREEZE_PATH, algo = "sha256"),
+    LMV2_P6_PREANALYSIS_FREEZE_SHA256)) {
+  stop("P6 pre-analysis freeze drifted")
+}
 
 # Zero-vs-missing matrix (lock: incomplete_oecd_linkage = "missing_not_zero").
 # Applied separately to citations (n_fwd_nonmiss) and PQII (n_pqii_nonmiss):

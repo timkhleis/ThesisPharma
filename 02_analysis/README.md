@@ -1,71 +1,41 @@
-# Thesis Data Foundation
+# Analysis guide
 
-This folder contains the R-based data engineering pipeline for the thesis data foundation.
+## Data and result lineage
 
-## What It Builds
-
-- Canonical base tables from the raw Stata and helper files
-- Parquet outputs for canonical, helper, enrichment, derived, and audit layers
-- A DuckDB database for reproducible joins and validation
-- An inventor disambiguation audit based on the published `codinv` assignment
-- Detailed architecture and usage documentation in `analysis/DATABASE_ARCHITECTURE.md`
-
-## How To Run
-
-Run the scripts from the thesis root in this order:
-
-```powershell
-& 'C:\Program Files\R\R-4.5.1\bin\Rscript.exe' analysis\R\01_build_data_foundation.R
-& 'C:\Program Files\R\R-4.5.1\bin\Rscript.exe' analysis\R\02_build_derived_tables.R
+```text
+Raw Cassi--Ornaghi / PATSTAT / Zephyr inputs
+  -> P0--P2: canonical data, treatment/status interfaces
+  -> P3--P5: local donor support and entropy-balanced weights
+  -> P6: event-time outcome panel and weighted estimation
+  -> certified result packages and supervisor memo
 ```
 
-Run the merged database pipeline:
+P0--P3 are authoritative in `lmv2-foundation`; P4--P5 are authoritative in
+`lmv2-p4-ebal`; P6 is authoritative in this worktree. Do not run the legacy
+root `run_pipeline.R` as a substitute for the Local Match v2 sequence.
 
-```powershell
-& 'C:\Program Files\R\R-4.5.1\bin\Rscript.exe' analysis\R\run_pipeline.R
-```
+## Active P6 sequence in this worktree
 
-Run the audit later when you want to review disambiguation and data quality flags:
+| Stage | Scripts | Purpose |
+|---|---|---|
+| Outcome configuration and materialization | `18a_*`--`18g_*` | Build and certify the outcome panel from frozen P5 inputs. |
+| Estimation | `19a_*`--`20f_*` | Estimate the P5c full-cohort ATT, inference, and diagnostics. |
+| Results diagnostics | `21a_*`--`24a_*` | Raw DiD, recruitment/lifecycle, mean-reversion, and early-recruitment checks. |
+| Closeout and communication | `25a_*`--`27a_*` | Quantity package, citation robustness, final tables/figures, and supervisor memo. |
 
-```powershell
-& 'C:\Program Files\R\R-4.5.1\bin\Rscript.exe' analysis\R\03_run_audit.R
-```
+Use the stage-specific freeze notes in `notes/` before re-running an existing
+analysis. The current full-cohort interpretation is in
+`notes/local_match_v2_quantity_results_for_supervisors.md`.
 
-Inspect the built database and preview the main research tables:
+## Current estimands
 
-```powershell
-& 'C:\Program Files\R\R-4.5.1\bin\Rscript.exe' analysis\R\inspect_data.R
-```
+- **Full cohort (main):** treated inventors supported by local donor firms and
+  entropy-balanced on five annual pre-treatment outcomes and characteristics.
+- **Initially retained inventors (secondary):** a separately balanced,
+  post-treatment-selected group. It is not interchangeable with the full
+  cohort and must retain its selection qualification.
 
-Optionally pass table names to preview specific outputs:
+## Archived material
 
-```powershell
-& 'C:\Program Files\R\R-4.5.1\bin\Rscript.exe' analysis\R\inspect_data.R inventor_year patent_enriched
-```
-
-Inspect the database visually in the DuckDB browser UI:
-
-```powershell
-duckdb -ui analysis/output/thesis_foundation.duckdb
-```
-
-This is the quickest way to browse tables, inspect schemas, preview rows, and run ad hoc SQL interactively.
-
-## Output Layout
-
-- `analysis/output/thesis_foundation.duckdb`: DuckDB database
-- `analysis/output/parquet/canonical`: canonical source-of-truth tables
-- `analysis/output/parquet/helper`: helper and benchmark tables
-- `analysis/output/parquet/enrichment`: enrichment tables
-- `analysis/output/parquet/derived`: derived research tables
-- `analysis/output/parquet/audit`: flagged audit records
-- `analysis/output/metadata`: table inventory and key checks
-- `analysis/output/audit`: audit summaries and validation metrics
-
-## Notes
-
-- The published inventor disambiguation is kept as the thesis baseline.
-- `inventor_status.csv`, `T_inventors_tech_similarity.csv`, and `t_stayer_coinventors.csv`
-  are intentionally not part of the canonical foundation.
-- Similarity measures are meant to be computed later from the raw IPC-based derived tables.
-- The default runner builds the merged database only; the audit is optional and can be run later.
+See `R/archive/README.md` and `notes/archive/README.md`. Archive contents are
+retained research history, not production inputs.

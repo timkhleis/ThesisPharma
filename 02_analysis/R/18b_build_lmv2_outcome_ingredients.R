@@ -42,7 +42,13 @@ build_lmv2_outcome_ingredients <- function(con, schema) {
         COUNT(oq.fwd_cits5) AS n_fwd_nonmiss,
         SUM(oq.fwd_cits5) AS sum_fwd_cits5_obs,
         COUNT(oq.quality_index_4) AS n_pqii_nonmiss,
-        SUM(oq.quality_index_4) AS sum_pqii_obs
+        -- Aggregate deterministically: parallel floating-point SUM order can
+        -- differ at ~1e-15. Round each source value to 12 decimals, sum exact
+        -- integers, then restore the scale.
+        CAST(
+          SUM(CAST(ROUND(oq.quality_index_4 * 1000000000000) AS HUGEINT))
+          AS DOUBLE
+        ) / 1000000000000 AS sum_pqii_obs
       FROM pairs p
       JOIN patent_application pa USING (appln_id)
       LEFT JOIN oecd_quality oq USING (appln_id)

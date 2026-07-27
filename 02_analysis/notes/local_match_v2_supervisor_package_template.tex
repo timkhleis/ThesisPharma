@@ -1,0 +1,526 @@
+\documentclass[10pt,a4paper]{article}
+
+\usepackage[a4paper,left=18mm,right=18mm,top=18mm,bottom=18mm]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{helvet}
+\renewcommand{\familydefault}{\sfdefault}
+\usepackage{microtype}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{array}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage{enumitem}
+\usepackage{parskip}
+\usepackage{titlesec}
+\usepackage{fancyhdr}
+\usepackage{caption}
+\usepackage{float}
+\usepackage{hyperref}
+
+\definecolor{ThesisGreen}{HTML}{184B3A}
+\definecolor{ThesisBlue}{HTML}{547797}
+\definecolor{ThesisBrick}{HTML}{B5675E}
+\definecolor{ThesisGold}{HTML}{C78B34}
+\definecolor{ThesisInk}{HTML}{26323B}
+\definecolor{ThesisGrey}{HTML}{6B7280}
+\definecolor{ThesisLight}{HTML}{EEF3F0}
+\definecolor{ThesisRule}{HTML}{D7DEE3}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=ThesisGreen,
+  urlcolor=ThesisBlue,
+  citecolor=ThesisGreen,
+  pdfauthor={Tim Kuhleis},
+  pdftitle={Full-cohort acquisition DiD: design, results, and decisions}
+}
+
+\titleformat{\section}
+  {\Large\bfseries\color{ThesisGreen}}
+  {\thesection}{0.65em}{}
+  [\vspace{-0.25em}\color{ThesisRule}\titlerule]
+\titleformat{\subsection}
+  {\large\bfseries\color{ThesisInk}}
+  {\thesubsection}{0.55em}{}
+\titlespacing*{\section}{0pt}{1.25em}{0.55em}
+\titlespacing*{\subsection}{0pt}{1em}{0.35em}
+
+\captionsetup{
+  font=small,
+  labelfont={bf,color=ThesisGreen},
+  textfont={color=ThesisInk},
+  skip=5pt
+}
+\setlist[itemize]{leftmargin=1.35em,itemsep=0.25em,topsep=0.35em}
+\setlist[enumerate]{leftmargin=1.5em,itemsep=0.3em,topsep=0.35em}
+\renewcommand{\arraystretch}{1.12}
+
+\pagestyle{fancy}
+\fancyhf{}
+\lhead{\color{ThesisGrey}\small Full-cohort acquisition DiD}
+\rhead{\color{ThesisGrey}\small Supervisor results package}
+\cfoot{\color{ThesisGrey}\small \thepage}
+\renewcommand{\headrulewidth}{0.3pt}
+\renewcommand{\headrule}{\hbox to\headwidth{\color{ThesisRule}\leaders\hrule height \headrulewidth\hfill}}
+
+\newcolumntype{Y}{>{\raggedright\arraybackslash}X}
+\newcommand{\keybox}[1]{%
+  \noindent\colorbox{ThesisLight}{%
+    \parbox{\dimexpr\linewidth-2\fboxsep\relax}{\color{ThesisInk}#1}}}
+\newcommand{\decisionbox}[1]{%
+  \noindent\fcolorbox{ThesisGold}{white}{%
+    \parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule\relax}{#1}}}
+\newcommand{\sourceNote}[1]{%
+  \par\smallskip{\footnotesize\color{ThesisGrey}\textit{Notes:} #1}}
+
+\input{generated_values.tex}
+
+\begin{document}
+
+\begin{titlepage}
+  \thispagestyle{empty}
+  \vspace*{8mm}
+  {\color{ThesisGreen}\rule{\textwidth}{2.2pt}}\par
+  \vspace{10mm}
+  {\fontsize{27}{31}\selectfont\bfseries\color{ThesisInk}
+   Pharmaceutical acquisitions and inventor patenting\par}
+  \vspace{4mm}
+  {\Large\color{ThesisGreen}
+   Full-cohort DiD: design, certified results, and decisions\par}
+  \vspace{12mm}
+  {\large Tim Kuhleis\par}
+  \vspace{2mm}
+  {\color{ThesisGrey}Supervisor results package \textbullet\ \BuildDate\par}
+  \vfill
+  {\color{ThesisGreen}\rule{\textwidth}{2.2pt}}\par
+\end{titlepage}
+
+\section{Proposed thesis structure}
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabularx}{\textwidth}{@{}Y r Y@{}}
+\toprule
+Section & Pages & Main content \\
+\midrule
+Abstract & 0.5 & Question, design, result, and qualification \\
+1. Introduction & 2.0 & Motivation, contribution, result, and roadmap \\
+2. Background, Literature, and Hypotheses & 4.0 & Pharma acquisitions,
+patent measurement, mechanisms, and hypotheses \\
+3. Data and Sample Construction & 4.5 & Data, deal and inventor construction,
+outcomes, and descriptives \\
+4. Empirical Design & 5.0 & Placebo cohorts, local support, entropy
+balancing, LOYO, and inference \\
+5. Main Results: Full Target-Inventor Cohort & 5.5 & Balance, quantity,
+LOYO, margins, and secondary outcomes \\
+6. Stayers, Selection, and Individual Heterogeneity & 5.5 & Initially
+retained definition, separate balance, selection, and bounds \\
+7. Technological Relatedness and Mechanisms & 4.0 & DealSim, TechDrift,
+relatedness heterogeneity, and mechanisms \\
+8. Robustness and Interpretation & 2.5 & Inference, support, timing,
+censoring, and scope \\
+9. Conclusion & 1.5 & Findings, interpretation, policy relevance, and limits \\
+\midrule
+\textbf{Total} & \textbf{35.0} & \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\decisionbox{\textbf{Discussion question 1.} Does this proposed 35-page
+structure and page allocation seem appropriate, including the balance between
+the full-cohort, initially retained-inventor, and mechanism results?}
+
+\decisionbox{\textbf{Discussion question 2.} Keeping the full cohort,
+initially retained inventors, and a full technological-relatedness section
+risks producing three main-results papers inside one thesis. Should Section 7
+remain four pages, be compressed to roughly 2--2.5 pages, or move largely to
+the appendix?}
+
+\clearpage
+\section*{Executive summary}
+
+\begin{enumerate}
+  \item \textbf{The conventional estimator is not credible as-is.}
+  A standard Callaway--Sant'Anna (2021) DiD with all not-yet-treated
+  inventors, no placebo treatment clock, and no matching exhibits strong
+  pre-treatment differences. In this sample, the standard CS implementation
+  is not a usable causal design without further counterfactual construction.
+
+  \item \textbf{Recruitment timing explains the mechanical hump, but not all
+  lifecycle differences.} Inventors qualify through a recent patent. The raw
+  peak moves with each inventor's qualifying year. Assigning controls placebo
+  deal years aligns this clock, yet the unmatched placebo DiD still rejects
+  parallel pre-trends (\(p<0.001\)).
+
+  \item \textbf{The preferred design must create comparable pre-treatment
+  populations.} Donors first satisfy prospectively frozen acquisition-clean
+  firm restrictions, IPC4 technological support, firm and inventor calipers,
+  and control-diversification rules. I then use entropy balancing, following
+  \href{https://doi.org/10.1093/pan/mpr025}{Hainmueller (2012)}, to reweight
+  admissible controls so their five-year pre-deal patent paths, inventor
+  characteristics, and firm characteristics resemble those of treated
+  inventors within acquisition cohorts.
+
+  \item \textbf{The matched estimate is economically large and statistically
+  precise.} The headline ATT is \(\HeadlineATT\) patents per inventor-year
+  (95\% CI \([\HeadlineLow,\HeadlineHigh]\), \(p=\HeadlineP\)). This equals
+  \(\CumulativeMagnitude\) fewer patents over five years, a
+  \(\PreDeclinePct\%\) decline relative to average pre-acquisition output and
+  \(\CounterfactualDeclinePct\%\) of estimated post-acquisition
+  counterfactual patenting.
+
+  \item \textbf{The result survives every leave-one-pre-year-out design.}
+  All five LOYO estimates are negative and statistically significant. Among
+  directly comparable specifications, the largest point-estimate deviation
+  is only \(\MaxLOYOPct\%\) of the headline magnitude. Positive held-out gaps
+  at \(t=-3\) and \(t=-2\) nevertheless make us wary about parallel trends
+  and limit the strength of the causal interpretation.
+
+  \item \textbf{The robust conclusion is about quantity.} Approximately
+  \(\ExtensiveSharePct\%\) of the accounting decline operates through a lower
+  probability of patenting and \(\IntensiveSharePct\%\) through fewer patents
+  in active years. Patent quality, measured by the OECD PQII composite index,
+  falls in the full sample; TechDrift is uninformative; and forward citations
+  rise only in the full cohort window. These composition outcomes remain
+  secondary.
+\end{enumerate}
+
+\keybox{\textbf{Bottom line.} The full-cohort matched ATT is the closest
+supported approximation to the causal effect available in these data. Its
+magnitude is strikingly stable across recruitment, censoring, and LOYO
+diagnostics. The remaining held-out pre-period humps should be reported
+directly as an identification concern, not hidden by the exact balance
+of the headline specification.}
+
+\section{Data and sample}
+
+The analysis starts from 513 transactions in the Cassi--Ornaghi acquisition
+and patent data. The design needs five patent years before and five years
+after each transaction. Given the 1988--2015 patent window, the estimating
+sample is therefore restricted to 1994--2010 and contains
+\(\EligibleDeals\) acquisitions and \(\EligibleInventors\) target inventors
+who patented with a target during the five years before its deal.
+
+Patent applications decline sharply in the final source years, which raises a
+separate concern that right-censoring may depress measured post-deal output.
+The buffered 1994--2008 cohort reduces exposure to those years and provides a
+direct censoring check. Descriptive tables are imported from the certified
+stage-14 data-section package.
+
+\input{assets/table1_sample_construction.tex}
+
+\input{assets/table3_overall_descriptives.tex}
+
+The target inventor is relatively early in the observed patenting career:
+median career age is three years, median pre-deal patent stock is one, and
+median focal-group exclusivity equals one. This makes lifecycle and
+recruitment-clock comparability central rather than incidental. Treatment is
+also concentrated: the five largest deals account for 29.6\% of target
+inventors and the ten largest for 42.7\%. The inventor-share HHI corresponds
+to 38.2 equally sized deals. This motivates deal-level inference and explicit
+reporting of effective treatment variation.
+
+\section{Why the standard DiD fails, and what replaces it}
+
+The first panel of Figure~\ref{fig:designsequence} applies the conventional
+Callaway--Sant'Anna (2021) approach: all not-yet-treated inventors serve as
+controls, with no placebo timing and no matching. The pre-period divergence is
+large. Panel B then shows why the raw hump is partly mechanical: each
+qualifying-year group peaks in its own qualifying year. Panel C aligns treated
+and control recruitment clocks by assigning placebo deal years. This removes
+the timing mismatch but leaves different lifecycle paths. Consequently, the
+unmatched placebo ATT is close to zero
+(\(\RawPlaceboATT\), \(p=\RawPlaceboP\)), while its joint pre-trend test still
+rejects (\(p<0.001\); Panel D).
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=\textwidth]{assets/figure_d1_design_sequence.pdf}
+  \caption{From the conventional CS design to the matched placebo design}
+  \label{fig:designsequence}
+  \sourceNote{Panel A uses all not-yet-treated inventors without placebo
+  cohorts or matching. Panels B--D diagnose the recruitment clock and
+  residual lifecycle differences. Confidence intervals are 95\%.}
+\end{figure}
+
+The preferred design therefore uses placebo cohorts, local support, and
+entropy balancing. Following \href{https://doi.org/10.1093/pan/mpr025}
+{Hainmueller (2012)}, entropy balancing is not a cosmetic adjustment: it
+reweights admissible controls to reproduce the treated cohort's specified
+pre-treatment moments and thereby adjusts the comparison for observed
+lifecycle differences.
+
+\subsection{Prospectively frozen support restrictions}
+
+Support is constructed separately within each acquisition cohort \(g\):
+
+\begin{enumerate}
+  \item \textbf{U2-clean donor firms.} A control firm has no target event on or
+  before \(g+5\) and no acquirer event during \(g-5,\ldots,g+5\). Control
+  inventors exposed to a target event on or before \(g+5\) are excluded.
+  \item \textbf{Firm support.} Candidate firms share IPC4 technology with the
+  target and satisfy the frozen Stage-1 caliper of 2.0. The nearest 50
+  admissible firms are ranked using IPC4 cosine similarity, five-year firm
+  patent stock, and five-year inventor count. Firm patent trajectory remains
+  an exact balance moment.
+  \item \textbf{Inventor support.} Inventor pairs share IPC4 support and satisfy
+  the Stage-2 caliper of 1.5 on five-year output, the annual patent trajectory,
+  career age, and IPC4 cosine distance. Each supported treated inventor has
+  at least three admissible controls from at least two firms.
+\end{enumerate}
+
+Within this support, the final design balances annual patent counts and
+active-patenting indicators for \(t=-5,\ldots,-1\), career age,
+focal-group exclusivity, firm patent stock, firm inventor count, and firm
+patent trajectory.
+
+\begin{table}[H]
+\centering
+\caption{Support, balance, and effective information}
+\label{tab:designsummary}
+\input{generated_design_table.tex}
+\end{table}
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.80\textwidth]{assets/figure_d2_love_plot.pdf}
+  \caption{Balance before and after entropy balancing}
+  \label{fig:loveplot}
+  \sourceNote{Each point is the largest absolute standardized mean difference
+  across the 17 acquisition cohorts. Post-deal outcomes are not balance
+  targets.}
+\end{figure}
+
+\section{Main quantity result and identification diagnostics}
+
+The preferred design estimates \(\HeadlineATT\) patents per inventor-year over
+\(t=+1,\ldots,+5\). Accumulated over five years, this is
+\(\CumulativeMagnitude\) fewer patents per inventor. The effect is
+\(\PreDeclinePct\%\) of average pre-treatment patenting and
+\(\CounterfactualDeclinePct\%\) of the post-treatment output predicted for
+treated inventors under the matched counterfactual.
+
+Patent counts fall sharply at the end of the source data: from 54,850
+applications in 2013 to 28,096 in 2014 and 1,143 in 2015. The 1994--2008
+companion therefore checks whether late-cohort right-censoring creates the
+effect. It produces \(\BufferedATT\) patents per inventor-year
+(\(p=\BufferedP\)), nearly identical to the headline. Censoring is present in
+the source data but does not explain the quantity result.
+
+\subsection{Leave-one-pre-year-out placebo designs}
+
+Balancing every displayed pre-treatment outcome makes the headline leads zero
+by construction. Hainmueller's entropy-balancing explainer recommends leaving
+at least one pre-period outside the constraints when a genuine placebo is
+desired. The complete LOYO grid does this one year at a time.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.94\textwidth]{assets/figure_d3_patent_count_loyo.pdf}
+  \caption{The patent-count result survives every held-out pre-year}
+  \label{fig:loyo}
+  \sourceNote{Average annual ATT over \(t=1,\ldots,5\). Bars show 95\%
+  deal-level wild-bootstrap confidence intervals. The \(t=-1\) holdout uses
+  \(t=-4\) as its reference and is therefore not point-comparable to the
+  other rows.}
+\end{figure}
+
+\input{generated_loyo_table.tex}
+
+Every LOYO effect is negative and statistically significant. Among the
+directly comparable \(t=-5,\ldots,-2\) holdouts, the estimate ranges from
+\(\LOYOMin\) to \(\LOYOMax\); the largest deviation is only
+\(\MaxLOYOPct\%\) of the headline magnitude. The result therefore survives
+the specifications in which the pre-treatment humps are allowed to appear.
+
+The held-out gaps at \(t=-3\) and \(t=-2\) are positive and statistically
+different from zero. This means the full-sample exact balance cannot, by
+itself, prove parallel trends. A transparent additive calibration implies a
+sign-breakdown multiple of \(\BreakdownMultiple\): an unobserved post-period
+violation would have to equal \(\BreakdownMultiple\) times the largest
+held-out discrepancy to offset the point estimate. This is a descriptive
+sensitivity statistic, not a formal HonestDiD confidence set.
+
+The early-recruitment design inspired by
+\href{https://www.nature.com/articles/s41599-025-04894-w}
+{Verginer and Riccaboni} separates recruitment at \(t=-7,-6\) from the later
+pre-treatment observation period. Where feasible, its estimates remain
+negative. It is nevertheless more selective, changes the estimand toward
+experienced long-tenure inventors, and makes strict firm-and-inventor balance
+infeasible in three cohorts. It is reported in the appendix as
+established-inventor heterogeneity, not as a superior replacement design.
+
+\section{What drives the patent decline?}
+
+The matched post-acquisition counterfactual is \(\ControlPostMean\) patents
+per inventor-year, compared with \(\TreatedPostMean\) among treated inventors.
+Their difference can be separated into the probability of patenting in a year
+and output in active inventor-years.
+
+\input{generated_margin_table.tex}
+
+The probability of patenting falls from \(\ControlActivePct\%\) to
+\(\TreatedActivePct\%\), a \(\ActiveDropPP\)-percentage-point difference.
+This extensive margin accounts for \(\ExtensiveSharePct\%\) of the total.
+The remaining \(\IntensiveSharePct\%\) is associated with fewer patents in
+active inventor-years: \(\ControlIntensive\) under the counterfactual versus
+\(\TreatedIntensive\) for treated inventors.
+
+The latter comparison is not a causal ATT conditional on activity, because
+acquisition can itself determine who remains active. Its substantive
+interpretation is deferred to the separately balanced analysis of inventors
+initially retained in the merged entity.
+
+\section{Secondary outcomes}
+
+\input{generated_secondary_table.tex}
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.92\textwidth]{assets/figure_d5a_all_outcomes_event_study_full.pdf}
+  \caption{Matched event studies for all outcomes, 1994--2010 cohorts}
+  \label{fig:secondaryfull}
+  \sourceNote{Patent count and active patenting are balance targets, so their
+  headline pre-period coefficients are zero by construction; LOYO supplies
+  their genuine placebo checks. PQII, TechDrift, and forward citations were
+  not balance targets and retain genuine pre-period diagnostics.}
+\end{figure}
+
+The secondary results are deliberately not forced into a single mechanism:
+
+\begin{itemize}
+  \item \textbf{Probability of patenting} declines by about 1.8 percentage
+  points. The full-sample average narrowly misses 5\% significance
+  (\(p=\ActiveP\)), although several individual post years are negative and
+  significant under two-way clustering. Conservative deal-level inference
+  and only \(\EffectiveDeals\) effective treated deals limit precision.
+  \item \textbf{OECD PQII} is negative in the full sample
+  (\(p=\PQIIP\)) and has reassuring unbalanced pre-period evidence. It is
+  smaller and imprecise in the buffered sample, so incomplete linkage and
+  late-sample coverage make it secondary.
+  \item \textbf{Five-year forward citations} are positive in the full sample
+  (\(p=\CitationP\)) but smaller and insignificant in the buffered sample.
+  This is compatible with selective filing among the patents that remain; it
+  does not reverse the quantity result.
+  \item \textbf{TechDrift} is small, imprecise, and fails its unbalanced joint
+  pre-trend diagnostic. The data do not identify a change in technological
+  distance. This is an informative null and should be kept as a secondary
+  outcome rather than optimized for significance.
+\end{itemize}
+
+\section{Interpretation, limits, and thesis framing}
+
+The evidence supports a precise but qualified conclusion. A raw post-deal
+decline is not credible evidence because recruitment timing and inventor
+lifecycles generate similar shapes in untreated inventors. Once those clocks
+are aligned and observable five-year histories are balanced within clean
+local support, treated inventors produce materially fewer patents. The
+quantity effect survives every LOYO specification, the buffered cohort
+restriction, and the feasible early-recruitment design.
+
+The positive \(t=-3\) and \(t=-2\) LOYO gaps make us wary about parallel
+trends and limit the strength of the causal interpretation. They prevent an
+assumption-free or unqualified causal claim. At the same time, their presence
+does not explain away the post-treatment magnitude. The appropriate
+interpretation is that the matched ATT is the closest supported causal
+approximation available in these data, with sensitivity stated transparently.
+
+\keybox{\textbf{Thesis framing.} Raw inventor patenting declines after
+acquisition, but untreated inventors exhibit similar lifecycle dynamics and
+differ from treated inventors before the deal. I therefore restrict donors to
+clean local firm and IPC4 support and use entropy balancing to align complete
+five-year pre-acquisition patent paths and lifecycle characteristics. The
+matched design estimates \(\AnnualMagnitude\) fewer patents per inventor-year,
+equivalent to a \(\PreDeclinePct\%\) decline relative to average
+pre-acquisition output and \(\CounterfactualDeclinePct\%\) of estimated
+post-acquisition counterfactual patenting. The estimate remains negative and
+statistically significant in every leave-one-pre-year-out specification, with
+a maximum point-estimate deviation of \(\MaxLOYOPct\%\). The held-out
+pre-period humps prevent an unqualified causal interpretation, but neither the
+lifecycle nor alternative-recruitment diagnostics explains away the post
+effect.}
+
+\decisionbox{\textbf{Discussion question 3.} Is the combination of clean local
+support, exact entropy balance, the LOYO diagnostics, and explicit
+parallel-trends qualification sufficiently credible for the full-cohort
+quantity result to anchor the thesis?}
+
+\clearpage
+\section{Initially retained inventors}
+
+I classify an inventor as \emph{initially retained} when their first observed
+patent in \(t=+1,\ldots,+5\) is assigned to the target, acquirer, or resulting
+corporate group. The acquisition year is excluded because within-year timing
+is ambiguous. Controls satisfy the symmetric rule: their first post-event
+patent must be assigned to their clean control firm. This definition measures
+initial patent-based retention, not continuous employment.
+
+The stayer design is rebuilt separately rather than applying the full-cohort
+weights after conditioning on a post-treatment outcome. It uses the same clean
+firm and IPC4 support logic and entropy-balances the annual patent-count and
+active-patenting histories over \(t=-5,\ldots,-1\), alongside inventor and firm
+characteristics.
+
+\input{generated_stayer_table.tex}
+
+The point estimate is \(\StayerATT\) patents per inventor-year, or
+\(\StayerCumulative\) over five post-acquisition years. This equals
+\(\StayerCounterfactualPct\%\) of matched counterfactual post-deal output and
+\(\StayerPrePct\%\) of average pre-deal output. The buffered estimate is
+similar (\(\StayerBufferedATT\), \(p=\StayerBufferedP\)), so late-sample
+censoring does not explain the result. The governing deal-level interval just
+includes zero, whereas the prominent two-way interval excludes zero.
+
+This result is economically large but only suggestive. First, initial
+retention is determined after acquisition, so the estimate is a
+selected-group contrast and not an effect for an always-retained causal
+stratum. Second, the genuinely held-out \(t=-3\) and \(t=-2\) gaps are
+\(\StayerMThreeGap\) and \(\StayerMTwoGap\), respectively. They make the
+parallel-trends assumption less reassuring and prevent an unqualified causal
+interpretation. The consistent negative result across inference and
+censoring variants is nevertheless useful evidence that the full-cohort
+decline is not confined to inventors who immediately cease patenting for the
+combined group.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.66\textwidth]
+  {assets/figure_s4_patent_paths_and_event_study.pdf}
+\caption{Initially retained inventors: weighted patent paths and dynamic
+contrasts}
+\label{fig:stayer-paths}
+\sourceNote{Panel A shows weighted patent-count levels. Panel B reports
+differences relative to \(t=-1\) with two-way deal/inventor intervals. The
+headline ATT excludes the acquisition year and averages \(t=+1,\ldots,+5\).}
+\end{figure}
+
+\decisionbox{\textbf{Discussion question 4.} Is it appropriate to present the
+initially retained estimate as economically important but suggestive
+selected-group evidence, with the full-cohort ATT remaining the main result?}
+
+\decisionbox{\textbf{Discussion question 5.} Is the positive \(t=0\) contrast
+concerning, or is excluding the acquisition year appropriate because annual
+patent data cannot order patents relative to deal completion and both groups
+decline at \(t=0\), with the matched controls declining more?}
+
+\clearpage
+\appendix
+\section{Compact appendix}
+
+\subsection{Held-out pre-period gaps}
+\input{generated_placebo_table.tex}
+
+\subsection{Deal concentration}
+\input{assets/table4_deal_inventor_concentration.tex}
+
+\vfill
+\begin{center}
+\footnotesize\color{ThesisGrey}
+Generated reproducibly from certified P5c/P6 outputs and stage-14 descriptive
+tables. Build ID: \BuildID.
+\end{center}
+
+\end{document}

@@ -99,7 +99,9 @@ write_audit(before_p1, "p6_p1_upstream_before.csv")
 p6_source_files <- file.path(BASE, "R", c(
   "18a_lmv2_outcome_config.R",
   "18b_build_lmv2_outcome_ingredients.R",
-  "18c_materialize_lmv2_outcome_panel.R"
+  "18c_materialize_lmv2_outcome_panel.R",
+  "18d_certify_lmv2_outcomes.R",
+  "18e_run_lmv2_p6.R"
 ))
 p6_source_hashes <- vapply(p6_source_files, lmv2_file_sha256, character(1))
 names(p6_source_hashes) <- basename(p6_source_files)
@@ -108,6 +110,7 @@ provenance <- list(
   p0_design_hash = LMV2_DESIGN_HASH,
   p6_design_hash = lmv2_p6_design_hash(),
   amendments_sha256 = amendments_sha,
+  preanalysis_freeze_sha256 = LMV2_P6_PREANALYSIS_FREEZE_SHA256,
   p2_interface_hashes = setNames(p2_gate$actual_hash, p2_gate$table),
   source_bundle_sha256 = digest::digest(p6_source_hashes, algo = "sha256",
                                         serialize = TRUE),
@@ -171,16 +174,21 @@ roster_checks <- run_lmv2_roster_validation_tests(con, "p6_fixture")
 # ---------------------------------------------------------------------------
 # Treated fixture: mechanical self-matched roster from the frozen P2
 # interface; the materializer must reproduce P2's stayer classification
-# exactly (certification test 7).
+# exactly (certification test 7). This expensive all-cohort duplicate panel
+# belongs only to fixture-only certification. Production certifies the same
+# status fields directly on the matched panel and does not build it again.
 # ---------------------------------------------------------------------------
-derive_treated_fixture_roster(con, "p6.lmv2_treated_fixture_roster")
-treated_dir <- file.path(AUDIT_DIR, "panel_treated_fixture")
-treated_manifest <- materialize_lmv2_event_panel(
-  con, "p6.lmv2_treated_fixture_roster", PUBLISH_SCHEMA, treated_dir,
-  provenance, allow_restart = ALLOW_RESTART,
-  roster_mode = "treated_fixture")
-write_audit(treated_manifest, "p6_treated_fixture_shards.csv")
-panel_dirs <- c(treated_fixture = treated_dir)
+panel_dirs <- character(0)
+if (FIXTURE_ONLY) {
+  derive_treated_fixture_roster(con, "p6.lmv2_treated_fixture_roster")
+  treated_dir <- file.path(AUDIT_DIR, "panel_treated_fixture")
+  treated_manifest <- materialize_lmv2_event_panel(
+    con, "p6.lmv2_treated_fixture_roster", PUBLISH_SCHEMA, treated_dir,
+    provenance, allow_restart = ALLOW_RESTART,
+    roster_mode = "treated_fixture")
+  write_audit(treated_manifest, "p6_treated_fixture_shards.csv")
+  panel_dirs <- c(treated_fixture = treated_dir)
+}
 
 # ---------------------------------------------------------------------------
 # Production stage: certified P5a roster, validated in production mode and
@@ -188,6 +196,8 @@ panel_dirs <- c(treated_fixture = treated_dir)
 # ---------------------------------------------------------------------------
 p5a_design_hash <- NA_character_
 roster_sha <- NA_character_
+selection_checks <- data.frame(
+  check = character(), pass = logical(), stringsAsFactors = FALSE)
 if (!FIXTURE_ONLY) {
   if (!file.exists(ROSTER_PATH)) stop("P5a roster not found: ", ROSTER_PATH)
   if (!file.exists(ROSTER_MANIFEST)) {
@@ -197,8 +207,9 @@ if (!FIXTURE_ONLY) {
   # P5a certification gate: the roster file must match its manifest hash and
   # row count, and the manifest must attest a passing certification.
   p5a <- utils::read.csv(ROSTER_MANIFEST, stringsAsFactors = FALSE)
-  required_cols <- c("roster_sha256", "roster_rows", "p5a_design_hash",
-                     "certification_pass")
+  required_cols <- c(
+    "roster_sha256", "roster_rows", "p5a_design_hash",
+    "certification_pass", "production_freeze_hash")
   if (!all(required_cols %in% names(p5a)) || nrow(p5a) != 1) {
     stop("P5a manifest must have exactly one row with columns: ",
          paste(required_cols, collapse = ", "))
@@ -215,6 +226,17 @@ if (!FIXTURE_ONLY) {
     stop("P5a manifest must carry a nonempty p5a_design_hash.")
   }
   p5a_design_hash <- p5a$p5a_design_hash
+  approved <- LMV2_P6_CONFIG$approved_primary
+  if (!identical(roster_sha, approved$roster_sha256) ||
+      !identical(p5a_design_hash, approved$p5_design_hash) ||
+      as.integer(p5a$roster_rows) != approved$roster_rows ||
+      !identical(
+        p5a$production_freeze_hash,
+        approved$p5_production_freeze_sha256)) {
+    stop(
+      "P5 roster is certified but is not the exact primary roster pinned ",
+      "in the P6 pre-analysis freeze.")
+  }
 
   DBI::dbExecute(con, sprintf(
     "CREATE OR REPLACE TABLE p6.lmv2_p5a_roster AS
@@ -236,14 +258,40 @@ if (!FIXTURE_ONLY) {
          paste(membership$check[!membership$pass], collapse = ", "))
   }
 
+  # The primary causal panel remains supported-only. This compact companion
+  # contains only t=-5..-1 outcomes for every eligible treated inventor so
+  # the frozen supported-versus-unsupported sensitivity analysis is possible
+  # without ever estimating unsupported post-treatment effects.
+  selection_path <- file.path(
+    AUDIT_DIR, "p6_all_eligible_treated_preperiod.parquet")
+  selection_checks_full <- materialize_lmv2_selection_prepanel(
+    con, "p6.lmv2_p5a_roster", PUBLISH_SCHEMA, selection_path)
+  selection_checks <- selection_checks_full[, c("check", "pass")]
+  write_audit(
+    selection_checks_full,
+    "p6_selection_prepanel_checks.csv")
+  write_audit(
+    attr(selection_checks_full, "manifest"),
+    "p6_selection_prepanel_manifest.csv")
+  if (!all(selection_checks$pass)) {
+    stop(
+      "All-eligible treated pre-period artifact failed certification: ",
+      paste(selection_checks$check[!selection_checks$pass], collapse = ", "))
+  }
+
   matched_dir <- file.path(AUDIT_DIR, "panel_matched")
   matched_manifest <- materialize_lmv2_event_panel(
     con, "p6.lmv2_p5a_roster", PUBLISH_SCHEMA, matched_dir,
     provenance, allow_restart = ALLOW_RESTART,
     roster_mode = "production")
   write_audit(matched_manifest, "p6_matched_panel_shards.csv")
-  panel_dirs <- c(panel_dirs, matched = matched_dir)
+  panel_dirs <- c(matched = matched_dir)
 }
+
+# Outcome designations and coverage are written before certification so a
+# failed run still leaves the availability evidence that triggered review.
+write_lmv2_p6_reporting_diagnostics(
+  con, panel_dirs, AUDIT_DIR, LMV2_P6_CONFIG)
 
 # Certification runs over every materialized panel directory, so a supplied
 # production roster is always inside the certified scope, never after it.
@@ -253,7 +301,8 @@ cert <- run_lmv2_p6_certification(
 all_checks <- rbind(
   cert[, c("check", "pass")],
   fixture_checks,
-  roster_checks
+  roster_checks,
+  selection_checks
 )
 write_audit(cert, "p6_certification.csv")
 write_audit(fixture_checks, "p6_synthetic_fixture_checks.csv")
@@ -280,7 +329,10 @@ manifest <- data.frame(
   source_18a_sha256 = p6_source_hashes[["18a_lmv2_outcome_config.R"]],
   source_18b_sha256 = p6_source_hashes[["18b_build_lmv2_outcome_ingredients.R"]],
   source_18c_sha256 = p6_source_hashes[["18c_materialize_lmv2_outcome_panel.R"]],
+  source_18d_sha256 = p6_source_hashes[["18d_certify_lmv2_outcomes.R"]],
+  source_18e_sha256 = p6_source_hashes[["18e_run_lmv2_p6.R"]],
   source_bundle_sha256 = provenance$source_bundle_sha256,
+  preanalysis_freeze_sha256 = LMV2_P6_PREANALYSIS_FREEZE_SHA256,
   ingredient_build_hash = provenance$ingredient_build_hash,
   db_path = DB_PATH,
   p2_manifest_path = P2_MANIFEST,
