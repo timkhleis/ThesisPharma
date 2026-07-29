@@ -107,6 +107,21 @@ lifecycle, recruitment, or simple observed mean-reversion explanation,
 although residual violations of conditional parallel trends prevent an
 unqualified causal interpretation.
 
+## D1: retained-status descriptive completion
+
+Run:
+
+```powershell
+& 'C:\Program Files\R\R-4.5.1\bin\Rscript.exe' 02_analysis\R\42_run_lmv2_stayer_descriptives.R
+```
+
+The certified D1 package reports predetermined status distributions, annual
++1 through +5 patent-location paths, focal-affiliation persistence, symmetric
+group-existence diagnostics, descriptive +6 continuation, and the
+completion-year-inclusive timing results. Read
+`local_match_v2_stayer_descriptive_results.md` for the substantive summary.
+All location measures refer to patent affiliation, not employment.
+
 ## Archive
 
 `99_Archive/` preserves completed Main-DiD-v1 and scratch exploration. It is

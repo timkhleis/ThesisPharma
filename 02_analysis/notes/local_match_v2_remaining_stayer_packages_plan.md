@@ -4,9 +4,9 @@ Status: implementation plan frozen for sequencing, but not yet a
 network-outcome pre-analysis freeze. No new network post-treatment outcome has
 been opened.
 
-C1 is complete. C2's verifier, clean-session smoke test, legacy-runner guard,
-and compact staging handoff pass. Final C2 promotion is pending reviewed git
-integration because the release worktree and main root are not clean.
+C1 and C2 are complete. C2 was committed, integrated into `main-did-v1`,
+production-certified from a clean worktree, and pushed to GitHub at commit
+`356c159`. Package D1 is the active next package.
 
 Date: 2026-07-29
 
@@ -125,6 +125,9 @@ Outputs:
 Purpose: ensure that the current results do not depend on knowing which
 worktree contains the authoritative implementation.
 
+Status: completed and production-certified on 2026-07-30 at commit
+`356c159`.
+
 Tasks:
 
 1. inventory the authoritative P0--P8 scripts and frozen inputs;
@@ -157,6 +160,9 @@ Outputs:
 
 Purpose: finish the descriptive facts required to interpret "initially
 retained" without claiming a new causal estimand.
+
+Status: completed and certified on 2026-07-30. Governing gate:
+`D1_STAYER_DESCRIPTIVES/d1_stayer_descriptives_certification.csv`.
 
 Tasks:
 

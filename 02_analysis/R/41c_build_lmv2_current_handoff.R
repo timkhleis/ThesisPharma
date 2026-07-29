@@ -61,6 +61,16 @@ lmv2_handoff_file_map <- function(root, release_out) {
       "completion_year_sensitivity"
     ),
     add_tree(
+      file.path(audit, "D1_STAYER_DESCRIPTIVES"),
+      file.path("04_Results", "D1_stayer_descriptives", "audit"),
+      "D1_stayer_descriptives"
+    ),
+    add_tree(
+      file.path(results, "D1_STAYER_DESCRIPTIVES"),
+      file.path("04_Results", "D1_stayer_descriptives", "results"),
+      "D1_stayer_descriptives"
+    ),
+    add_tree(
       file.path(audit, "P8_EXIT_DECOMPOSITION"),
       file.path("04_Results", "P8_exit_decomposition"),
       "P8_decomposition"
@@ -84,6 +94,8 @@ lmv2_handoff_file_map <- function(root, release_out) {
       "local_match_v2_control_endpoint_diagnostic_results.md",
       "local_match_v2_remaining_stayer_packages_plan.md",
       "local_match_v2_stayer_network_implementation_plan.md",
+      "local_match_v2_stayer_descriptive_freeze.md",
+      "local_match_v2_stayer_descriptive_results.md",
       "local_match_v2_current_release_implementation.md"
     )
   )

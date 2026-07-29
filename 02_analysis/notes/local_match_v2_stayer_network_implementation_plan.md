@@ -1,7 +1,6 @@
 # Local Match v2: stayer and knowledge-network implementation plan
 
-Status: C1 completed and certified; C2 release implementation and certified
-handoff finalized
+Status: C1, C2, and D1 completed and certified; N0 awaits review
 Date: 2026-07-29
 
 This document converts the remaining stayer and knowledge-network work into
@@ -203,16 +202,11 @@ assets, and every reportable table can be traced to a certified source.
 
 ### Implementation status
 
-The root runner, source/environment inventory, dependency verifier,
-clean-session smoke test, legacy-runner guard, and compact staging-handoff
-builder are implemented and pass. The staging handoff contains 224
-hash-certified files and excludes the 2.6 GB database binary.
-
-C2 has not passed its final integration gate. The release worktree currently
-has 105 git-status entries, and the main root also contains broad uncommitted
-research work. The runner therefore keeps `--production` locked and does not
-commit, stash, merge, cherry-pick, or replace `CURRENT_LOCAL_MATCH_V2`.
-Promotion requires a reviewed git commit and a clean integration preflight.
+Completed on 2026-07-30. The root runner, source/environment inventory,
+dependency verifier, clean-session smoke test, legacy-runner guard,
+production assembly, and compact staging-handoff builder pass. The source set
+was committed and fast-forwarded into `main-did-v1` at `356c159`, then pushed
+to GitHub. The certified handoff excludes the 2.6 GB database binary.
 
 ### Objective
 
@@ -273,6 +267,14 @@ A collaborator starting from the root repository can execute one documented
 command and reach the same certified inventory and current thesis assets.
 
 ## 6. Package D1: complete descriptive stayer evidence
+
+### Implementation status
+
+Completed and certified on 2026-07-30. The package reports the three status
+distributions, annual +1 through +5 patent-location paths, persistence through
++3 and +5, symmetric endpoint-existence diagnostics, descriptive +6
+continuation, and the completion-year-inclusive timing results. All 20
+certification checks pass.
 
 ### Objective
 
@@ -779,7 +781,6 @@ No package should silently spill into the next one. In particular:
 
 ## 14. Immediate next action
 
-Review the certified C1 bundle, then begin Package C2. C2 must integrate the
-authoritative worktree through reviewed git commits, build the root release
-runner, and regenerate `CURRENT_LOCAL_MATCH_V2` without filesystem copying or
-overwriting the dirty root tree.
+Review the certified D1 bundle and its interpretation. If accepted, begin N0
+with an outcome-blind network census and freeze; do not estimate any
+post-treatment network effect during N0.

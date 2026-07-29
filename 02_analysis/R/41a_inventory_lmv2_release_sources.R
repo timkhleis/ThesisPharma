@@ -32,7 +32,7 @@ lmv2_release_source_paths <- function(root = lmv2_release_root()) {
   candidates <- list.files(r_dir, pattern = "\\.R$", full.names = TRUE)
   base <- basename(candidates)
   numbered_lmv2 <- grepl(
-    "^(15[a-h]|1[89][a-z]?|2[0-9][a-z]?|3[0-9][a-z]?|4[01][a-z]?)_.*lmv2.*\\.R$",
+    "^(15[a-h]|1[89][a-z]?|2[0-9][a-z]?|3[0-9][a-z]?|4[0-2][a-z]?)_.*lmv2.*\\.R$",
     base
   )
   infrastructure <- base %in% c(
@@ -51,6 +51,7 @@ lmv2_release_phase <- function(path) {
   if (prefix == 34L) return("C1_inventory")
   if (prefix %in% 35:40) return("post_C1_diagnostics")
   if (prefix == 41L) return("C2_release")
+  if (prefix == 42L) return("D1_stayer_descriptives")
   "other"
 }
 
@@ -77,6 +78,10 @@ lmv2_release_certification_paths <- function(root = lmv2_release_root()) {
     completion_year = file.path(
       audit, "P6_COMPLETION_YEAR_SENSITIVITY",
       "completion_year_certification.csv"
+    ),
+    stayer_descriptives = file.path(
+      audit, "D1_STAYER_DESCRIPTIVES",
+      "d1_stayer_descriptives_certification.csv"
     ),
     exit_decomposition = file.path(
       audit, "P8_EXIT_DECOMPOSITION",

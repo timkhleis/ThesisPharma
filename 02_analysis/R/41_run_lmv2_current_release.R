@@ -71,7 +71,8 @@ if (modes == "--verify") {
       "40e_certify_lmv2_completion_year_window.R",
       "34a_run_lmv2_control_endpoint_diagnostic.R",
       "34_build_lmv2_master_results_inventory.R",
-      "34b_validate_lmv2_reported_values.R"
+      "34b_validate_lmv2_reported_values.R",
+      "42_run_lmv2_stayer_descriptives.R"
     )
   )
   release_out <- lmv2_release_output_dir()
