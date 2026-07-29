@@ -13,6 +13,16 @@ FIGURES <- file.path(BASE, "output", "figures", "preliminary_results")
 
 source(file.path(BASE, "R", "00_utils.R"))
 use_project_library()
+# The archived runner lives in an authoritative worktree, while the shared
+# repository package cache is one level above the worktree collection. Add it
+# explicitly so the reproduction works from a clean checkout.
+shared_lib <- normalizePath(
+  file.path(BASE, "..", "..", "..", ".r_libs"),
+  winslash = "/", mustWork = FALSE
+)
+if (dir.exists(shared_lib)) {
+  .libPaths(unique(c(shared_lib, .libPaths())))
+}
 
 required_packages <- c("DBI", "duckdb", "did", "ggplot2")
 missing_packages <- required_packages[
@@ -109,10 +119,14 @@ estimate_outcome <- function(outcome) {
 
   pretrend <- data.frame(
     outcome = outcome,
-    joint_pretrend_p_value = att$Wpval,
+    # did::att_gt() does not return its analytic Wald pre-test when the
+    # bootstrap is clustered above the unit level. Record NA explicitly;
+    # the bootstrap confidence bands remain the appropriate diagnostic.
+    joint_pretrend_p_value = if (length(att$Wpval)) as.numeric(att$Wpval) else NA_real_,
     bootstrap_iterations = bootstrap_iterations,
     clustered_by = "deal_id",
-    covariates = "none"
+    covariates = "none",
+    pretrend_inference_note = "Analytic Wald p-value unavailable under deal-level clustering; inspect bootstrap event-study intervals."
   )
 
   saveRDS(att, file.path(RESULTS, paste0("att_gt_", outcome, ".rds")))
