@@ -16,6 +16,19 @@ exclusivity is estimated subject to a prospective support and power gate because
 the non-exclusive treated group is small. Focal-group tenure is an appendix
 alternative to career age because the two measures are strongly correlated.
 
+Focal-group tenure is measured on the same \(t=-1\) clock as career age:
+\[
+\text{tenure}_{i,g-1}=(g-1)-\text{first focal-group patent year}.
+\]
+The original moderator build inherited an inclusive P3 count,
+\(g-\text{first focal-group patent year}\), while career age used \(g-1\).
+The one-year clock correction was made after the first heterogeneity estimates
+were produced and before their use in the thesis. It subtracts the same
+constant from every tenure value, so it cannot change matching, balance,
+weights, point estimates, or inference; it only corrects the subgroup labels
+from 1--2/3--4/5+ to 0--1/2--3/4+. Certification now requires
+\(0\leq\text{tenure}_{i,g-1}\leq\text{career age}_{i,g-1}\).
+
 Team embeddedness is strictly pre-treatment. For each roster observation, a
 stable tie is a co-inventor appearing on at least two of the focal inventor's
 patents during t=-5,...,-1. Embeddedness is the share of pre-deal patents with

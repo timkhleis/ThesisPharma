@@ -6,7 +6,7 @@
 # information dated t=-5,...,-1.  Outcome estimates are opened only by 31c,
 # after 31b has built and certified this moderator table.
 
-LMV2_INVENTOR_HET_VERSION <- "lmv2_inventor_heterogeneity_v1"
+LMV2_INVENTOR_HET_VERSION <- "lmv2_inventor_heterogeneity_v2"
 
 LMV2_INVENTOR_HET <- list(
   construction = list(
@@ -38,7 +38,7 @@ LMV2_INVENTOR_HET <- list(
         mechanism = "disruption of established collaboration networks"
       ),
       focal_tenure = list(
-        order = c("1-2 years", "3-4 years", "5+ years"),
+        order = c("0-1 years", "2-3 years", "4+ years"),
         designation = "appendix",
         mechanism = "firm-specific embeddedness; alternative to career age"
       )
@@ -140,10 +140,16 @@ lmv2_het_group <- function(moderator, x) {
   }
   if (moderator == "focal_tenure") {
     return(ifelse(
-      x <= 2, "1-2 years", ifelse(x <= 4, "3-4 years", "5+ years")
+      x <= 1, "0-1 years", ifelse(x <= 3, "2-3 years", "4+ years")
     ))
   }
   stop("Unknown moderator: ", moderator)
+}
+
+lmv2_het_tenure_valid <- function(tenure, career_age) {
+  length(tenure) == length(career_age) &&
+    !anyNA(tenure) && !anyNA(career_age) &&
+    all(tenure >= 0) && all(tenure <= career_age)
 }
 
 lmv2_het_assert_checks <- function(checks) {

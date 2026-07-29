@@ -6,13 +6,17 @@
 # Missing inventor-year rows are zero output in the fixed t=-5,...,-1 window.
 
 options(stringsAsFactors = FALSE)
-root <- "C:/Users/timkh/Documents/Thesis/.worktrees/lmv2-p6-outcomes"
+root <- normalizePath(".", winslash = "/", mustWork = TRUE)
 out_dir <- file.path(root, "02_analysis/output/audit/local_match_v2/P5B_STAYER_SELECTION_DIAGNOSTICS")
 dir.create(out_dir, recursive = TRUE, showWarnings = FALSE)
-stayer_root <- Sys.getenv("LMV2_STAYER_ROOT", "C:/Users/timkh/.codex/worktrees/081f/Thesis")
+stayer_root <- root
 partition <- file.path(stayer_root, "02_analysis/output/audit/local_match_v2/P5B_STAYER_S0_S2/treated_retention_partition.parquet")
 funnel_csv <- file.path(stayer_root, "02_analysis/output/audit/local_match_v2/P5B_STAYER_S0_S2/treated_retention_funnel.csv")
-db_candidates <- c(file.path(root, "02_analysis/output/thesis_foundation.duckdb"), file.path(stayer_root, "02_analysis/output/thesis_foundation.duckdb"), "C:/Users/timkh/Documents/Thesis/.worktrees/lmv2-foundation/02_analysis/output/thesis_foundation.duckdb")
+db_candidates <- c(
+  Sys.getenv("LMV2_FOUNDATION_DB"),
+  file.path(root, "02_analysis/output/thesis_foundation.duckdb")
+)
+db_candidates <- db_candidates[nzchar(db_candidates)]
 db <- db_candidates[file.exists(db_candidates)][1]
 duckdb_bin <- Sys.getenv("DUCKDB_BIN", "duckdb")
 stopifnot(file.exists(partition), !is.na(db), file.exists(db))

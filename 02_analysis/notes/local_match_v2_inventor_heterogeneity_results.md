@@ -14,7 +14,7 @@ Its governing omnibus p-value is 0.0092 (Holm-adjusted 0.0265), and the 1994--20
 All moderators are measured during t=-5,...,-1. A stable team tie is a co-inventor appearing on at least two pre-deal patents; team embeddedness is the share of pre-deal patents containing such a tie. Subgroup ATTs reuse the certified P5c roster and weights and standardize all groups to common acquisition-cohort shares.
 This directly operationalizes the mechanism highlighted by Verginer and Riccaboni (2025): acquisitions can disrupt established inventor teams and force costly reconfiguration. They explicitly identify team disruption as a priority for future research; Paruchuri, Nerkar, and Hambrick (2006) provide the closely related technical-core disruption argument.
 
-Career age shows no detectable heterogeneity (omnibus p=0.322), and the appendix tenure split also does not differ (p=0.437).
+Career age shows no detectable heterogeneity (omnibus p=0.318), and the appendix tenure split also does not differ (p=0.437).
 The multi-firm exclusivity estimate is very large, but that cell has maximum residual SMD 0.322 and therefore fails the frozen balance gate. It belongs in the appendix as a diagnostic, not as causal evidence.
 
 The productivity result supports an incentive/restructuring channel: the average decline is concentrated among inventors who entered the deal with the largest recent patent stock. The team result is consistent with collaboration-network disruption, but its non-monotone pattern and the narrow balance miss mean it should motivate a focused appendix analysis rather than carry the thesis's causal headline.

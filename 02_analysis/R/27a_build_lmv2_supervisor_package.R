@@ -80,19 +80,26 @@ QUANTITY_DIR <- file.path(
   ANALYSIS_DIR, "output", "audit", "local_match_v2",
   "P6_QUANTITY_COMMUNICATION_PACKAGE"
 )
-STAYER_ROOT_CANDIDATES <- c(
-  file.path(ANALYSIS_DIR, "output", "audit", "local_match_v2"),
-  "C:/Users/timkh/.codex/worktrees/081f/Thesis/02_analysis/output/audit/local_match_v2"
+STAYER_ROOT <- file.path(
+  ANALYSIS_DIR, "output", "audit", "local_match_v2"
 )
-STAYER_ROOT <- STAYER_ROOT_CANDIDATES[
-  dir.exists(file.path(STAYER_ROOT_CANDIDATES, "P5B_STAYER_S3")) &
-    dir.exists(file.path(STAYER_ROOT_CANDIDATES, "P5B_STAYER_S4_RESULTS"))
-][1]
-if (is.na(STAYER_ROOT)) {
-  stop("Certified stayer-result directories were not found.", call. = FALSE)
+if (!dir.exists(file.path(STAYER_ROOT, "P5B_STAYER_S3")) ||
+    !dir.exists(file.path(STAYER_ROOT, "P5B_STAYER_S4_RESULTS"))) {
+  stop("Certified local stayer-result handoff was not found.", call. = FALSE)
 }
 STAYER_S3_DIR <- file.path(STAYER_ROOT, "P5B_STAYER_S3")
 STAYER_S4_DIR <- file.path(STAYER_ROOT, "P5B_STAYER_S4_RESULTS")
+STAYER_S5_DIR <- file.path(STAYER_ROOT, "P5B_STAYER_S5_SELECTION_DECOMP")
+P8_EXIT_DIR <- file.path(STAYER_ROOT, "P8_EXIT_DECOMPOSITION")
+VR_HET_AUDIT_DIR <- file.path(STAYER_ROOT, "P7_VR_HETEROGENEITY")
+STAYER_HET_AUDIT_DIR <- file.path(STAYER_ROOT, "P7_STAYER_HETEROGENEITY")
+VR_HET_DIR <- file.path(
+  ANALYSIS_DIR, "output", "results", "local_match_v2", "vr_heterogeneity"
+)
+STAYER_HET_DIR <- file.path(
+  ANALYSIS_DIR, "output", "results", "local_match_v2",
+  "stayer_heterogeneity"
+)
 FIGURE_DIR <- file.path(
   ANALYSIS_DIR, "output", "figures", "local_match_v2", "fullcohort_results"
 )
@@ -228,6 +235,18 @@ input_files <- c(
             "s4_loyo_heldout_diagnostics.csv"),
   file.path(STAYER_S4_DIR, "reporting",
             "figure_s4_patent_paths_and_event_study.pdf"),
+  file.path(STAYER_S5_DIR, "s5_certification.csv"),
+  file.path(STAYER_S5_DIR, "s5_selection_pre_characteristics.csv"),
+  file.path(VR_HET_AUDIT_DIR, "vr_certification.csv"),
+  file.path(VR_HET_DIR, "table_vr_heterogeneity.csv"),
+  file.path(VR_HET_DIR, "table_vr_heterogeneity_diagnostics_appendix.csv"),
+  file.path(VR_HET_DIR, "figure_vr_heterogeneity_focal.png"),
+  file.path(STAYER_HET_AUDIT_DIR, "stayer_certification.csv"),
+  file.path(STAYER_HET_DIR, "table_stayer_heterogeneity_primary.csv"),
+  file.path(STAYER_HET_DIR, "table_stayer_heterogeneity_holm_appendix.csv"),
+  file.path(STAYER_HET_DIR, "figure_stayer_heterogeneity_forest.png"),
+  file.path(P8_EXIT_DIR, "exit_decomposition_certification.csv"),
+  file.path(P8_EXIT_DIR, "exit_decomposition_components.csv"),
   file.path(DESCRIPTIVE_DIR, "table1_sample_construction.tex"),
   file.path(DESCRIPTIVE_DIR, "table3_overall_descriptives.tex"),
   file.path(DESCRIPTIVE_DIR, "table4_deal_inventor_concentration.tex"),
@@ -269,6 +288,28 @@ stayer_magnitude <- read_csv(file.path(
 ))
 stayer_placebos <- read_csv(file.path(
   STAYER_S4_DIR, "reporting", "s4_loyo_heldout_diagnostics.csv"
+))
+stayer_s5_cert <- read_csv(file.path(STAYER_S5_DIR, "s5_certification.csv"))
+stayer_selection <- read_csv(file.path(
+  STAYER_S5_DIR, "s5_selection_pre_characteristics.csv"
+))
+vr_het_cert <- read_csv(file.path(
+  VR_HET_AUDIT_DIR, "vr_certification.csv"
+))
+vr_heterogeneity <- read_csv(file.path(
+  VR_HET_DIR, "table_vr_heterogeneity.csv"
+))
+stayer_het_cert <- read_csv(file.path(
+  STAYER_HET_AUDIT_DIR, "stayer_certification.csv"
+))
+stayer_heterogeneity <- read_csv(file.path(
+  STAYER_HET_DIR, "table_stayer_heterogeneity_primary.csv"
+))
+p8_cert <- read_csv(file.path(
+  P8_EXIT_DIR, "exit_decomposition_certification.csv"
+))
+p8_decomposition <- read_csv(file.path(
+  P8_EXIT_DIR, "exit_decomposition_components.csv"
 ))
 
 validate_certification <- function(x, label) {
@@ -315,6 +356,10 @@ invisible(validate_certification(p6_cert, "P6 full-cohort"))
 invisible(validate_certification(quantity_cert, "Quantity communication"))
 invisible(validate_certification(stayer_s3_cert, "Stayer design"))
 invisible(validate_certification(stayer_s4_cert, "Stayer results"))
+invisible(validate_certification(stayer_s5_cert, "Stayer selection"))
+invisible(validate_certification(vr_het_cert, "Full-cohort heterogeneity"))
+invisible(validate_certification(stayer_het_cert, "Stayer heterogeneity"))
+invisible(validate_certification(p8_cert, "P8 exit decomposition"))
 invisible(validate_design(d2))
 
 stayer_value <- function(label) {
@@ -489,7 +534,9 @@ asset_sources <- c(
   file.path(FIGURE_DIR, "figure_d3_patent_count_loyo.pdf"),
   file.path(FIGURE_DIR, "figure_d5a_all_outcomes_event_study_full.pdf"),
   file.path(STAYER_S4_DIR, "reporting",
-            "figure_s4_patent_paths_and_event_study.pdf")
+            "figure_s4_patent_paths_and_event_study.pdf"),
+  file.path(VR_HET_DIR, "figure_vr_heterogeneity_focal.png"),
+  file.path(STAYER_HET_DIR, "figure_stayer_heterogeneity_forest.png")
 )
 for (src in asset_sources) {
   copy_checked(src, file.path(STAGING_DIR, "assets", basename(src)))
@@ -807,10 +854,9 @@ stayer_table <- c(
   sprintf("Annual ATT; five-year cumulative ATT & %s; %s \\\\",
           fmt_num(stayer_headline$estimate, 3L),
           fmt_num(stayer_mag$cumulative_five_year_att, 3L)),
-  sprintf("Deal wild-bootstrap 95\\%% CI; $p$-value & $[%s,\\ %s]$; %s \\\\",
+  sprintf("Deal wild-bootstrap robustness interval & $[%s,\\ %s]$ \\\\",
           fmt_num(stayer_headline$ci_low, 3L),
-          fmt_num(stayer_headline$ci_high, 3L),
-          fmt_p(stayer_headline$p_value)),
+          fmt_num(stayer_headline$ci_high, 3L)),
   sprintf("Two-way clustered 95\\%% CI; $p$-value & $[%s,\\ %s]$; %s \\\\",
           fmt_num(stayer_two_way$ci_low, 3L),
           fmt_num(stayer_two_way$ci_high, 3L),
@@ -818,11 +864,183 @@ stayer_table <- c(
   "\\bottomrule",
   "\\end{tabularx}",
   "\\sourceNote{Separate initially retained-inventor support and entropy",
-  "weights. The deal-level wild bootstrap governs the headline inference;",
-  "the two-way deal/inventor interval is shown because controls can recur.}",
+  "weights. Two-way deal/inventor inference is primary because controls can",
+  "recur across deals; the deal-level wild interval is reported transparently",
+  "as a cluster-sensitivity companion.}",
   "\\end{table}"
 )
 write_utf8(stayer_table, file.path(STAGING_DIR, "generated_stayer_table.tex"))
+
+heterogeneity_labels <- c(
+  predeal_productivity = "Pre-deal productivity",
+  career_age = "Career age",
+  team_persistence = "Persistent pre-deal team",
+  techfit = "Inventor--acquirer TechFit"
+)
+format_heterogeneity_cell <- function(x) {
+  sprintf("%s $[%s,\\ %s]$; $p=%s$",
+          fmt_num(x$estimate, 3L), fmt_num(x$ci_low, 3L),
+          fmt_num(x$ci_high, 3L), fmt_p(x$p_value))
+}
+heterogeneity_rows <- function(x) {
+  vapply(names(heterogeneity_labels), function(m) {
+    count <- x[x$moderator == m & x$outcome == "patent_count", ,
+               drop = FALSE]
+    active <- x[x$moderator == m & x$outcome == "active_patenting", ,
+                drop = FALSE]
+    if (nrow(count) != 1L || nrow(active) != 1L) {
+      stopf("Incomplete heterogeneity rows for %s.", m)
+    }
+    sprintf("%s & %s & %s \\\\",
+            heterogeneity_labels[[m]],
+            format_heterogeneity_cell(count),
+            format_heterogeneity_cell(active))
+  }, character(1))
+}
+build_heterogeneity_table <- function(x, caption, label, note) {
+  c(
+    "\\begin{table}[H]",
+    "\\centering",
+    sprintf("\\caption{%s}", caption),
+    sprintf("\\label{%s}", label),
+    "\\scriptsize",
+    "\\begin{tabularx}{\\textwidth}{@{}Yrr@{}}",
+    "\\toprule",
+    "Moderator & Patent-count contrast & Active-patenting contrast \\\\",
+    "\\midrule",
+    heterogeneity_rows(x),
+    "\\bottomrule",
+    "\\end{tabularx}",
+    sprintf("\\sourceNote{%s}", note),
+    "\\end{table}"
+  )
+}
+write_utf8(
+  build_heterogeneity_table(
+    vr_heterogeneity,
+    "Predetermined heterogeneity in the full target-inventor cohort",
+    "tab:full-heterogeneity",
+    paste(
+      "Entries compare the frozen high-versus-low moderator values and show",
+      "conventional 95\\% intervals and unadjusted p-values. All eight",
+      "predeclared contrasts are reported. Holm, MDE, and Type-M diagnostics",
+      "are retained in the appendix artifact."
+    )
+  ),
+  file.path(STAGING_DIR, "generated_full_heterogeneity_table.tex")
+)
+write_utf8(
+  build_heterogeneity_table(
+    stayer_heterogeneity,
+    "Predetermined heterogeneity among initially retained inventors",
+    "tab:stayer-heterogeneity",
+    paste(
+      "The initially retained sample is post-treatment selected. Entries use",
+      "conventional 95\\% intervals and unadjusted p-values; all eight",
+      "predeclared contrasts are shown. Multiplicity and precision",
+      "diagnostics remain in the appendix artifact."
+    )
+  ),
+  file.path(STAGING_DIR, "generated_stayer_heterogeneity_table.tex")
+)
+
+selection_variables <- c(
+  patent_stock_5y = "Five-year patent stock",
+  active_years_5y = "Active years in pre-period",
+  career_age = "Career age"
+)
+selection_statuses <- c("initially_retained", "leaver", "no_post_patent")
+selection_rows <- vapply(names(selection_variables), function(v) {
+  z <- stayer_selection[
+    stayer_selection$variable == v &
+      stayer_selection$retention_status %in% selection_statuses, ,
+    drop = FALSE
+  ]
+  z <- z[match(selection_statuses, z$retention_status), , drop = FALSE]
+  if (nrow(z) != 3L || anyNA(z$mean)) {
+    stopf("Incomplete stayer-selection summary for %s.", v)
+  }
+  sprintf("%s & %s & %s & %s \\\\",
+          selection_variables[[v]],
+          fmt_num(z$mean[1], 2L), fmt_num(z$mean[2], 2L),
+          fmt_num(z$mean[3], 2L))
+}, character(1))
+stayer_selection_table <- c(
+  "\\begin{table}[H]",
+  "\\centering",
+  "\\caption{Pre-deal characteristics by observed post-deal status}",
+  "\\label{tab:stayer-selection}",
+  "\\small",
+  "\\begin{tabularx}{\\textwidth}{@{}Yrrr@{}}",
+  "\\toprule",
+  "Pre-deal mean & Initially retained & Leaver & No post-deal patent \\\\",
+  "\\midrule",
+  selection_rows,
+  "\\bottomrule",
+  "\\end{tabularx}",
+  "\\sourceNote{Status is observed after treatment. The table diagnoses",
+  "selection and is not a balance table or an employment-retention estimate.}",
+  "\\end{table}"
+)
+write_utf8(
+  stayer_selection_table,
+  file.path(STAGING_DIR, "generated_stayer_selection_table.tex")
+)
+
+stayer_decomp_full <- p8_decomposition[
+  p8_decomposition$population == "initially_retained_broad" &
+    p8_decomposition$sample == "headline_1994_2010" &
+    p8_decomposition$endpoint_definition ==
+      "global_endpoint_capped_2015", ,
+  drop = FALSE
+]
+decomp_order <- c(
+  "cessation", "active_given_survival", "patents_per_active_year", "total"
+)
+stayer_decomp_full <- stayer_decomp_full[
+  match(decomp_order, stayer_decomp_full$component), , drop = FALSE
+]
+if (nrow(stayer_decomp_full) != 4L ||
+    anyNA(stayer_decomp_full$estimate)) {
+  stopf("The P8 stayer decomposition is incomplete.")
+}
+stayer_decomp_labels <- c(
+  cessation = "Earlier end of observed patenting",
+  active_given_survival = "Fewer active years among patenting survivors",
+  patents_per_active_year = "Fewer patents per active year",
+  total = "Total"
+)
+stayer_decomp_rows <- vapply(seq_len(nrow(stayer_decomp_full)), function(i) {
+  z <- stayer_decomp_full[i, ]
+  sprintf("%s & %s & %s & %s\\%% \\\\",
+          stayer_decomp_labels[[z$component]],
+          fmt_num(z$estimate, 3L),
+          fmt_num(z$cumulative_post_window_patents, 3L),
+          fmt_pct(z$share_of_total))
+}, character(1))
+stayer_decomp_table <- c(
+  "\\begin{table}[H]",
+  "\\centering",
+  "\\caption{Initially retained patent-count decomposition}",
+  "\\label{tab:stayer-decomposition}",
+  "\\small",
+  "\\begin{tabularx}{0.86\\textwidth}{@{}Yrrr@{}}",
+  "\\toprule",
+  "Component & Annual patents & Five-year patents & Share \\\\",
+  "\\midrule",
+  stayer_decomp_rows,
+  "\\bottomrule",
+  "\\end{tabularx}",
+  "\\sourceNote{P8 Shapley accounting decomposition. The initially retained",
+  "population is defined through patenting in event times +1 through +5, so",
+  "the cessation component is partly mechanical and secondary to the",
+  "full-cohort cessation result. No component-level p-values are used.}",
+  "\\end{table}"
+)
+write_utf8(
+  stayer_decomp_table,
+  file.path(STAGING_DIR, "generated_stayer_decomposition_table.tex")
+)
 
 # ---- Materialize the memo and email -----------------------------------------
 

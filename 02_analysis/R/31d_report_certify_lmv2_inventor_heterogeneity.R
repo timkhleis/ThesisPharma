@@ -95,7 +95,9 @@ tooth_tests <- data.frame(
     "arm_guard_rejects_missing_control",
     "stable_tie_threshold_rejects_one_joint_patent",
     "future_year_guard_rejects_treatment_year",
-    "team_category_boundaries_fire"
+    "team_category_boundaries_fire",
+    "tenure_category_boundaries_fire",
+    "tenure_clock_guard_rejects_invalid_positive"
   ),
   pass = c(
     !assert_close(-0.0534, -0.0524),
@@ -108,7 +110,13 @@ tooth_tests <- data.frame(
       lmv2_het_group("team_embeddedness", c(0, 0.5, 1)),
       c("no stable team", "partial stable team",
         "all patents stable team")
-    )
+    ),
+    identical(
+      lmv2_het_group("focal_tenure", c(0, 2, 4)),
+      c("0-1 years", "2-3 years", "4+ years")
+    ),
+    lmv2_het_tenure_valid(c(0, 3), c(0, 4)) &&
+      !lmv2_het_tenure_valid(c(1, 3), c(0, 4))
   ),
   stringsAsFactors = FALSE
 )
@@ -227,7 +235,7 @@ ordered_groups <- unlist(lapply(
   function(m) cfg$construction$moderators[[m]]$order
 ), use.names = FALSE)
 plot_data$group_name <- factor(
-  plot_data$group_name, levels = rev(ordered_groups)
+  plot_data$group_name, levels = rev(unique(ordered_groups))
 )
 plot_data$gate_label <- ifelse(
   plot_data$support_balance_pass,

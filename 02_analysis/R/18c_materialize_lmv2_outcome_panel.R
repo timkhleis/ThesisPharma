@@ -15,7 +15,9 @@
 # mode = "treated_fixture" permits the self-matched treated-only fixture.
 # ---------------------------------------------------------------------------
 validate_lmv2_roster <- function(con, roster_tbl, config = LMV2_P6_CONFIG,
-                                 mode = c("production", "treated_fixture")) {
+                                 mode = c(
+                                   "production", "treated_fixture",
+                                   "control_null")) {
   mode <- match.arg(mode)
   q <- function(sql) DBI::dbGetQuery(con, sql)
   r <- roster_tbl
@@ -75,10 +77,12 @@ validate_lmv2_roster <- function(con, roster_tbl, config = LMV2_P6_CONFIG,
     "SELECT COUNT(*) n FROM %s
      WHERE arm = 'treated' AND weight <> 1", r))$n,
     "Treated rows must have weight = 1")
-  fail_if(q(sprintf(
-    "SELECT COUNT(*) n FROM %s
-     WHERE arm = 'treated' AND NOT use_target_company_path", r))$n,
-    "Treated rows must have use_target_company_path = TRUE")
+  if (mode != "control_null") {
+    fail_if(q(sprintf(
+      "SELECT COUNT(*) n FROM %s
+       WHERE arm = 'treated' AND NOT use_target_company_path", r))$n,
+      "Treated rows must have use_target_company_path = TRUE")
+  }
   fail_if(q(sprintf(
     "SELECT COUNT(*) n FROM %s
      WHERE arm = 'control' AND use_target_company_path", r))$n,
@@ -155,6 +159,34 @@ validate_lmv2_roster <- function(con, roster_tbl, config = LMV2_P6_CONFIG,
          SELECT DISTINCT cohort, deal_id FROM %s WHERE arm='treated')",
       r, r))$n,
       "Every weighted control pool must reference a treated deal")
+  }
+  if (mode == "control_null") {
+    fail_if(q(sprintf(
+      "SELECT COUNT(*) n FROM %s
+       WHERE use_target_company_path OR focal_group_2 IS NOT NULL", r))$n,
+      "Control-null rows must use one control-firm focal path")
+    fail_if(q(sprintf(
+      "SELECT COUNT(*) n FROM (
+         SELECT cohort FROM %s GROUP BY cohort
+         HAVING COUNT(*) FILTER (WHERE arm='treated')=0
+             OR COUNT(*) FILTER (WHERE arm='control')=0)", r))$n,
+      "Every control-null cohort must contain both arms")
+    fail_if(q(sprintf(
+      "SELECT COUNT(*) n FROM (
+         SELECT cohort FROM %s GROUP BY cohort
+         HAVING ABS(
+           SUM(weight) FILTER (WHERE arm='treated')-
+           SUM(weight) FILTER (WHERE arm='control'))>%g)", r,
+      config$cohort_weight_mass_tolerance))$n,
+      "Control-null treated/control weight mass must agree by cohort")
+    fail_if(q(sprintf(
+      "SELECT COUNT(*) n FROM (
+         SELECT cohort,deal_id FROM %s
+         WHERE arm='control'
+         GROUP BY cohort,deal_id
+         HAVING COUNT(DISTINCT focal_group_1)<%d)", r,
+      config$min_control_firms_per_deal))$n,
+      "Every control-null deal must use at least two control firms")
   }
 
   if (length(failures)) {

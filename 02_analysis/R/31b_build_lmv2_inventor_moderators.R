@@ -55,6 +55,8 @@ for (tbl in c(
 # The control-unit table is cohort x inventor x focal group and intentionally
 # has no deal_id.  Treated units retain deal_id.  Separate joins avoid a broad
 # OR condition over the four-million-row P3 table.
+# P3 stores focal tenure as an inclusive count through the cohort year. Shift
+# it back by one so both tenure and career age are measured at t=-1.
 DBI::dbExecute(con, "
 CREATE OR REPLACE TEMP TABLE het_mod_base AS
 SELECT
@@ -62,7 +64,8 @@ SELECT
   r.focal_group_1,
   CAST(u.patent_count_5y AS BIGINT) AS patent_count_5y,
   u.log_patent_count_5y, u.patent_trajectory, u.career_age,
-  u.focal_group_tenure, u.focal_group_exclusivity
+  u.focal_group_tenure-1 AS focal_group_tenure,
+  u.focal_group_exclusivity
 FROM p6.lmv2_p5a_roster r
 JOIN lmv2_p3_inventor_units u
   ON r.arm='treated' AND u.role='treated'
@@ -74,7 +77,8 @@ SELECT
   r.focal_group_1,
   CAST(u.patent_count_5y AS BIGINT) AS patent_count_5y,
   u.log_patent_count_5y, u.patent_trajectory, u.career_age,
-  u.focal_group_tenure, u.focal_group_exclusivity
+  u.focal_group_tenure-1 AS focal_group_tenure,
+  u.focal_group_exclusivity
 FROM p6.lmv2_p5a_roster r
 JOIN lmv2_p3_inventor_units u
   ON r.arm='control' AND u.role='control'
@@ -178,9 +182,9 @@ SELECT
        WHEN t.stable_team_patent_share>=1-1e-12
          THEN 'all patents stable team'
        ELSE 'partial stable team' END AS team_embeddedness_group,
-  CASE WHEN b.focal_group_tenure<=2 THEN '1-2 years'
-       WHEN b.focal_group_tenure<=4 THEN '3-4 years'
-       ELSE '5+ years' END AS focal_tenure_group
+  CASE WHEN b.focal_group_tenure<=1 THEN '0-1 years'
+       WHEN b.focal_group_tenure<=3 THEN '2-3 years'
+       ELSE '4+ years' END AS focal_tenure_group
 FROM het_mod_base b
 JOIN het_team_metrics t USING (roster_row_id)
 ")
@@ -246,6 +250,9 @@ SELECT
    WHERE stable_team_patent_share<0 OR stable_team_patent_share>1)
     AS team_share_violations,
   (SELECT COUNT(*) FROM het_moderators
+   WHERE focal_group_tenure<0 OR focal_group_tenure>career_age)
+    AS tenure_clock_violations,
+  (SELECT COUNT(*) FROM het_moderators
    WHERE career_age_group IS NULL
       OR predeal_productivity_group IS NULL
       OR focal_exclusivity_group IS NULL
@@ -263,6 +270,7 @@ checks <- data.frame(
     "reconstructed_predeal_patent_counts_match_p3",
     "team_inputs_end_before_treatment",
     "team_shares_in_unit_interval",
+    "focal_tenure_uses_t_minus_1_clock",
     "all_predeclared_groups_assigned",
     "both_arms_present_in_every_group"
   ),
@@ -272,6 +280,7 @@ checks <- data.frame(
     audit$reconstructed_patent_mismatches == 0,
     audit$future_year_violations == 0,
     audit$team_share_violations == 0,
+    audit$tenure_clock_violations == 0,
     audit$missing_groups == 0,
     all(stats::aggregate(
       arm ~ moderator + group_name,

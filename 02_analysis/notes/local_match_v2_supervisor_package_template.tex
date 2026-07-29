@@ -374,6 +374,32 @@ acquisition can itself determine who remains active. Its substantive
 interpretation is deferred to the separately balanced analysis of inventors
 initially retained in the merged entity.
 
+\subsection{Predetermined inventor heterogeneity}
+
+\input{generated_full_heterogeneity_table.tex}
+
+The quantity decline is larger among inventors who were more productive
+before acquisition, repeatedly patented with a persistent collaborator, or
+had greater pre-deal technological overlap with the acquirer. The productivity
+gradient is not only an absolute-stock arithmetic result: the predicted loss
+increases from approximately 4.4\% of pre-deal output at the treated
+productivity p25 to 14.7\% at p75. The persistent-team result is consistent
+with disruption of relationship-specific knowledge, while the negative
+TechFit gradient is consistent with redundant programs being rationalized.
+These are moderator patterns, not direct tests that uniquely identify either
+mechanism. Career age does not materially moderate the patent-count effect,
+and none of the active-patenting contrasts is conventionally significant.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.88\textwidth]
+    {assets/figure_vr_heterogeneity_focal.png}
+  \caption{Full-cohort heterogeneity across predetermined inventor traits}
+  \label{fig:full-heterogeneity}
+  \sourceNote{Points compare the frozen high-versus-low moderator values.
+  All eight predeclared contrasts are shown.}
+\end{figure}
+
 \section{Secondary outcomes}
 
 \input{generated_secondary_table.tex}
@@ -470,9 +496,11 @@ The point estimate is \(\StayerATT\) patents per inventor-year, or
 \(\StayerCumulative\) over five post-acquisition years. This equals
 \(\StayerCounterfactualPct\%\) of matched counterfactual post-deal output and
 \(\StayerPrePct\%\) of average pre-deal output. The buffered estimate is
-similar (\(\StayerBufferedATT\), \(p=\StayerBufferedP\)), so late-sample
-censoring does not explain the result. The governing deal-level interval just
-includes zero, whereas the prominent two-way interval excludes zero.
+similar (\(\StayerBufferedATT\); deal-wild sensitivity
+\(p=\StayerBufferedP\)), so late-sample censoring does not explain the result.
+The frozen primary retained result uses the two-way deal/inventor interval,
+which excludes zero. Deal-level wild inference is reported transparently as a
+cluster-sensitivity companion and includes zero.
 
 This result is economically large but only suggestive. First, initial
 retention is determined after acquisition, so the estimate is a
@@ -484,6 +512,30 @@ interpretation. The consistent negative result across inference and
 censoring variants is nevertheless useful evidence that the full-cohort
 decline is not confined to inventors who immediately cease patenting for the
 combined group.
+
+\subsection{Selection, margins, and heterogeneity}
+
+\input{generated_stayer_selection_table.tex}
+
+Initially retained inventors were already positively selected on pre-deal
+patenting: their average five-year patent stock and number of active pre-deal
+years exceed those of both leavers and inventors with no observed post-deal
+patent. This does not invalidate the conditional result, but it confirms that
+retention is post-treatment selected and that the estimate cannot be
+generalized to all treated inventors or an unobserved always-retained stratum.
+
+\input{generated_stayer_decomposition_table.tex}
+
+The P8 accounting decomposition assigns 27.3\% of the initially retained
+decline to an earlier end of observed patenting, 5.4\% to fewer active years
+among patenting survivors, and 67.3\% to fewer patents per active year. The
+cessation component is partly mechanical because initial retention is defined
+through patenting in \(t=+1,\ldots,+5\). The full-cohort cessation result
+therefore carries the stronger substantive claim.
+
+The predetermined retained-sample heterogeneity estimates are available in
+the accompanying appendix artifact but are too imprecise to carry a separate
+main-text conclusion.
 
 \begin{figure}[H]
 \centering

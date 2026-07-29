@@ -5,7 +5,7 @@
 # implied post-treatment counterfactual. This is an audit, not a new design.
 
 options(stringsAsFactors = FALSE)
-root <- "C:/Users/timkh/Documents/Thesis/.worktrees/lmv2-p6-outcomes"
+root <- normalizePath(".", winslash = "/", mustWork = TRUE)
 db_path <- file.path(root, "02_analysis/output/thesis_foundation.duckdb")
 raw_dir <- file.path(root, "02_analysis/output/results/cs2021")
 balanced_dir <- file.path(root, "02_analysis/output/audit/local_match_v2/P6_QUANTITY_COMMUNICATION_PACKAGE")
@@ -13,7 +13,11 @@ out_dir <- file.path(root, "02_analysis/output/audit/local_match_v2/P6_RAW_BALAN
 dir.create(out_dir, recursive = TRUE, showWarnings = FALSE)
 source(file.path(root, "02_analysis/R/00_utils.R"))
 use_project_library()
-shared_lib <- normalizePath(file.path(root, "..", "..", ".r_libs"), winslash = "/", mustWork = FALSE)
+shared_candidates <- c(
+  file.path(root, ".r_libs"),
+  file.path(root, "..", "..", ".r_libs")
+)
+shared_lib <- shared_candidates[dir.exists(shared_candidates)][1]
 if (dir.exists(shared_lib)) .libPaths(unique(c(shared_lib, .libPaths())))
 stopifnot(requireNamespace("DBI", quietly=TRUE), requireNamespace("duckdb", quietly=TRUE))
 
