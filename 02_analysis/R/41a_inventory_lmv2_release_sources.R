@@ -32,7 +32,7 @@ lmv2_release_source_paths <- function(root = lmv2_release_root()) {
   candidates <- list.files(r_dir, pattern = "\\.R$", full.names = TRUE)
   base <- basename(candidates)
   numbered_lmv2 <- grepl(
-    "^(15[a-h]|1[89][a-z]?|2[0-9][a-z]?|3[0-9][a-z]?|4[0-2][a-z]?)_.*lmv2.*\\.R$",
+    "^(15[a-h]|1[89][a-z]?|2[0-9][a-z]?|3[0-9][a-z]?|4[0-3][a-z]?)_.*lmv2.*\\.R$",
     base
   )
   infrastructure <- base %in% c(
@@ -52,6 +52,7 @@ lmv2_release_phase <- function(path) {
   if (prefix %in% 35:40) return("post_C1_diagnostics")
   if (prefix == 41L) return("C2_release")
   if (prefix == 42L) return("D1_stayer_descriptives")
+  if (prefix == 43L) return("N0_network_census")
   "other"
 }
 
@@ -83,6 +84,10 @@ lmv2_release_certification_paths <- function(root = lmv2_release_root()) {
       audit, "D1_STAYER_DESCRIPTIVES",
       "d1_stayer_descriptives_certification.csv"
     ),
+    network_census = file.path(
+      audit, "N0_NETWORK_CENSUS",
+      "n0_network_census_certification.csv"
+    ),
     exit_decomposition = file.path(
       audit, "P8_EXIT_DECOMPOSITION",
       "exit_decomposition_certification.csv"
@@ -100,13 +105,21 @@ lmv2_release_immutable_inputs <- function(root = lmv2_release_root()) {
   results <- file.path(
     root, "02_analysis", "output", "results", "local_match_v2"
   )
+  p6_manifest <- file.path(
+    audit, "P6_P5C_PANEL_COUNT_ACTIVE", "p6_manifest.csv"
+  )
+  p6 <- utils::read.csv(
+    p6_manifest, stringsAsFactors = FALSE, check.names = FALSE
+  )
+  if (nrow(p6) != 1L) {
+    stop("Expected one P5c/P6 manifest row.", call. = FALSE)
+  }
   c(
     database = file.path(
       root, "02_analysis", "output", "thesis_foundation.duckdb"
     ),
-    p5c_manifest = file.path(
-      audit, "P6_P5C_PANEL_COUNT_ACTIVE", "p6_manifest.csv"
-    ),
+    p5c_manifest = p6_manifest,
+    p5c_roster = p6$roster_path,
     retained_weight_manifest = file.path(
       audit, "P5B_STAYER_S3", "s3_manifest.csv"
     ),

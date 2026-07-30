@@ -218,6 +218,12 @@ Outputs:
 Purpose: define the network estimands, support, and decision rules before
 opening post-acquisition network effects.
 
+Status: completed and certified on 2026-07-30. The frozen -5 through -3
+anchor yields 2,230 treated focal inventors across 173 nominal and 33.3
+effective deals. Conditional composition is observed for 745 treated rows at
+-2 and 557 at -1. These values fail the frozen support thresholds, so N0
+selects Path Q and does not release N1 or post-treatment network effects.
+
 Primary population:
 
 - full pre-deal target-inventor cohort on certified P5c support;
@@ -433,12 +439,10 @@ available in the multiplicity appendix.
 1. C1 documentation and inventory synchronization.
 2. C2 reproducible root runner and frozen handoff.
 3. D1 descriptive retained-status completion.
-4. N0 network freeze and census.
-5. N1 network validation/power gate.
-6. N2 only if Path N.
-7. N3 only after N2 and its own power gate.
-8. N4 only if time remains.
-9. W1 final thesis integration.
+4. N0 network freeze and census: completed, Path Q.
+5. N1--N3: not released under Path Q.
+6. Decide whether to add the optional descriptive N4 appendix.
+7. W1 final thesis integration.
 
 Packages C1, C2, and D1 are thesis-completion work. Packages N0 and N1 are
 disciplined feasibility work. N2 is a contribution upgrade conditional on

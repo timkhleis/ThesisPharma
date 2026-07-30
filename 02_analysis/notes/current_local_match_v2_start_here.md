@@ -122,6 +122,22 @@ completion-year-inclusive timing results. Read
 `local_match_v2_stayer_descriptive_results.md` for the substantive summary.
 All location measures refer to patent affiliation, not employment.
 
+## N0: outcome-blind network census
+
+Run:
+
+```powershell
+& 'C:\Program Files\R\R-4.5.1\bin\Rscript.exe' 02_analysis\R\43_run_lmv2_network_census.R
+```
+
+N0 uses only event times -5 through -1. The frozen -5 through -3 persistent
+tie definition retains 2,230 treated focal inventors across 173 nominal and
+33.3 effective deals. Conditional composition support is thinner, and the
+package selects Path Q under its frozen gates. N1 and post-acquisition network
+effects remain closed. Read `local_match_v2_network_census_results.md` and the
+hashed pre-analysis freeze for the exact denominator definitions and gate
+failures.
+
 ## Archive
 
 `99_Archive/` preserves completed Main-DiD-v1 and scratch exploration. It is

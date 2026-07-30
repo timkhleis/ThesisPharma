@@ -19,7 +19,9 @@ Available modes:
   tracked in Git. It then re-certifies the completion-year window, rebuilds the
   endpoint diagnostic and master inventory, runs the reported-value gate and
   deterministic smoke test, rebuilds the certified D1 retained-status
-  descriptives, and replaces the hash-certified staging handoff.
+  descriptives, rebuilds the outcome-blind N0 network census, and replaces the
+  hash-certified staging handoff. The compact handoff includes the 4.9 MB
+  immutable P5c roster required by N0 but still excludes the 2.6 GB database.
 
 Add `--hash-database` to `--verify` or `--smoke` when a fresh SHA-256 of the
 large DuckDB file is required. The default records its exact size and modified

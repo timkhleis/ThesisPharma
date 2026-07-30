@@ -1,6 +1,6 @@
 # Local Match v2: stayer and knowledge-network implementation plan
 
-Status: C1, C2, and D1 completed and certified; N0 awaits review
+Status: C1, C2, D1, and N0 completed and certified; N0 selects Path Q
 Date: 2026-07-29
 
 This document converts the remaining stayer and knowledge-network work into
@@ -272,9 +272,9 @@ command and reach the same certified inventory and current thesis assets.
 
 Completed and certified on 2026-07-30. The package reports the three status
 distributions, annual +1 through +5 patent-location paths, persistence through
-+3 and +5, symmetric endpoint-existence diagnostics, descriptive +6
-continuation, and the completion-year-inclusive timing results. All 20
-certification checks pass.
++3 and +5, a weighted treated/control persistence rider, symmetric
+endpoint-existence diagnostics, descriptive +6 continuation, and the
+completion-year-inclusive timing results. All 25 certification checks pass.
 
 ### Objective
 
@@ -356,6 +356,16 @@ who is called an initial stayer, how selected that group is, and how often
 initial patent-based retention persists.
 
 ## 7. Package N0: freeze network definitions and run outcome-blind census
+
+### Implementation status
+
+Completed and certified on 2026-07-30. All 20 construction and process checks
+pass, but the frozen support gate selects Path Q. The -5 through -3 anchor
+retains 2,230 treated focal inventors across 173 nominal and 33.3 effective
+deals. It misses the 3,000-inventor threshold. Conditional composition is
+defined for 745 treated rows at -2 and 557 at -1, below the frozen 1,000-row
+minimum; control concentration also exceeds the symmetric frozen limits.
+N1 and post-treatment network estimation remain closed.
 
 ### Objective
 
@@ -478,7 +488,8 @@ estimates.
 ### Exit gate
 
 N0 releases N1 only if the frozen anchor passes the support gate. N0
-never releases post-treatment effect estimation.
+never releases post-treatment effect estimation. The certified census selects
+Path Q, so N1 is not released.
 
 ## 8. Package N1: network validation and precision gate
 
