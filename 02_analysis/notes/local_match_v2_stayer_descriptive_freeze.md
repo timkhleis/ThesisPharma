@@ -63,3 +63,19 @@ effect. The data contain years, not months, so pre- and post-completion months
 within event time zero cannot be separated.
 
 All location language refers to patent affiliation, never employment.
+
+## Post-certification control-arm rider
+
+External review requested a symmetric benchmark after the treated-only D1
+paths had been opened. This rider therefore does not alter the original
+pre-output freeze. It applies the same six annual states and the same +3 and
++5 persistence definitions to the already certified P5b retained-design
+treated and control rows. The P5b final weights govern all arm comparisons;
+no support, weight, status, or outcome definition is reselected.
+
+The rider is descriptive. It does not turn patent-location persistence into a
+new causal estimand. Its certification must verify both arms, unique
+inventor-deal-year paths, weighted state shares that sum to one, and
+registration of every reportable completion-year result in the master
+inventory. The frozen +1 through +5 quantity estimand remains primary; the
+completion-year-inclusive estimands remain companions.

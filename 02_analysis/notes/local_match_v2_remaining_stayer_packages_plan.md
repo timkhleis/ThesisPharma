@@ -184,7 +184,9 @@ Tasks:
    Report it separately from the +1 to +5 full-year average and include it in
    a completion-through-+5 cumulative effect. State that deal timing is
    observed only by year, so pre- and post-completion months within t=0 cannot
-   be separated.
+   be separated;
+8. add a post-certification rider applying the same annual states and
+   persistence horizons to the weighted P5b retained-control arm.
 
 Interpretation:
 
@@ -198,12 +200,16 @@ Gate:
 - all states reconcile to the certified S0--S2 first-post partition;
 - right-censoring labels are explicit;
 - no event-year patent defines retention.
+- all reportable completion-year outputs resolve to distinct master-inventory
+  rows, while the frozen +1 through +5 result remains primary;
+- matched treated and control state shares each sum to one.
 
 Outputs:
 
 - career-age and productivity distribution table;
 - status-transition table;
 - persistent-inside path figure;
+- symmetric matched-control persistence comparison;
 - endpoint-existence audit;
 - certification and manifest.
 

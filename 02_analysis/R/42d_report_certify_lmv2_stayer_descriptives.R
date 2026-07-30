@@ -48,6 +48,9 @@ lmv2_d1_report_certify <- function(config = lmv2_d1_config()) {
       "endpoint_activity_rows.parquet",
       "endpoint_activity_summary.csv",
       "status_path_construction_audit.csv",
+      "matched_annual_status_paths.parquet",
+      "matched_annual_status_transition.csv",
+      "matched_persistent_inside.csv",
       "status_distribution_summary.csv",
       "status_distribution_pairwise_tests.csv",
       "management_transition_diagnostic.csv",
@@ -56,6 +59,7 @@ lmv2_d1_report_certify <- function(config = lmv2_d1_config()) {
     config$completion_year_results,
     config$completion_year_dynamic,
     config$completion_year_certification,
+    config$master_inventory,
     config$freeze_file,
     config$source_files
   )
@@ -81,7 +85,15 @@ lmv2_d1_report_certify <- function(config = lmv2_d1_config()) {
   counts <- read_output("status_partition_counts.csv")
   transitions <- read_output("annual_status_transition.csv")
   persistence <- read_output("persistent_inside.csv")
+  matched_transitions <- read_output(
+    "matched_annual_status_transition.csv"
+  )
+  matched_persistence <- read_output("matched_persistent_inside.csv")
   endpoints <- read_output("endpoint_activity_summary.csv")
+  inventory <- utils::read.csv(
+    config$master_inventory,
+    stringsAsFactors = FALSE, check.names = FALSE
+  )
   completion <- utils::read.csv(
     config$completion_year_results,
     stringsAsFactors = FALSE, check.names = FALSE
@@ -136,25 +148,32 @@ lmv2_d1_report_certify <- function(config = lmv2_d1_config()) {
     file.path(config$results_dir, "completion_year_reporting.csv")
   )
 
-  persistence_long <- rbind(
-    data.frame(
-      horizon = persistence$horizon,
-      measure = "Endpoint focal, no outside-only path",
-      share = persistence$persistent_inside_share_all,
-      stringsAsFactors = FALSE
-    ),
-    data.frame(
-      horizon = persistence$horizon,
-      measure = "Focal evidence in every year",
-      share = persistence$uninterrupted_annual_focal_share,
-      stringsAsFactors = FALSE
-    )
+  arm_label <- c(
+    treated = "Acquired-target retained",
+    control = "Matched-control retained"
   )
+  persistence_long <- rbind(
+    transform(
+      matched_persistence[c(
+        "arm", "horizon", "persistent_inside_share_all"
+      )],
+      measure = "Endpoint focal, no outside-only path",
+      share = persistent_inside_share_all
+    )[c("arm", "horizon", "measure", "share")],
+    transform(
+      matched_persistence[c(
+        "arm", "horizon", "uninterrupted_annual_focal_share"
+      )],
+      measure = "Focal evidence in every year",
+      share = uninterrupted_annual_focal_share
+    )[c("arm", "horizon", "measure", "share")]
+  )
+  persistence_long$arm_label <- unname(arm_label[persistence_long$arm])
   persistence_long$horizon_label <- paste0("+", persistence_long$horizon)
   figure <- ggplot2::ggplot(
     persistence_long,
     ggplot2::aes(
-      x = horizon_label, y = share, fill = measure
+      x = horizon_label, y = share, fill = arm_label
     )
   ) +
     ggplot2::geom_col(
@@ -173,11 +192,12 @@ lmv2_d1_report_certify <- function(config = lmv2_d1_config()) {
     ggplot2::scale_fill_manual(
       values = c("#1B5E77", "#C98B2E")
     ) +
+    ggplot2::facet_wrap(~measure) +
     ggplot2::labs(
       x = "Event-time horizon",
-      y = "Share of initially retained inventors",
+      y = "Weighted share of retained-design rows",
       fill = NULL,
-      title = "Persistence of focal patent affiliation",
+      title = "Persistence of focal patent affiliation by design arm",
       subtitle = paste(
         "Patent-location evidence, not employment;",
         "no-patent gaps are allowed in the endpoint measure"
@@ -265,6 +285,33 @@ lmv2_d1_report_certify <- function(config = lmv2_d1_config()) {
     useBytes = TRUE
   )
 
+  matched_transition_rows <- vapply(
+    seq_len(nrow(matched_transitions)),
+    function(i) {
+      r <- matched_transitions[i, ]
+      paste0(
+        arm_label[[r$arm]], " & +", r$event_time, " & ",
+        state_label[[r$annual_state]], " & ",
+        sprintf("%.1f\\%%", 100 * r$weighted_share), " \\\\"
+      )
+    },
+    character(1)
+  )
+  matched_transition_tex <- c(
+    "\\begin{tabular}{lllr}",
+    "\\toprule",
+    "Design arm & Event time & Annual patent-location state & Weighted share \\\\",
+    "\\midrule",
+    matched_transition_rows,
+    "\\bottomrule",
+    "\\end{tabular}"
+  )
+  writeLines(
+    matched_transition_tex,
+    file.path(config$results_dir, "table_matched_status_paths.tex"),
+    useBytes = TRUE
+  )
+
   get_summary <- function(variable, status) {
     distributions[
       distributions$variable == variable &
@@ -315,11 +362,103 @@ lmv2_d1_report_certify <- function(config = lmv2_d1_config()) {
     value <- transition5$share[transition5$annual_state == state]
     if (length(value)) value[[1L]] else 0
   }
+  persistence_at <- function(arm, horizon, variable) {
+    matched_persistence[
+      matched_persistence$arm == arm &
+        matched_persistence$horizon == horizon,
+      variable
+    ][[1L]]
+  }
   timing_t0 <- timing[timing$estimand == "completion_year_t0", ]
   timing_avg <- timing[
     timing$estimand == "average_annual_t0_to_t5", ]
   timing_cum <- timing[
     timing$estimand == "cumulative_t0_to_t5", ]
+
+  registration_specs <- data.frame(
+    package_estimand = c(
+      "completion_year_t0",
+      "average_annual_t0_to_t5",
+      "cumulative_t0_to_t5",
+      "frozen_cumulative_t1_to_t5"
+    ),
+    inventory_analysis = c(
+      "completion-year ATT (partially exposed calendar year)",
+      "completion-through-plus-five average annual ATT",
+      "completion-through-plus-five cumulative effect",
+      "entropy-balanced ATT"
+    ),
+    expected_status = c(
+      "companion", "companion", "companion", "primary"
+    ),
+    role = c(
+      "completion_year_companion",
+      "completion_year_companion",
+      "completion_year_companion",
+      "primary_full_calendar_year"
+    ),
+    stringsAsFactors = FALSE
+  )
+  registration <- do.call(
+    rbind,
+    lapply(seq_len(nrow(registration_specs)), function(i) {
+      spec <- registration_specs[i, ]
+      hit <- inventory[
+        inventory$population == "full target-inventor cohort" &
+          inventory$outcome == "patent_count" &
+          inventory$sample == "full_1994_2010" &
+          inventory$analysis == spec$inventory_analysis,
+        ,
+        drop = FALSE
+      ]
+      expected_estimate <- if (
+        spec$package_estimand == "frozen_cumulative_t1_to_t5"
+      ) {
+        hit$five_year_effect
+      } else {
+        timing$estimate[timing$estimand == spec$package_estimand]
+      }
+      inventory_estimate <- if (
+        spec$package_estimand == "frozen_cumulative_t1_to_t5"
+      ) {
+        hit$five_year_effect
+      } else {
+        hit$estimate
+      }
+      registered <- nrow(hit) == 1L &&
+        length(expected_estimate) == 1L &&
+        is.finite(expected_estimate) &&
+        abs(inventory_estimate - expected_estimate) < 1e-12 &&
+        hit$status == spec$expected_status &&
+        !is.na(hit$main_text_eligible)
+      data.frame(
+        package_estimand = spec$package_estimand,
+        result_id = if (nrow(hit) == 1L) hit$result_id else NA_character_,
+        estimate = if (length(inventory_estimate) == 1L) {
+          inventory_estimate
+        } else {
+          NA_real_
+        },
+        inventory_status = if (nrow(hit) == 1L) {
+          hit$status
+        } else {
+          NA_character_
+        },
+        main_text_eligible = if (nrow(hit) == 1L) {
+          hit$main_text_eligible
+        } else {
+          NA
+        },
+        role = spec$role,
+        registered = registered,
+        stringsAsFactors = FALSE
+      )
+    })
+  )
+  lmv2_d1_write_csv(
+    registration,
+    file.path(config$results_dir, "reportable_result_registration.csv")
+  )
 
   note <- c(
     "# Package D1 retained-status descriptive results",
@@ -366,12 +505,15 @@ lmv2_d1_report_certify <- function(config = lmv2_d1_config()) {
       " pre-deal patent stock (SMD ",
       lmv2_d1_fmt(
         retained_leaver_stock$standardized_mean_difference
-      ), "). This is modest positive productivity selection into initial",
-      " retention, not a large seniority difference."
+      ), "). This raw retained-leaver difference documents status sorting.",
+      " It does not sign bias in the selected-group ATT; the P5b design",
+      " separately balances pre-deal patent counts between treated and",
+      " control retained rows."
     ),
     paste0(
-      "The frozen management-transition diagnostic is **",
-      management$decision, "**. The no-post-patent career-age SMD is ",
+      "The management-transition interpretation is not supported under the",
+      " frozen effect-size rule (diagnostic: **",
+      management$decision, "**). The no-post-patent career-age SMD is ",
       lmv2_d1_fmt(management$smd_vs_initially_retained),
       " versus initially retained inventors and ",
       lmv2_d1_fmt(management$smd_vs_leaver),
@@ -394,6 +536,22 @@ lmv2_d1_report_certify <- function(config = lmv2_d1_config()) {
           persistence$horizon == 5
         ]
       ), " through +5."
+    ),
+    paste0(
+      "At +3, this is ",
+      sprintf(
+        "%.1f%%",
+        100 * persistence$persistent_inside_share_first_post_observed[
+          persistence$horizon == 3
+        ]
+      ), " among inventors whose first post-deal patent is observed by +3,",
+      " compared with ",
+      sprintf(
+        "%.1f%%",
+        100 * persistence$persistent_inside_share_all[
+          persistence$horizon == 3
+        ]
+      ), " of all initially retained inventors."
     ),
     paste0(
       "The stricter uninterrupted annual-focal shares are ",
@@ -430,6 +588,54 @@ lmv2_d1_report_certify <- function(config = lmv2_d1_config()) {
         "%.1f%%",
         100 * share_at_5("right_censored_not_observable")
       ), " are right-censored."
+    ),
+    paste0(
+      "Focal-only patent affiliation falls from ",
+      sprintf(
+        "%.1f%%",
+        100 * transitions$share[
+          transitions$event_time == 1 &
+            transitions$annual_state == "focal_group_only"
+        ]
+      ), " at +1 to ",
+      sprintf("%.1f%%", 100 * share_at_5("focal_group_only")),
+      " at +5. Initial retention therefore records a first post-deal",
+      " patent-location state, not durable organizational attachment."
+    ),
+    paste0(
+      "In the separately balanced retained design, the endpoint-based",
+      " persistence shares through +3 are ",
+      sprintf(
+        "%.1f%%", 100 * persistence_at(
+          "treated", 3, "persistent_inside_share_all"
+        )
+      ), " for treated rows and ",
+      sprintf(
+        "%.1f%%", 100 * persistence_at(
+          "control", 3, "persistent_inside_share_all"
+        )
+      ), " for matched controls; through +5 they are ",
+      sprintf(
+        "%.1f%%", 100 * persistence_at(
+          "treated", 5, "persistent_inside_share_all"
+        )
+      ), " and ",
+      sprintf(
+        "%.1f%%", 100 * persistence_at(
+          "control", 5, "persistent_inside_share_all"
+        )
+      ), ". The corresponding uninterrupted annual-focal shares through",
+      " +5 are ",
+      sprintf(
+        "%.1f%%", 100 * persistence_at(
+          "treated", 5, "uninterrupted_annual_focal_share"
+        )
+      ), " and ",
+      sprintf(
+        "%.1f%%", 100 * persistence_at(
+          "control", 5, "uninterrupted_annual_focal_share"
+        )
+      ), "."
     ),
     paste0(
       construction$unresolved_patent_location_rows,
@@ -532,9 +738,19 @@ lmv2_d1_report_certify <- function(config = lmv2_d1_config()) {
       config$output_dir, "annual_status_paths.parquet"
     ))
   ))
+  matched_paths <- DBI::dbGetQuery(con, sprintf(
+    "SELECT * FROM read_parquet(%s)",
+    lmv2_d1_sql_string(file.path(
+      config$output_dir, "matched_annual_status_paths.parquet"
+    ))
+  ))
   allowed_states <- all(paths$annual_state %in% config$state_levels)
   share_totals <- aggregate(
     share ~ event_time, data = transitions, sum
+  )
+  matched_share_totals <- aggregate(
+    weighted_share ~ arm + event_time,
+    data = matched_transitions, sum
   )
   completion_pass <- lmv2_d1_all_pass(
     config$completion_year_certification
@@ -554,12 +770,17 @@ lmv2_d1_report_certify <- function(config = lmv2_d1_config()) {
       "annual_state_shares_sum_to_one",
       "unresolved_location_share_is_below_one_tenth_percent",
       "persistent_inside_horizons_are_complete",
+      "matched_persistence_has_both_arms_and_horizons",
+      "matched_annual_paths_are_unique",
+      "matched_annual_state_shares_sum_to_one",
       "endpoint_audit_has_both_arms_and_horizons",
       "control_groups_exist_through_plus_five",
       "plus_six_does_not_change_retained_design_rows",
       "completion_year_certification_passes",
       "completion_year_reporting_grid_is_complete",
       "completion_cumulative_equals_six_times_average",
+      "all_reportable_outputs_registered_in_inventory",
+      "frozen_post_completion_cumulative_is_primary",
       "event_year_does_not_define_retention",
       "career_metrics_stop_at_t_minus_one",
       "patent_location_is_not_labelled_employment",
@@ -581,6 +802,13 @@ lmv2_d1_report_certify <- function(config = lmv2_d1_config()) {
       all(abs(share_totals$share - 1) < 1e-12),
       unresolved_share < 0.001,
       identical(sort(persistence$horizon), c(3L, 5L)),
+      setequal(matched_persistence$arm, c("treated", "control")) &&
+        setequal(matched_persistence$horizon, c(3L, 5L)) &&
+        nrow(matched_persistence) == 4L,
+      nrow(matched_paths) == nrow(unique(matched_paths[
+        c("arm", "deal_id", "codinv", "event_time")
+      ])),
+      all(abs(matched_share_totals$weighted_share - 1) < 1e-12),
       setequal(endpoints$arm, c("treated", "control")) &&
         setequal(endpoints$event_time, c(5L, 6L)),
       endpoints$weighted_exists_through_horizon_share[
@@ -597,6 +825,20 @@ lmv2_d1_report_certify <- function(config = lmv2_d1_config()) {
       abs(
         timing_cum$estimate - 6 * timing_avg$estimate
       ) < 1e-10,
+      all(registration$registered) &&
+        !anyNA(registration$result_id) &&
+        !anyDuplicated(registration$result_id) &&
+        all(!is.na(registration$inventory_status)) &&
+        all(!is.na(registration$main_text_eligible)),
+      registration$inventory_status[
+        registration$package_estimand == "frozen_cumulative_t1_to_t5"
+      ] == "primary" &&
+        registration$role[
+          registration$package_estimand == "frozen_cumulative_t1_to_t5"
+        ] == "primary_full_calendar_year" &&
+        registration$inventory_status[
+          registration$package_estimand == "cumulative_t0_to_t5"
+        ] == "companion",
       construction$event_year_status_violations == 0L,
       construction$career_age_lookahead_rows == 0L &&
         construction$patent_stock_lookahead_rows == 0L,
@@ -645,6 +887,7 @@ lmv2_d1_report_certify <- function(config = lmv2_d1_config()) {
     config$completion_year_results,
     config$completion_year_dynamic,
     config$completion_year_certification,
+    config$master_inventory,
     config$freeze_file,
     config$source_files
   )

@@ -50,7 +50,10 @@ lmv2_d1_build_status_paths <- function(config = lmv2_d1_config()) {
     "persistent_inside.csv",
     "endpoint_activity_rows.parquet",
     "endpoint_activity_summary.csv",
-    "status_path_construction_audit.csv"
+    "status_path_construction_audit.csv",
+    "matched_annual_status_paths.parquet",
+    "matched_annual_status_transition.csv",
+    "matched_persistent_inside.csv"
   )
   output_paths <- file.path(config$output_dir, output_names)
   unlink(output_paths[file.exists(output_paths)], force = TRUE)
@@ -459,6 +462,242 @@ lmv2_d1_build_status_paths <- function(config = lmv2_d1_config()) {
   lmv2_d1_sql_string(config$primary_retained_support)))
 
   DBI::dbExecute(con, sprintf("
+    CREATE TEMP TABLE d1_matched_endpoints AS
+    SELECT
+      CAST(iy.codinv AS BIGINT) AS codinv,
+      MAX(CAST(iy.year AS INTEGER)) FILTER (
+        WHERE iy.patent_count > 0
+          AND iy.year <= %d
+      ) AS global_last_patent_year
+    FROM inventor_year iy
+    JOIN (
+      SELECT DISTINCT codinv FROM d1_retained_design
+    ) d
+      ON d.codinv = CAST(iy.codinv AS BIGINT)
+    GROUP BY 1
+  ", config$observation_end_year))
+
+  DBI::dbExecute(con, "
+    CREATE TEMP TABLE d1_matched_first_post AS
+    SELECT
+      d.cohort,
+      d.deal_id,
+      d.codinv,
+      d.arm,
+      MIN(p.year) FILTER (WHERE p.year > d.cohort)
+        AS first_post_year
+    FROM d1_retained_design d
+    LEFT JOIN d1_patents p
+      ON p.codinv = d.codinv
+    GROUP BY 1, 2, 3, 4
+  ")
+
+  DBI::dbExecute(con, "
+    CREATE TEMP TABLE d1_matched_event_grid AS
+    SELECT
+      d.*,
+      r.event_time,
+      d.cohort + r.event_time AS calendar_year,
+      fp.first_post_year - d.cohort AS first_post_event_time,
+      e.global_last_patent_year
+    FROM d1_retained_design d
+    JOIN d1_matched_endpoints e USING (codinv)
+    JOIN d1_matched_first_post fp
+      ON fp.cohort = d.cohort
+     AND fp.deal_id = d.deal_id
+     AND fp.codinv = d.codinv
+     AND fp.arm = d.arm
+    CROSS JOIN range(1, 6) r(event_time)
+  ")
+
+  DBI::dbExecute(con, "
+    CREATE TEMP TABLE d1_matched_location_evidence AS
+    SELECT
+      g.arm,
+      g.deal_id,
+      g.codinv,
+      g.event_time,
+      COUNT(DISTINCT p.appln_id) AS patent_count,
+      COALESCE(MAX(CASE
+        WHEN (
+          g.arm = 'treated'
+          AND (
+            CAST(pcl.id_group AS BIGINT) IN (
+              g.focal_group_1, g.focal_group_2
+            )
+            OR dtc.target_compcod IS NOT NULL
+          )
+        ) OR (
+          g.arm = 'control'
+          AND CAST(pcl.id_group AS BIGINT) = g.control_group
+        )
+        THEN 1 ELSE 0
+      END), 0) AS focal_evidence,
+      COALESCE(MAX(CASE
+        WHEN pcl.id_group IS NOT NULL
+          AND (
+            (
+              g.arm = 'treated'
+              AND CAST(pcl.id_group AS BIGINT) NOT IN (
+                g.focal_group_1, g.focal_group_2
+              )
+              AND dtc.target_compcod IS NULL
+            )
+            OR (
+              g.arm = 'control'
+              AND CAST(pcl.id_group AS BIGINT) <> g.control_group
+            )
+          )
+        THEN 1 ELSE 0
+      END), 0) AS outside_evidence
+    FROM d1_matched_event_grid g
+    LEFT JOIN d1_patents p
+      ON p.codinv = g.codinv
+     AND p.year = g.calendar_year
+    LEFT JOIN patent_company_link pcl
+      ON CAST(pcl.appln_id AS BIGINT) = p.appln_id
+    LEFT JOIN deal_target_company_strict dtc
+      ON g.arm = 'treated'
+     AND CAST(dtc.deal_id AS BIGINT) = g.deal_id
+     AND CAST(dtc.target_compcod AS BIGINT) =
+       CAST(pcl.compcod AS BIGINT)
+    GROUP BY 1, 2, 3, 4
+  ")
+
+  DBI::dbExecute(con, sprintf("
+    CREATE TEMP TABLE d1_matched_status_paths AS
+    SELECT
+      g.*,
+      l.patent_count,
+      (l.focal_evidence = 1) AS focal_evidence,
+      (l.outside_evidence = 1) AS outside_evidence,
+      (
+        l.patent_count > 0
+        AND l.focal_evidence = 0
+        AND l.outside_evidence = 0
+      ) AS unresolved_patent_location,
+      CASE
+        WHEN g.calendar_year > %d
+          THEN 'right_censored_not_observable'
+        WHEN l.patent_count > 0
+          AND l.focal_evidence = 1
+          AND l.outside_evidence = 1
+          THEN 'both_focal_and_outside'
+        WHEN l.patent_count > 0
+          AND l.focal_evidence = 1
+          THEN 'focal_group_only'
+        WHEN l.patent_count > 0
+          THEN 'outside_group_only'
+        WHEN g.global_last_patent_year > g.calendar_year
+          THEN 'no_patent_later_patent_exists'
+        WHEN g.calendar_year >= %d
+          THEN 'right_censored_not_observable'
+        ELSE 'end_of_observed_patenting'
+      END AS annual_state
+    FROM d1_matched_event_grid g
+    JOIN d1_matched_location_evidence l
+      ON l.arm = g.arm
+     AND l.deal_id = g.deal_id
+     AND l.codinv = g.codinv
+     AND l.event_time = g.event_time
+  ", config$observation_end_year, config$observation_end_year))
+
+  DBI::dbExecute(con, "
+    CREATE TEMP TABLE d1_matched_transition_summary AS
+    SELECT
+      arm,
+      event_time,
+      annual_state,
+      COUNT(*) AS design_rows,
+      COUNT(DISTINCT codinv) AS inventors,
+      SUM(final_weight) AS total_weight,
+      COUNT(*) * 1.0 / SUM(COUNT(*)) OVER (
+        PARTITION BY arm, event_time
+      ) AS unweighted_share,
+      SUM(final_weight) / SUM(SUM(final_weight)) OVER (
+        PARTITION BY arm, event_time
+      ) AS weighted_share
+    FROM d1_matched_status_paths
+    GROUP BY 1, 2, 3
+    ORDER BY 1, 2, 3
+  ")
+
+  DBI::dbExecute(con, "
+    CREATE TEMP TABLE d1_matched_persistence AS
+    WITH horizons AS (
+      SELECT * FROM (VALUES (3), (5)) AS h(horizon)
+    ),
+    inventor_horizon AS (
+      SELECT
+        p.arm,
+        p.deal_id,
+        p.codinv,
+        p.final_weight,
+        h.horizon,
+        MIN(p.first_post_event_time) AS first_post_event_time,
+        MAX(CASE
+          WHEN p.event_time = h.horizon
+            AND p.annual_state IN (
+              'focal_group_only', 'both_focal_and_outside'
+            )
+          THEN 1 ELSE 0
+        END) AS focal_evidence_at_horizon,
+        MAX(CASE
+          WHEN p.event_time BETWEEN p.first_post_event_time AND h.horizon
+            AND p.annual_state = 'outside_group_only'
+          THEN 1 ELSE 0
+        END) AS any_outside_only_through_horizon,
+        MIN(CASE
+          WHEN p.event_time <= h.horizon
+            AND p.annual_state IN (
+              'focal_group_only', 'both_focal_and_outside'
+            )
+          THEN 1 ELSE 0
+        END) AS focal_evidence_every_year
+      FROM d1_matched_status_paths p
+      CROSS JOIN horizons h
+      WHERE p.event_time <= h.horizon
+      GROUP BY 1, 2, 3, 4, 5
+    ),
+    classified AS (
+      SELECT
+        *,
+        (
+          first_post_event_time <= horizon
+          AND focal_evidence_at_horizon = 1
+          AND any_outside_only_through_horizon = 0
+        ) AS persistent_inside,
+        (focal_evidence_every_year = 1) AS uninterrupted_annual_focal
+      FROM inventor_horizon
+    )
+    SELECT
+      arm,
+      horizon,
+      COUNT(*) AS design_rows,
+      SUM(final_weight) AS total_weight,
+      SUM((first_post_event_time <= horizon)::INTEGER)
+        AS first_post_observed_by_horizon,
+      SUM(
+        final_weight * (first_post_event_time <= horizon)::INTEGER
+      ) AS first_post_observed_weight,
+      SUM(persistent_inside::INTEGER) AS persistent_inside_rows,
+      SUM(final_weight * persistent_inside::INTEGER) /
+        SUM(final_weight) AS persistent_inside_share_all,
+      SUM(final_weight * persistent_inside::INTEGER) FILTER (
+        WHERE first_post_event_time <= horizon
+      ) / SUM(final_weight) FILTER (
+        WHERE first_post_event_time <= horizon
+      ) AS persistent_inside_share_first_post_observed,
+      SUM(uninterrupted_annual_focal::INTEGER)
+        AS uninterrupted_annual_focal_rows,
+      SUM(final_weight * uninterrupted_annual_focal::INTEGER) /
+        SUM(final_weight) AS uninterrupted_annual_focal_share
+    FROM classified
+    GROUP BY 1, 2
+    ORDER BY 1, 2
+  ")
+
+  DBI::dbExecute(con, sprintf("
     CREATE TEMP TABLE d1_endpoint_activity AS
     WITH horizons AS (
       SELECT * FROM (VALUES (5), (6)) AS h(event_time)
@@ -588,9 +827,26 @@ lmv2_d1_build_status_paths <- function(config = lmv2_d1_config()) {
       (SELECT COUNT(*) FROM d1_retained_design)
         AS retained_design_rows,
       (SELECT COUNT(*) FROM d1_retained_design
-       WHERE arm = 'treated') AS retained_design_treated_rows
+       WHERE arm = 'treated') AS retained_design_treated_rows,
+      (SELECT COUNT(*) FROM d1_matched_status_paths)
+        AS matched_path_rows,
+      (SELECT COUNT(*) FROM (
+         SELECT arm, deal_id, codinv, event_time
+         FROM d1_matched_status_paths
+         GROUP BY 1, 2, 3, 4
+         HAVING COUNT(*) > 1
+       )) AS matched_duplicate_path_rows,
+      (SELECT MAX(ABS(total_share - 1)) FROM (
+        SELECT arm, event_time, SUM(weighted_share) AS total_share
+        FROM d1_matched_transition_summary
+        GROUP BY 1, 2
+      )) AS matched_maximum_weighted_share_error,
+      (SELECT COUNT(DISTINCT arm)
+       FROM d1_matched_status_paths) AS matched_path_arms
   "))
   audit$expected_path_rows <- audit$path_inventors *
+    length(config$post_window)
+  audit$expected_matched_path_rows <- audit$retained_design_rows *
     length(config$post_window)
   audit$pass <- with(
     audit,
@@ -604,7 +860,11 @@ lmv2_d1_build_status_paths <- function(config = lmv2_d1_config()) {
       invalid_state_shares == 0L &
       maximum_state_share_error < 1e-12 &
       plus_six_unobservable_value_rows == 0L &
-      retained_design_treated_rows > 0L
+      retained_design_treated_rows > 0L &
+      matched_path_rows == expected_matched_path_rows &
+      matched_duplicate_path_rows == 0L &
+      matched_maximum_weighted_share_error < 1e-12 &
+      matched_path_arms == 2L
   )
   if (!isTRUE(audit$pass[[1L]])) {
     stop("D1 status-path construction audit failed.", call. = FALSE)
@@ -656,6 +916,18 @@ lmv2_d1_build_status_paths <- function(config = lmv2_d1_config()) {
     "arm, event_time"
   )
   lmv2_d1_write_csv(audit, output_paths[[8L]])
+  copy_parquet(
+    "d1_matched_status_paths", output_paths[[9L]],
+    "arm, event_time, deal_id, codinv"
+  )
+  copy_csv(
+    "d1_matched_transition_summary", output_paths[[10L]],
+    "arm, event_time, annual_state"
+  )
+  copy_csv(
+    "d1_matched_persistence", output_paths[[11L]],
+    "arm, horizon"
+  )
 
   invisible(list(output_paths = output_paths, audit = audit))
 }

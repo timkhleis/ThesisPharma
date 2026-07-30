@@ -8,14 +8,17 @@ The certified primary partition contains 28,483 inventors: 3,090 initially retai
 
 Median career age at t=-1 is 3.0 years for initially retained, 3.0 for leavers, and 2.0 for the no-post-patent group.
 Median five-year pre-deal patent stock is 2.0, 2.0, and 1.0, respectively.
-Initially retained inventors and leavers have effectively identical career age (SMD -0.008), while initially retained inventors have a modestly higher pre-deal patent stock (SMD 0.180). This is modest positive productivity selection into initial retention, not a large seniority difference.
-The frozen management-transition diagnostic is **not_supported_by_frozen_effect_size_rule**. The no-post-patent career-age SMD is -0.372 versus initially retained inventors and -0.394 versus leavers.
+Initially retained inventors and leavers have effectively identical career age (SMD -0.008), while initially retained inventors have a modestly higher pre-deal patent stock (SMD 0.180). This raw retained-leaver difference documents status sorting. It does not sign bias in the selected-group ATT; the P5b design separately balances pre-deal patent counts between treated and control retained rows.
+The management-transition interpretation is not supported under the frozen effect-size rule (diagnostic: **not_supported_by_frozen_effect_size_rule**). The no-post-patent career-age SMD is -0.372 versus initially retained inventors and -0.394 versus leavers.
 
 ## Patent-location paths
 
 The endpoint-based persistent-inside share is 32.7% through +3 and 20.9% through +5.
+At +3, this is 36.6% among inventors whose first post-deal patent is observed by +3, compared with 32.7% of all initially retained inventors.
 The stricter uninterrupted annual-focal shares are 10.0% and 3.1%.
 At +5, 19.1% are focal-only, 2.3% have both focal and outside evidence, 3.8% have outside/no-focal evidence, 17.5% have no patent that year but patent later, and 53.5% have reached the end of observed patenting; 3.9% are right-censored.
+Focal-only patent affiliation falls from 51.3% at +1 to 19.1% at +5. Initial retention therefore records a first post-deal patent-location state, not durable organizational attachment.
+In the separately balanced retained design, the endpoint-based persistence shares through +3 are 31.4% for treated rows and 36.4% for matched controls; through +5 they are 20.2% and 24.2%. The corresponding uninterrupted annual-focal shares through +5 are 2.6% and 4.7%.
 1 inventor-year(s), or 0.006% of the annual grid, contain patents without resolvable company/group evidence. These are flagged and never interpreted as confirmed outside employment.
 
 ## Endpoint activity

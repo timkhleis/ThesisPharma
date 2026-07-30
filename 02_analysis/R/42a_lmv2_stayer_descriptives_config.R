@@ -78,6 +78,10 @@ lmv2_d1_config <- function(base = getwd()) {
       audit_root, "P6_COMPLETION_YEAR_SENSITIVITY",
       "completion_year_certification.csv"
     ),
+    master_inventory = file.path(
+      results_root, "CURRENT_LOCAL_MATCH_V2", "results_inventory",
+      "master_results_inventory.csv"
+    ),
     status_groups = c(
       "initially_retained", "leaver", "no_post_patent"
     ),
