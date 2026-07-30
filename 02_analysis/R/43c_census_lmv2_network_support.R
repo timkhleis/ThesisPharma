@@ -520,31 +520,44 @@ lmv2_n0_census_support <- function(config = lmv2_n0_config()) {
     "network outcome.",
     "",
     paste0(
-      "The -5 through -3 persistent-tie anchor retains ",
+      "The governing limitation is population coverage. The -5 through -3",
+      " persistent-tie anchor covers only ",
+      sprintf("%.1f%%", 100 * treated$weighted_network_coverage),
+      " of the weighted treated cohort. Even a precisely estimated network",
+      " effect would therefore describe a narrow, network-active",
+      " subpopulation and could not corroborate the full-cohort headline."
+    ),
+    paste0(
+      "The planned conditional-composition outcome is defined for only ",
+      format(treated_minus2$composition_defined_rows, big.mark = ","),
+      " treated rows at -2 and ",
+      format(treated_minus1$composition_defined_rows, big.mark = ","),
+      " at -1, below the frozen minimum of ",
+      format(gates$minimum_treated_composition_rows, big.mark = ","),
+      " at each lead. This support is insufficient for the planned",
+      " five-percentage-point equivalence assessment."
+    ),
+    paste0(
+      "The anchor retains ",
       format(treated$network_unique_inventors, big.mark = ","),
       " treated focal inventors across ",
       format(treated$network_nominal_deals, big.mark = ","),
-      " deals. The effective treated-deal count is ",
+      " deals, below the frozen ",
+      format(gates$minimum_treated_inventors, big.mark = ","),
+      "-inventor threshold. The effective treated-deal count is ",
       sprintf("%.1f", treated$effective_deals),
       ", and the largest deal carries ",
       sprintf("%.1f%%", 100 * treated$maximum_deal_weight_share),
       " of treated network weight."
     ),
     paste0(
-      "Weighted treated-row coverage is ",
-      sprintf("%.1f%%", 100 * treated$weighted_network_coverage),
-      ". The mean persistent baseline-collaborator count is ",
+      "The mean persistent baseline-collaborator count is ",
       sprintf("%.2f", treated$mean_baseline_collaborators), "."
     ),
     "",
     paste0(
       "The partner-behavior denominator is defined for every treated",
-      " network row at -2 and -1. The conditional composition denominator",
-      " is defined for ",
-      format(treated_minus2$composition_defined_rows, big.mark = ","),
-      " treated rows at -2 and ",
-      format(treated_minus1$composition_defined_rows, big.mark = ","),
-      " at -1."
+      " network row at -2 and -1."
     ),
     "",
     paste0(

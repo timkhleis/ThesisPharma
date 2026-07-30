@@ -19,6 +19,7 @@ The stricter uninterrupted annual-focal shares are 10.0% and 3.1%.
 At +5, 19.1% are focal-only, 2.3% have both focal and outside evidence, 3.8% have outside/no-focal evidence, 17.5% have no patent that year but patent later, and 53.5% have reached the end of observed patenting; 3.9% are right-censored.
 Focal-only patent affiliation falls from 51.3% at +1 to 19.1% at +5. Initial retention therefore records a first post-deal patent-location state, not durable organizational attachment.
 In the separately balanced retained design, the endpoint-based persistence shares through +3 are 31.4% for treated rows and 36.4% for matched controls; through +5 they are 20.2% and 24.2%. The corresponding uninterrupted annual-focal shares through +5 are 2.6% and 4.7%.
+This treated-control comparison is descriptive and partly mechanical: matched controls are drawn from groups required to remain patent-active through +5, while treated focal groups have no symmetric existence requirement. Higher control persistence therefore cannot be read as a causal acquisition effect.
 1 inventor-year(s), or 0.006% of the annual grid, contain patents without resolvable company/group evidence. These are flagged and never interpreted as confirmed outside employment.
 
 ## Endpoint activity

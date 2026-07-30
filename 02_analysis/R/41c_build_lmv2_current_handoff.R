@@ -81,6 +81,16 @@ lmv2_handoff_file_map <- function(root, release_out) {
       "N0_network_census"
     ),
     add_tree(
+      file.path(audit, "N4_TEAM_RECOMPOSITION"),
+      file.path("04_Results", "N4_team_recomposition", "audit"),
+      "N4_team_recomposition"
+    ),
+    add_tree(
+      file.path(results, "N4_TEAM_RECOMPOSITION"),
+      file.path("04_Results", "N4_team_recomposition", "results"),
+      "N4_team_recomposition"
+    ),
+    add_tree(
       file.path(audit, "P8_EXIT_DECOMPOSITION"),
       file.path("04_Results", "P8_exit_decomposition"),
       "P8_decomposition"
@@ -108,6 +118,9 @@ lmv2_handoff_file_map <- function(root, release_out) {
       "local_match_v2_stayer_descriptive_results.md",
       "local_match_v2_network_preanalysis_freeze.md",
       "local_match_v2_network_census_results.md",
+      "local_match_v2_n4_team_recomposition_freeze.md",
+      "local_match_v2_n4_team_recomposition_results.md",
+      "local_match_v2_stayer_section_bullet_structure.md",
       "local_match_v2_current_release_implementation.md"
     )
   )

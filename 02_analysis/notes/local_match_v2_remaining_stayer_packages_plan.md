@@ -439,10 +439,14 @@ available in the multiplicity appendix.
 1. C1 documentation and inventory synchronization.
 2. C2 reproducible root runner and frozen handoff.
 3. D1 descriptive retained-status completion.
-4. N0 network freeze and census: completed, Path Q.
+4. N0 network freeze and census: completed, Path Q. Its governing reason is
+   8.2% weighted treated-cohort coverage, followed by only 745 and 557
+   composition rows against the frozen 1,000-row requirement, and then 2,230
+   treated focal inventors against the frozen 3,000.
 5. N1--N3: not released under Path Q.
-6. Decide whether to add the optional descriptive N4 appendix.
-7. W1 final thesis integration.
+6. Optional descriptive N4 appendix: completed and certified.
+7. W1 is a bullet-point writing structure only; the author will draft the
+   thesis prose.
 
 Packages C1, C2, and D1 are thesis-completion work. Packages N0 and N1 are
 disciplined feasibility work. N2 is a contribution upgrade conditional on

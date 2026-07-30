@@ -98,6 +98,10 @@ lmv2_verify_release <- function(hash_database = FALSE) {
       exists & hash_status == "computed" & nzchar(sha256)
     )
   }
+  stale_nested_inventory <- file.path(
+    root, "02_analysis", "output", "results", "local_match_v2",
+    "CURRENT_LOCAL_MATCH_V2", "04_Results", "results_inventory"
+  )
 
   checks <- data.frame(
     check = c(
@@ -111,6 +115,7 @@ lmv2_verify_release <- function(hash_database = FALSE) {
       "release_sources_have_no_private_worktree_paths",
       "legacy_pipeline_rejects_lmv2_aliases",
       "authoritative_inventory_is_unique",
+      "stale_nested_current_inventory_is_absent",
       "C1_gap_type_field_is_present"
     ),
     pass = c(
@@ -130,6 +135,7 @@ lmv2_verify_release <- function(hash_database = FALSE) {
       sum(
         inventory$input_manifest$role == "master_inventory"
       ) == 1L,
+      !dir.exists(stale_nested_inventory),
       {
         master <- utils::read.csv(
           unname(lmv2_release_immutable_inputs(root)[["master_inventory"]]),
@@ -161,6 +167,13 @@ lmv2_verify_release <- function(hash_database = FALSE) {
       paste(basename(source_paths[private_hits]), collapse = ";"),
       as.character(old_runner_guard),
       "1",
+      if (dir.exists(stale_nested_inventory)) {
+        normalizePath(
+          stale_nested_inventory, winslash = "/", mustWork = TRUE
+        )
+      } else {
+        "absent"
+      },
       "present"
     ),
     stringsAsFactors = FALSE

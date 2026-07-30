@@ -637,6 +637,13 @@ lmv2_d1_report_certify <- function(config = lmv2_d1_config()) {
         )
       ), "."
     ),
+    paste(
+      "This treated-control comparison is descriptive and partly",
+      "mechanical: matched controls are drawn from groups required to remain",
+      "patent-active through +5, while treated focal groups have no symmetric",
+      "existence requirement. Higher control persistence therefore cannot be",
+      "read as a causal acquisition effect."
+    ),
     paste0(
       construction$unresolved_patent_location_rows,
       " inventor-year(s), or ",
@@ -784,6 +791,7 @@ lmv2_d1_report_certify <- function(config = lmv2_d1_config()) {
       "event_year_does_not_define_retention",
       "career_metrics_stop_at_t_minus_one",
       "patent_location_is_not_labelled_employment",
+      "control_persistence_asymmetry_is_disclosed",
       "figure_exists_and_is_nonempty",
       "all_declared_sources_exist"
     ),
@@ -846,6 +854,17 @@ lmv2_d1_report_certify <- function(config = lmv2_d1_config()) {
         "patent affiliation, not employment",
         note_text, fixed = TRUE
       ),
+      grepl(
+        paste(
+          "controls are drawn from groups required to remain",
+          "patent-active through +5"
+        ),
+        note_text, fixed = TRUE
+      ) &&
+        grepl(
+          "Higher control persistence therefore cannot be read as a causal",
+          note_text, fixed = TRUE
+        ),
       file.exists(figure_path) && file.info(figure_path)$size > 10000,
       all(file.exists(config$source_files))
     ),

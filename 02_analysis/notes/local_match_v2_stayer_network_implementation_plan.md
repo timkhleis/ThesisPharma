@@ -1,6 +1,6 @@
 # Local Match v2: stayer and knowledge-network implementation plan
 
-Status: C1, C2, D1, and N0 completed and certified; N0 selects Path Q
+Status: C1, C2, D1, N0, and exploratory N4 completed and certified; N0 selects Path Q
 Date: 2026-07-29
 
 This document converts the remaining stayer and knowledge-network work into
@@ -360,12 +360,16 @@ initial patent-based retention persists.
 ### Implementation status
 
 Completed and certified on 2026-07-30. All 20 construction and process checks
-pass, but the frozen support gate selects Path Q. The -5 through -3 anchor
-retains 2,230 treated focal inventors across 173 nominal and 33.3 effective
-deals. It misses the 3,000-inventor threshold. Conditional composition is
-defined for 745 treated rows at -2 and 557 at -1, below the frozen 1,000-row
-minimum; control concentration also exceeds the symmetric frozen limits.
-N1 and post-treatment network estimation remain closed.
+pass, but the frozen support gate selects Path Q. The decisive limitation is
+that the -5 through -3 anchor covers only 8.2% of the weighted treated cohort:
+even a precise estimate would describe a narrow network-active subpopulation,
+not corroborate the full-cohort headline. Conditional composition is defined
+for 745 treated rows at -2 and 557 at -1, below the frozen 1,000-row minimum
+needed for the planned five-percentage-point equivalence assessment. Third,
+the anchor retains 2,230 treated focal inventors, below the frozen 3,000, even
+though its 173 nominal and 33.3 effective treated deals pass their gates.
+Control concentration also exceeds the symmetric frozen limits. N1 and
+post-treatment causal network estimation remain closed.
 
 ### Objective
 
@@ -669,6 +673,13 @@ after seeing an MDE or effect.
 Describe with whom initially retained inventors collaborate after acquisition.
 This is a mechanism-oriented descriptive package, not a causal design.
 
+### Implementation status
+
+Completed and certified on 2026-07-30. The package preserves the N0 Path Q
+closure, uses all 2,663 matched initially retained inventors for the
+composition census, and reports the strict persistent tie beside a clearly
+labelled exploratory one-patent tie. All 20 certification checks pass.
+
 ### Proposed files
 
 - `02_analysis/R/47_run_lmv2_team_recomposition.R`
@@ -698,23 +709,25 @@ This is a mechanism-oriented descriptive package, not a causal design.
 
 ### Exit gate
 
-N4 is complete when the categories reconcile and every table is labelled
-descriptive. It may be skipped without weakening the core thesis.
+N4 is complete: the categories reconcile, every output is labelled
+exploratory and descriptive, and no control comparison or outcome association
+is estimated.
 
-## 12. Package W1: thesis integration
+## 12. Package W1: thesis writing structure
 
 ### Objective
 
-Build the final retained-inventor and knowledge-network section from certified
-assets only.
+Provide the author with a bullet-point structure for the retained-inventor
+and knowledge-network section using certified assets only. The author will
+write the thesis prose.
 
-### Proposed file
+### Implementation status
 
-- `02_analysis/R/48_build_lmv2_stayer_network_thesis_assets.R`
+Completed after N4 certification. The deliverable is:
 
-The package will edit the authoritative thesis `.tex` file recorded and
-certified during C1. W1 must fail rather than search for or guess a manuscript
-path.
+- `02_analysis/notes/local_match_v2_stayer_section_bullet_structure.md`
+
+W1 does not edit the authoritative thesis manuscript.
 
 ### Main-text order
 
@@ -730,8 +743,9 @@ path.
 5. Full-window sign-stability limitation and buffered companion.
 6. Retained quantity, PQII, TechDrift, and P8 anatomy.
 7. Career-age, management-transition, and persistence diagnostics.
-8. Full-cohort network result if N2 passes.
-9. Retained or treated-only network evidence only as secondary evidence.
+8. Strict full-cohort network support result and Path Q boundary.
+9. Exploratory N4 retained-inventor team recomposition as descriptive
+   evidence.
 
 The t=0 coefficient belongs in the main event-study narrative as a
 merger-completion-year effect. Keep the +1 to +5 average as the comparable
@@ -744,11 +758,10 @@ the data are annual.
 - retained-population definition and selection: 1.0--1.5 pages;
 - retained quantity, quality, TechDrift, and decomposition: 2.0--2.5 pages;
 - persistence and career-age diagnostics: 0.75--1.0 page;
-- full-cohort network evidence, if released: 2.0--2.5 pages;
+- network support and team recomposition: 1.5--2.0 pages;
 - limitations and interpretation: 0.5 page.
 
-Expected total: approximately 4.5 pages without a released network result and
-6.5--8 pages with a released network result, excluding appendix material.
+Expected total: approximately 6.0--7.5 pages, excluding appendix material.
 
 ### Required checks
 
@@ -757,18 +770,19 @@ Expected total: approximately 4.5 pages without a released network result and
 - selection and sign-stability limitations appear adjacent to the retained
   estimate;
 - old decomposition values do not appear;
-- the detailed team/Holm result is absent from the main text;
+- the detailed Holm-adjusted heterogeneity result is absent from the main
+  text;
+- N4 is explicitly treated-only, exploratory, and descriptive;
 - causal language is reserved for the supported full-cohort design;
 - the five-year scope condition is explicit;
-- all tables and figures compile and render cleanly.
+- strict and weak tie definitions remain distinct.
 
 ### Outputs
 
-- final section text;
-- thesis-ready tables and figures;
-- appendix tables;
-- generated-values file;
-- asset manifest and compilation certification.
+- bullet-point section structure;
+- exhibit order and page allocation;
+- appendix-routing decisions;
+- exact certified values to be used by the author.
 
 ## 13. Package review protocol
 

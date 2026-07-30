@@ -66,6 +66,42 @@ This is the human-readable index of the certified thesis results. The CSV in `CU
 | appendix | appendix | untreated-firm pseudo events | reference_left_tail_probability: share of placebo ATTs at or below frozen P5c ATT | 0.0210 |  |  |
 | appendix | appendix | untreated-firm pseudo events | rejection_share_5pct: 2,000-draw calibrated rejection share | 0.0555 |  |  |
 | failed_gate | appendix | DealSim-eligible deals | DealSim inverted-U: prospective power gate | 7.6156 |  |  |
+| descriptive | appendix | initially retained inventors | legacy_acquirer: pooled focal-normalized collaborator share | 0.0340 |  |  |
+| descriptive | appendix | initially retained inventors | legacy_acquirer: focal-normalized collaborator share at t=1 | 0.0339 |  |  |
+| descriptive | appendix | initially retained inventors | legacy_acquirer: focal-normalized collaborator share at t=2 | 0.0326 |  |  |
+| descriptive | appendix | initially retained inventors | legacy_acquirer: focal-normalized collaborator share at t=3 | 0.0359 |  |  |
+| descriptive | appendix | initially retained inventors | legacy_acquirer: focal-normalized collaborator share at t=4 | 0.0322 |  |  |
+| descriptive | appendix | initially retained inventors | legacy_acquirer: focal-normalized collaborator share at t=5 | 0.0363 |  |  |
+| descriptive | appendix | initially retained inventors | legacy_target: pooled focal-normalized collaborator share | 0.3458 |  |  |
+| descriptive | appendix | initially retained inventors | legacy_target: focal-normalized collaborator share at t=1 | 0.4953 |  |  |
+| descriptive | appendix | initially retained inventors | legacy_target: focal-normalized collaborator share at t=2 | 0.3777 |  |  |
+| descriptive | appendix | initially retained inventors | legacy_target: focal-normalized collaborator share at t=3 | 0.2581 |  |  |
+| descriptive | appendix | initially retained inventors | legacy_target: focal-normalized collaborator share at t=4 | 0.2494 |  |  |
+| descriptive | appendix | initially retained inventors | legacy_target: focal-normalized collaborator share at t=5 | 0.1968 |  |  |
+| descriptive | appendix | initially retained inventors | new_to_both: pooled focal-normalized collaborator share | 0.5127 |  |  |
+| descriptive | appendix | initially retained inventors | new_to_both: focal-normalized collaborator share at t=1 | 0.4384 |  |  |
+| descriptive | appendix | initially retained inventors | new_to_both: focal-normalized collaborator share at t=2 | 0.4957 |  |  |
+| descriptive | appendix | initially retained inventors | new_to_both: focal-normalized collaborator share at t=3 | 0.5544 |  |  |
+| descriptive | appendix | initially retained inventors | new_to_both: focal-normalized collaborator share at t=4 | 0.5875 |  |  |
+| descriptive | appendix | initially retained inventors | new_to_both: focal-normalized collaborator share at t=5 | 0.5561 |  |  |
+| descriptive | appendix | initially retained inventors | outside_group: pooled focal-normalized collaborator share | 0.1075 |  |  |
+| descriptive | appendix | initially retained inventors | outside_group: focal-normalized collaborator share at t=1 | 0.0324 |  |  |
+| descriptive | appendix | initially retained inventors | outside_group: focal-normalized collaborator share at t=2 | 0.0940 |  |  |
+| descriptive | appendix | initially retained inventors | outside_group: focal-normalized collaborator share at t=3 | 0.1516 |  |  |
+| descriptive | appendix | initially retained inventors | outside_group: focal-normalized collaborator share at t=4 | 0.1309 |  |  |
+| descriptive | appendix | initially retained inventors | outside_group: focal-normalized collaborator share at t=5 | 0.2108 |  |  |
+| descriptive | appendix | initially retained inventors | strict_persistent: baseline-tie focal-inventor coverage | 0.1960 |  |  |
+| descriptive | appendix | initially retained inventors | strict_persistent: baseline-tie recurrence through +1 | 0.1916 |  |  |
+| descriptive | appendix | initially retained inventors | strict_persistent: baseline-tie recurrence through +2 | 0.2627 |  |  |
+| descriptive | appendix | initially retained inventors | strict_persistent: baseline-tie recurrence through +3 | 0.2892 |  |  |
+| descriptive | appendix | initially retained inventors | strict_persistent: baseline-tie recurrence through +4 | 0.3086 |  |  |
+| descriptive | appendix | initially retained inventors | strict_persistent: baseline-tie recurrence through +5 | 0.3102 |  |  |
+| descriptive | appendix | initially retained inventors | weak_one_patent: baseline-tie focal-inventor coverage | 0.5847 |  |  |
+| descriptive | appendix | initially retained inventors | weak_one_patent: baseline-tie recurrence through +1 | 0.0987 |  |  |
+| descriptive | appendix | initially retained inventors | weak_one_patent: baseline-tie recurrence through +2 | 0.1321 |  |  |
+| descriptive | appendix | initially retained inventors | weak_one_patent: baseline-tie recurrence through +3 | 0.1442 |  |  |
+| descriptive | appendix | initially retained inventors | weak_one_patent: baseline-tie recurrence through +4 | 0.1586 |  |  |
+| descriptive | appendix | initially retained inventors | weak_one_patent: baseline-tie recurrence through +5 | 0.1638 |  |  |
 | companion | appendix | recurrent pre-deal inventors | patent_count: P8 recurrent Shapley cessation | -0.0925 |  |  |
 | companion | appendix | recurrent pre-deal inventors | patent_count: P8 recurrent Shapley active_given_survival | -0.0241 |  |  |
 | companion | appendix | recurrent pre-deal inventors | patent_count: P8 recurrent Shapley patents_per_active_year | -0.0535 |  |  |
