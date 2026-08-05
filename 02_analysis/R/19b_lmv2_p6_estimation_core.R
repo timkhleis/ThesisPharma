@@ -125,11 +125,12 @@ lmv2_build_pair_table <- function(con, panel_sql, outcome, cohorts,
     FROM %3$s e
     JOIN %3$s r USING (roster_row_id)
     WHERE e.cohort IN (%4$s)
-      AND r.event_time = -1
-      AND e.event_time <> -1
+      AND r.event_time = %5$d
+      AND e.event_time <> %5$d
       AND e.%2$s IS NOT NULL
       AND r.%2$s IS NOT NULL
-  ", table_name, outcome, panel_sql, cohort_sql))
+  ", table_name, outcome, panel_sql, cohort_sql,
+     as.integer(LMV2_P6_ESTIMATION$reference_event_time)))
   table_name
 }
 
@@ -233,7 +234,7 @@ lmv2_pair_coverage <- function(con, pair_table, panel_sql, cohorts,
       CROSS JOIN (
         SELECT event_time
         FROM range(-5, 6) r(event_time)
-        WHERE event_time <> -1
+        WHERE event_time <> %4$d
       ) e
       CROSS JOIN (VALUES ('treated'), ('control')) a(arm)
     ), eligible AS (
@@ -267,7 +268,8 @@ lmv2_pair_coverage <- function(con, pair_table, panel_sql, cohorts,
     LEFT JOIN eligible e USING (cohort, event_time)
     LEFT JOIN event_share es USING (event_time)
     ORDER BY cohort, event_time, arm
-  ", panel_sql, cohort_sql, pair_table))
+  ", panel_sql, cohort_sql, pair_table,
+     as.integer(LMV2_P6_ESTIMATION$reference_event_time)))
   out$outcome <- outcome
   out$sample <- sample_id
   out
@@ -399,6 +401,7 @@ lmv2_pretrend_test <- function(event_estimates, covariance) {
 lmv2_compact_post_regression <- function(con, influence_table,
                                          expected_estimate) {
   post_sql <- paste(LMV2_P6_ESTIMATION$post_window, collapse = ",")
+  n_post <- length(LMV2_P6_ESTIMATION$post_window)
   dat <- DBI::dbGetQuery(con, sprintf("
     WITH arm_stats AS (
       SELECT cohort, event_time, arm,
@@ -421,10 +424,10 @@ lmv2_compact_post_regression <- function(con, influence_table,
       CAST(c.cohort * 100 + c.event_time + 10 AS INTEGER)
         AS cohort_event_id,
       c.dy_mean,
-      c.cell_mass / s.arm_mass * s.q_event / 5.0 AS analysis_weight
+      c.cell_mass / s.arm_mass * s.q_event / %3$d AS analysis_weight
     FROM cells c
     JOIN arm_stats s USING (cohort, event_time, arm)
-  ", influence_table, post_sql))
+  ", influence_table, post_sql, n_post))
   mod <- fixest::feols(
     dy_mean ~ treated | cohort_event_id,
     data = dat, weights = ~analysis_weight,
