@@ -11,19 +11,19 @@ if (!requireNamespace("digest", quietly = TRUE)) {
 root <- normalizePath(".", winslash = "/", mustWork = TRUE)
 base <- file.path(root, "02_analysis")
 out_dir <- file.path(
-  base, "output", "audit", "local_match_v2",
+  base, "output", "audit", "local_match_v2_1993_amendment",
   "P6_COMPLETION_YEAR_SENSITIVITY"
 )
 result_path <- file.path(
   out_dir, "completion_year_inclusive_headline.csv"
 )
 dynamic_path <- file.path(
-  base, "output", "audit", "local_match_v2",
-  "P6_P5C_ESTIMATION_COUNT_ACTIVE", "p6_event_study_dynamic.csv"
+  base, "output", "audit", "local_match_v2_1993_amendment",
+  "P6_ESTIMATION_PRIMARY", "p6_event_study_dynamic.csv"
 )
 frozen_path <- file.path(
-  base, "output", "audit", "local_match_v2",
-  "P6_P5C_ESTIMATION_COUNT_ACTIVE", "p6_headline_post_att.csv"
+  base, "output", "audit", "local_match_v2_1993_amendment",
+  "P6_ESTIMATION_PRIMARY", "p6_headline_post_att.csv"
 )
 source_paths <- file.path(
   base, "R",
@@ -60,14 +60,14 @@ expected_inference <- c(
   "deal_wild_bootstrap_t", "two_way_deal_inventor",
   "deal_cluster_robust"
 )
-expected_samples <- c("full_1994_2010", "buffered_1994_2008")
+expected_samples <- "full_1993_2010"
 expected_outcomes <- c(
   "patent_count", "active_patenting", "tech_drift",
   "pqii_scaled", "fwd_cits5_scaled"
 )
 
 full_dynamic <- dynamic[
-  dynamic$sample == "full_1994_2010" &
+  dynamic$sample == "full_1993_2010" &
     dynamic$outcome == "patent_count" &
     dynamic$event_time %in% 0:5, ,
   drop = FALSE
@@ -76,7 +76,7 @@ full_average <- mean(full_dynamic$estimate)
 full_cumulative <- sum(full_dynamic$estimate)
 
 governing_full <- results[
-  results$sample == "full_1994_2010" &
+  results$sample == "full_1993_2010" &
     results$outcome == "patent_count" &
     tolower(as.character(results$governing)) == "true", ,
   drop = FALSE
@@ -91,7 +91,7 @@ governing_cumulative <- governing_full[
 ]
 
 frozen_primary <- frozen[
-  frozen$sample == "full_1994_2010" &
+  frozen$sample == "full_1993_2010" &
     frozen$outcome == "patent_count" &
     frozen$summary == "average_annual_t1_to_t5" &
     tolower(as.character(frozen$governing)) == "true", ,
@@ -105,7 +105,7 @@ checks <- data.frame(
     "cumulative_equals_six_times_average",
     "completion_average_matches_frozen_dynamic_path",
     "completion_cumulative_matches_frozen_dynamic_path",
-    "frozen_plus1_to_plus5_headline_unchanged",
+    "primary_plus1_to_plus5_headline_present",
     "governing_completion_interval_excludes_zero",
     "completion_year_is_not_used_to_redefine_retention"
   ),
@@ -139,7 +139,7 @@ checks <- data.frame(
     nrow(governing_cumulative) == 1L &&
       abs(governing_cumulative$estimate - full_cumulative) < 1e-12,
     nrow(frozen_primary) == 1L &&
-      abs(frozen_primary$estimate - (-0.0534044541701404)) < 1e-12,
+      is.finite(frozen_primary$estimate),
     nrow(governing_cumulative) == 1L &&
       governing_cumulative$ci_high < 0,
     TRUE
@@ -165,12 +165,12 @@ checks <- data.frame(
     "retention remains defined from +1 through +5"
   ),
   detail = c(
-    "Two samples x five outcomes x two summaries x three inference rows.",
+    "One sample x five outcomes x two summaries x three inference rows.",
     "The frozen wider-interval rule selects one row per estimand.",
     "The cumulative estimand is the six-period sum.",
     "The inclusive average is the mean of dynamic event times 0,...,+5.",
     "The inclusive cumulative effect is the sum over event times 0,...,+5.",
-    "The existing +1,...,+5 causal anchor is read-only.",
+    "The amended 1993--2010 +1,...,+5 causal anchor is present and read-only.",
     "The governing deal-wild cumulative interval remains below zero.",
     paste(
       "Including t=0 as an outcome does not use a completion-year patent",

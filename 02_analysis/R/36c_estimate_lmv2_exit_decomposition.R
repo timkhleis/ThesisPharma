@@ -985,7 +985,7 @@ lmv2_run_exit_decomposition <- function(
 
     if (!smoke) {
       fixed <- lmv2_estimate_exit_decomposition(
-        panel, 1994:2010, 1:5,
+        panel, 1993:2010, 1:5,
         "fixed_lookahead_3y", population,
         survival_col = "survival_k3",
         endpoint_definition = "three_year_prospective_continuation",
@@ -1047,7 +1047,7 @@ lmv2_run_exit_decomposition <- function(
       config$certified_p6_headline, stringsAsFactors = FALSE)
     certified <- certified[
       certified$outcome == "patent_count" &
-        certified$sample == "full_1994_2010" &
+        certified$sample == "full_1993_2010" &
         certified$summary == "average_annual_t1_to_t5", ]
     if ("governing" %in% names(certified) &&
         any(certified$governing %in% TRUE)) {
@@ -1074,7 +1074,7 @@ lmv2_run_exit_decomposition <- function(
       s4 <- s4[
         s4$spec == config$primary_stayer_spec &
           s4$outcome == "patent_count" &
-          s4$sample == "full_1994_2010" &
+          s4$sample == "full_1993_2010" &
           s4$summary == "average_annual_t1_to_t5", ]
       if ("governing" %in% names(s4) && any(s4$governing %in% TRUE)) {
         s4 <- s4[s4$governing %in% TRUE, ]

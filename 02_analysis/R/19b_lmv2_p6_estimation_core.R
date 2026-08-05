@@ -25,7 +25,7 @@ lmv2_validate_estimation_inputs <- function(con, panel_files, stamp_files,
   ))
   if (length(panel_files) != length(expected_cohorts) ||
       !identical(sort(cohort_from_name), expected_cohorts)) {
-    stop("Panel shard cohort set is not exactly 1994:2010")
+    stop("Panel shard cohort set does not match the amended P6 cohort set")
   }
   if (length(stamp_files) != length(expected_cohorts)) {
     stop("Expected one stamp per P6 panel shard")
@@ -91,7 +91,7 @@ lmv2_validate_estimation_inputs <- function(con, panel_files, stamp_files,
     checks$units == sum(stamps$roster_rows) &&
     checks$bad_units == 0 && checks$bad_masses == 0 &&
     checks$bad_treated_weights == 0 && checks$bad_weights == 0 &&
-    checks$cohorts == 17 && checks$deals > 1
+    checks$cohorts == length(expected_cohorts) && checks$deals > 1
   if (!isTRUE(checks$pass[[1]])) {
     stop("P6 estimation input certification failed")
   }

@@ -250,15 +250,11 @@ run_grid <- function(
 }
 
 all_results[[length(all_results) + 1L]] <- run_grid(
-  "full_1994_2010", cfg$estimand$samples$full_1994_2010,
+  "full_1993_2010", cfg$estimand$samples$full_1993_2010,
   outcomes_ref, "post_mean_minus_t_minus_1"
 )
 all_results[[length(all_results) + 1L]] <- run_grid(
-  "buffered_1994_2008", cfg$estimand$samples$buffered_1994_2008,
-  outcomes_ref, "post_mean_minus_t_minus_1", "censoring_companion"
-)
-all_results[[length(all_results) + 1L]] <- run_grid(
-  "full_1994_2010", cfg$estimand$samples$full_1994_2010,
+  "full_1993_2010", cfg$estimand$samples$full_1993_2010,
   outcomes_5x5, "five_post_minus_five_pre", "five_by_five_companion"
 )
 
@@ -267,7 +263,7 @@ techfit_5y <- list()
 for (outcome in names(outcomes_ref)) {
   techfit_5y[[outcome]] <- run_one(
     "techfit", outcome, outcomes_ref[[outcome]],
-    "full_1994_2010", cfg$estimand$samples$full_1994_2010,
+    "full_1993_2010", cfg$estimand$samples$full_1993_2010,
     "post_mean_minus_t_minus_1", "techfit_five_year_robustness",
     techfit_override = "5y"
   )$results
@@ -277,7 +273,7 @@ results <- do.call(rbind, all_results)
 
 # The eight-test family is the focal row from each full-sample primary model.
 primary <- results$result_type == "focal_contrast" &
-  results$sample == "full_1994_2010" &
+  results$sample == "full_1993_2010" &
   results$window == "post_mean_minus_t_minus_1" &
   results$model_type == "separate_primary" &
   results$techfit_variant %in% c("not_applicable", "full")
@@ -311,7 +307,7 @@ for (i in which(primary)) {
 # having such a tie and is not part of the primary eight-test family.
 run_strongest_tie <- function(outcome, outcome_col) {
   prepared <- lmv2_vr_prepare_data(
-    unit, cfg$estimand$samples$full_1994_2010
+    unit, cfg$estimand$samples$full_1993_2010
   )
   x <- prepared$data[
     prepared$data$team_any == 1 &
@@ -360,7 +356,7 @@ run_strongest_tie <- function(outcome, outcome_col) {
   )
   z$moderator <- "strongest_tie"
   z$outcome <- outcome
-  z$sample <- "full_1994_2010_team_positive"
+  z$sample <- "full_1993_2010_team_positive"
   z$window <- "post_mean_minus_t_minus_1"
   z$model_type <- "strongest_tie_appendix_extension"
   z$techfit_variant <- "not_applicable"
@@ -386,7 +382,7 @@ results <- rbind(results, do.call(rbind, strongest_rows))
 # Joint-interaction appendix model on the full-history TechFit-eligible sample.
 joint_rows <- list()
 joint_prepared <- lmv2_vr_prepare_data(
-  unit, cfg$estimand$samples$full_1994_2010, "full"
+  unit, cfg$estimand$samples$full_1993_2010, "full"
 )
 joint_rhs <- c(
   common_rhs, "techfit_z",
@@ -406,7 +402,7 @@ for (outcome in names(outcomes_ref)) {
     )
     z$moderator <- moderator
     z$outcome <- outcome
-    z$sample <- "full_1994_2010"
+    z$sample <- "full_1993_2010"
     z$window <- "post_mean_minus_t_minus_1"
     z$model_type <- "joint_interaction_appendix"
     z$techfit_variant <- "full"
@@ -601,14 +597,14 @@ decomposition <- do.call(rbind, lapply(
   names(cfg$estimand$samples),
   function(s) estimate_decomposition(s, cfg$estimand$samples[[s]])
 ))
-full_decomp <- decomposition[decomposition$sample == "full_1994_2010", ]
+full_decomp <- decomposition[decomposition$sample == "full_1993_2010", ]
 sym_sum <- sum(full_decomp$estimate[
   full_decomp$component %in%
     c("symmetric_extensive", "symmetric_intensive")
 ])
 total <- full_decomp$estimate[full_decomp$component == "total"]
 headline_count <- aggregate_results$estimate[
-  aggregate_results$sample == "full_1994_2010" &
+  aggregate_results$sample == "full_1993_2010" &
     aggregate_results$outcome == "patent_count" &
     aggregate_results$window == "post_mean_minus_t_minus_1"
 ]

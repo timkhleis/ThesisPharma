@@ -85,10 +85,10 @@ add("input_certification_pass",
     isTRUE(input$pass[[1]]) &&
       isTRUE(manifest$input_certification_pass[[1]]))
 add("full_panel_grain",
-    input$panel_rows[[1]] == 5509966 &&
-      input$units[[1]] == 500906 &&
-      input$cohorts[[1]] == 17 &&
-      input$deals[[1]] == 341)
+    input$panel_rows[[1]] == 5638875 &&
+      input$units[[1]] == 512625 &&
+      input$cohorts[[1]] == 18 &&
+      input$deals[[1]] == 343)
 add("no_input_defects",
     all(input[c(
       "bad_units", "bad_masses", "bad_treated_weights", "bad_weights"
@@ -159,10 +159,8 @@ add("pretrend_grid_complete_and_finite",
       all(is.finite(pretrend$f_stat)) &&
       all(is.finite(pretrend$p_value)))
 
-expected_coverage_rows <- length(expected_outcomes) * (
-  length(LMV2_P6_ESTIMATION$samples$full_1994_2010) * 10L * 2L +
-    length(LMV2_P6_ESTIMATION$samples$buffered_1994_2008) * 10L * 2L
-)
+expected_coverage_rows <- length(expected_outcomes) * sum(vapply(
+  LMV2_P6_ESTIMATION$samples, length, integer(1))) * 10L * 2L
 add("coverage_grid_complete", nrow(coverage) == expected_coverage_rows)
 complete_primary <- coverage[
   coverage$outcome %in% c("patent_count", "active_patenting"), ]
@@ -181,9 +179,8 @@ if (!DIAGNOSTIC_MODE) {
     unavailable$cohort, unavailable$event_time, sep = "|"
   ))
   expected_unavailable <- c(
-    "tech_drift|full_1994_2010|1996|-5",
-    "tech_drift|full_1994_2010|2010|5",
-    "tech_drift|buffered_1994_2008|1996|-5"
+    "tech_drift|full_1993_2010|1996|-5",
+    "tech_drift|full_1993_2010|2010|5"
   )
   add("only_predeclared_techdrift_cells_unavailable",
       identical(sort(unavailable_key), sort(expected_unavailable)),

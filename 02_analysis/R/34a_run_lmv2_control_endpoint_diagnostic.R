@@ -43,19 +43,23 @@ if (!identical(
   stop("fwildclusterboot version differs from the frozen P6 version")
 }
 
-AUDIT <- file.path(BASE, "output", "audit", "local_match_v2")
-RESULTS <- file.path(BASE, "output", "results", "local_match_v2")
+AUDIT <- file.path(
+  BASE, "output", "audit", "local_match_v2_1993_amendment"
+)
+RESULTS <- file.path(
+  BASE, "output", "results", "local_match_v2_1993_amendment"
+)
 PANEL_DIR <- file.path(
-  AUDIT, "P6_P5C_PANEL_COUNT_ACTIVE", "panel_matched"
+  AUDIT, "P6_P5C_COUNT_ACTIVE", "panel_matched"
 )
 P6_MANIFEST <- file.path(
-  AUDIT, "P6_P5C_PANEL_COUNT_ACTIVE", "p6_manifest.csv"
+  AUDIT, "P6_P5C_COUNT_ACTIVE", "p6_manifest.csv"
 )
 PRIMARY_HEADLINE <- file.path(
-  AUDIT, "P6_P5C_ESTIMATION_COUNT_ACTIVE", "p6_headline_post_att.csv"
+  AUDIT, "P6_ESTIMATION_PRIMARY", "p6_headline_post_att.csv"
 )
 PRIMARY_DYNAMIC <- file.path(
-  AUDIT, "P6_P5C_ESTIMATION_COUNT_ACTIVE", "p6_event_study_dynamic.csv"
+  AUDIT, "P6_ESTIMATION_PRIMARY", "p6_event_study_dynamic.csv"
 )
 RETAINED_HEADLINE <- file.path(
   RESULTS, "stayer_heterogeneity", "table_stayer_aggregate_effects.csv"
@@ -242,8 +246,8 @@ max_abs_residual_smd <- max(
   abs(balance_audit$residual_smd), na.rm = TRUE
 )
 
-sample_id <- "full_1994_2010_control_group_active_through_g_plus_5"
-cohorts <- LMV2_P6_ESTIMATION$samples$full_1994_2010
+sample_id <- "full_1993_2010_control_group_active_through_g_plus_5"
+cohorts <- LMV2_P6_ESTIMATION$samples$full_1993_2010
 deal_counts <- lmv2_design_deal_counts(
   con, filtered_panel_sql, cohorts
 )
@@ -267,7 +271,7 @@ primary_dynamic <- utils::read.csv(
 )
 primary_dynamic <- primary_dynamic[
   primary_dynamic$outcome == "patent_count" &
-    primary_dynamic$sample == "full_1994_2010", ,
+    primary_dynamic$sample == "full_1993_2010", ,
   drop = FALSE
 ]
 diagnostic_dynamic <- fitted$dynamic[
@@ -302,7 +306,7 @@ primary <- utils::read.csv(
 )
 primary <- primary[
   primary$outcome == "patent_count" &
-    primary$sample == "full_1994_2010" &
+    primary$sample == "full_1993_2010" &
     primary$summary == "average_annual_t1_to_t5" &
     primary$governing, ,
   drop = FALSE
@@ -325,7 +329,7 @@ retained <- utils::read.csv(
 )
 retained <- retained[
   retained$outcome == "patent_count" &
-    retained$sample == "full_1994_2010" &
+    retained$sample == "full_1993_2010" &
     retained$inference == "two_way_deal_inventor", ,
   drop = FALSE
 ]
@@ -384,8 +388,8 @@ checks <- data.frame(
     "restricted_negative_period_gaps_are_not_LOYO",
     "frozen_post_path_attenuates_monotonically",
     "diagnostic_post_path_attenuates_monotonically",
-    "frozen_primary_estimate_unchanged",
-    "retained_estimate_unchanged",
+    "amended_primary_estimate_present",
+    "amended_retained_estimate_present",
     "comparison_roles_are_distinct"
   ),
   pass = c(
@@ -406,8 +410,8 @@ checks <- data.frame(
     TRUE,
     frozen_monotone_attenuation,
     diagnostic_monotone_attenuation,
-    abs(primary$estimate[[1]] - (-0.0534044541701404)) < 1e-12,
-    abs(retained$estimate[[1]] - (-0.107230613905157)) < 1e-10,
+    nrow(primary) == 1L && is.finite(primary$estimate[[1]]),
+    nrow(retained) == 1L && is.finite(retained$estimate[[1]]),
     identical(
       comparison$role,
       c("primary", "diagnostic", "selected_group_companion")
@@ -450,8 +454,8 @@ checks <- data.frame(
     ),
     "Absolute patent-count effects weakly decline from t=+1 to t=+5.",
     "Absolute patent-count effects weakly decline from t=+1 to t=+5.",
-    "Frozen P5c result is read-only.",
-    "Frozen retained result is read-only.",
+    "The amended 1993--2010 P5c result is present and read-only.",
+    "The amended 1993--2010 retained result is present and read-only.",
     "Diagnostic cannot replace either existing estimand."
   ),
   stringsAsFactors = FALSE

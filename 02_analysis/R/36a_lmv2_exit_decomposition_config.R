@@ -3,7 +3,7 @@
 # Additive configuration for the patenting-exit accounting decomposition.
 # ============================================================================
 
-LMV2_EXIT_DECOMP_VERSION <- "lmv2_exit_decomposition_v1"
+LMV2_EXIT_DECOMP_VERSION <- "lmv2_exit_decomposition_1993_amendment_v1"
 
 lmv2_exit_existing_path <- function(candidates, label) {
   candidates <- unique(candidates[nzchar(candidates)])
@@ -21,9 +21,9 @@ lmv2_exit_config <- function(base = getwd(), output_dir = NULL) {
   project_root <- normalizePath(
     file.path(base, "..", ".."), winslash = "/", mustWork = TRUE)
   audit_root <- file.path(
-    base, "02_analysis", "output", "audit", "local_match_v2")
+    base, "02_analysis", "output", "audit", "local_match_v2_1993_amendment")
   p6_panel_dir <- file.path(
-    audit_root, "P6_P5C_PANEL_COUNT_ACTIVE", "panel_matched")
+    audit_root, "P6_P5C_COUNT_ACTIVE", "panel_matched")
   s3_dir <- file.path(audit_root, "P5B_STAYER_S3")
   s4_dir <- file.path(audit_root, "P5B_STAYER_S4_RESULTS")
   derived_dir <- lmv2_exit_existing_path(
@@ -55,9 +55,9 @@ lmv2_exit_config <- function(base = getwd(), output_dir = NULL) {
     output_dir = output_dir,
     panel_dir = p6_panel_dir,
     p6_manifest = file.path(
-      audit_root, "P6_P5C_PANEL_COUNT_ACTIVE", "p6_manifest.csv"),
+      audit_root, "P6_P5C_COUNT_ACTIVE", "p6_manifest.csv"),
     certified_p6_headline = file.path(
-      audit_root, "P6_P5C_ESTIMATION_COUNT_ACTIVE",
+      audit_root, "P6_ESTIMATION_PRIMARY",
       "p6_headline_post_att.csv"),
     s3_weights = file.path(s3_dir, "s3_production_weights.parquet"),
     s3_certification = file.path(s3_dir, "s3_certification.csv"),
@@ -77,20 +77,17 @@ lmv2_exit_config <- function(base = getwd(), output_dir = NULL) {
     event_window = -5:5,
     reference_event_time = -1L,
     samples = list(
-      headline_1994_2010 = list(
-        cohorts = 1994:2010, post_window = 1:5,
+      headline_1993_2010 = list(
+        cohorts = 1993:2010, post_window = 1:5,
         censoring_label = "primary_same_sample_right_edge_sensitive"),
-      buffered_1994_2008 = list(
-        cohorts = 1994:2008, post_window = 1:5,
-        censoring_label = "two_year_endpoint_buffer"),
-      strict_1994_2005 = list(
-        cohorts = 1994:2005, post_window = 1:5,
+      strict_1993_2005 = list(
+        cohorts = 1993:2005, post_window = 1:5,
         censoring_label = "five_year_endpoint_buffer"),
-      headline_1994_2010_t1_t3 = list(
-        cohorts = 1994:2010, post_window = 1:3,
+      headline_1993_2010_t1_t3 = list(
+        cohorts = 1993:2010, post_window = 1:3,
         censoring_label = "same_cohort_two_year_endpoint_buffer")
     ),
-    primary_sample = "headline_1994_2010",
+    primary_sample = "headline_1993_2010",
     primary_stayer_spec = "primary_count_active_scale",
     primary_stayer_support = "primary_resolved_t1",
     fixed_lookahead_years = 3L,
@@ -124,8 +121,11 @@ lmv2_exit_panel_files <- function(config) {
     config$panel_dir,
     pattern = "^lmv2_event_panel_c[0-9]+\\.parquet$",
     full.names = TRUE))
-  if (length(files) != 17L) {
-    stop("Expected 17 certified P6 panel shards")
+  expected <- length(unique(unlist(lapply(
+    config$samples, function(x) x$cohorts
+  ))))
+  if (length(files) != expected) {
+    stop("P6 panel shard count does not match the amended cohort set")
   }
   normalizePath(files, winslash = "/", mustWork = TRUE)
 }

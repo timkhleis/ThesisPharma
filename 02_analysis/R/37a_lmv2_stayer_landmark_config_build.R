@@ -11,7 +11,7 @@ lmv2_landmark_config <- function(
     base = getwd(), output_dir = NULL, parent_exit_dir = NULL) {
   x <- lmv2_exit_config(base)
   audit_root <- file.path(
-    x$base, "02_analysis", "output", "audit", "local_match_v2")
+    x$base, "02_analysis", "output", "audit", "local_match_v2_1993_amendment")
   if (is.null(output_dir)) {
     output_dir <- file.path(audit_root, "P8_STAYER_LANDMARK")
   }

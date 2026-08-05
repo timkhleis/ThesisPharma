@@ -86,8 +86,9 @@ stamp_files <- sort(list.files(
   config$base_panel_dir,
   pattern = "^lmv2_event_panel_c[0-9]+_stamp\\.csv$",
   full.names = TRUE))
-if (length(panel_files) != 17L || length(stamp_files) != 17L) {
-  stop("Expected 17 certified P6 panel shards and stamps")
+if (length(panel_files) != length(LMV2_P6_CONFIG$cohorts) ||
+    length(stamp_files) != length(LMV2_P6_CONFIG$cohorts)) {
+  stop("Expected one certified P6 panel shard and stamp per cohort")
 }
 
 dir.create(config$output_dir, recursive = TRUE, showWarnings = FALSE)
@@ -217,7 +218,7 @@ mapping_checks$pass <-
   mapping_checks$weight_rows == mapping_checks$mapped_rows &&
   is.na(mapping_checks$duplicate_map_positive) &&
   mapping_checks$specifications == length(config$production_specs) &&
-  mapping_checks$minimum_cohorts == 17L &&
+  mapping_checks$minimum_cohorts == length(LMV2_P6_CONFIG$cohorts) &&
   mapping_checks$bad_spec_maps == 0L &&
   mapping_checks$bad_panel_counts == 0L
 if (!isTRUE(mapping_checks$pass[[1L]])) {
@@ -229,7 +230,7 @@ write_csv(
 
 specs <- if (smoke) config$production_specs[1:2] else
   config$production_specs
-samples <- if (smoke) list(smoke_1994_1996 = 1994:1996) else
+samples <- if (smoke) list(smoke_1993_1995 = 1993:1995) else
   config$samples
 outcomes <- config$outcomes
 bootstrap_reps <- if (smoke) 199L else config$bootstrap_replications
@@ -301,7 +302,7 @@ for (i in seq_len(nrow(cells))) {
   ")
   if (panel_checks$bad_units != 0L ||
       panel_checks$bad_masses != 0L ||
-      panel_checks$cohorts != 17L) {
+      panel_checks$cohorts != length(LMV2_P6_CONFIG$cohorts)) {
     stop("S4 joined panel invariant failed for ", spec)
   }
 

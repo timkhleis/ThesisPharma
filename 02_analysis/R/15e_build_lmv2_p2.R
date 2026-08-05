@@ -67,13 +67,13 @@ SELECT
   *,
   CAST(deal_year AS INTEGER) AS cohort,
   CASE
-    WHEN deal_year BETWEEN 1994 AND 1999 THEN '1994-1999'
+    WHEN deal_year BETWEEN 1993 AND 1999 THEN '1993-1999'
     WHEN deal_year BETWEEN 2000 AND 2004 THEN '2000-2004'
     WHEN deal_year BETWEEN 2005 AND 2010 THEN '2005-2010'
   END AS broad_era,
-  (deal_year BETWEEN 1994 AND 2008) AS buffered_cohort
+  (deal_year BETWEEN 1993 AND 2008) AS buffered_cohort
 FROM target_cohort_own
-WHERE deal_year BETWEEN 1994 AND 2010
+WHERE deal_year BETWEEN 1993 AND 2010
 ")
 
 DBI::dbExecute(con, "
@@ -150,7 +150,7 @@ ORDER BY cohort, deal_id, codinv
 DBI::dbExecute(con, "
 CREATE OR REPLACE TABLE lmv2_control_firm_eligibility AS
 WITH stacks AS (
-  SELECT UNNEST(range(1994, 2011)) AS cohort
+  SELECT UNNEST(range(1993, 2011)) AS cohort
 ), activity AS (
   SELECT
     s.cohort,
@@ -211,7 +211,7 @@ AND NOT EXISTS (
 DBI::dbExecute(con, "
 CREATE OR REPLACE TABLE lmv2_control_inventor_eligibility AS
 WITH stacks AS (
-  SELECT UNNEST(range(1994, 2011)) AS cohort
+  SELECT UNNEST(range(1993, 2011)) AS cohort
 ), latest AS (
   SELECT
     s.cohort,
@@ -334,10 +334,10 @@ write_csv(tie_breaker_audit, "treated_tie_breaker_audit.csv")
 
 unique_robustness <- DBI::dbGetQuery(con, "
 WITH scoped AS (
-  SELECT '1994-2010' AS sample, *
+  SELECT '1993-2010' AS sample, *
   FROM lmv2_treated_unique_affiliation_robustness
   UNION ALL
-  SELECT '1994-2008' AS sample, *
+  SELECT '1993-2008' AS sample, *
   FROM lmv2_treated_unique_affiliation_robustness
   WHERE cohort <= 2008
 ), deal_sizes AS (
@@ -384,7 +384,7 @@ write_csv(promotion_audit, "supplementary_deal_promotion_audit.csv")
 
 composition <- DBI::dbGetQuery(con, "
 SELECT
-  CASE WHEN cohort <= 2008 THEN '1994-2008' ELSE '2009-2010' END AS cohort_block,
+  CASE WHEN cohort <= 2008 THEN '1993-2008' ELSE '2009-2010' END AS cohort_block,
   COUNT(*) AS treated_inventors,
   COUNT(DISTINCT deal_id) AS treated_deals,
   SUM(status_eligible_stayer_first_post_t0_t5::INTEGER) AS status_eligible_stayers,
@@ -399,9 +399,9 @@ write_csv(composition, "buffered_vs_late_composition.csv")
 
 power <- DBI::dbGetQuery(con, "
 WITH scoped AS (
-  SELECT '1994-2010' AS sample, * FROM lmv2_treated_primary
+  SELECT '1993-2010' AS sample, * FROM lmv2_treated_primary
   UNION ALL
-  SELECT '1994-2008' AS sample, * FROM lmv2_treated_primary WHERE cohort <= 2008
+  SELECT '1993-2008' AS sample, * FROM lmv2_treated_primary WHERE cohort <= 2008
 ), deal_sizes AS (
   SELECT sample, deal_id, COUNT(*) AS n_stayers
   FROM scoped
@@ -434,8 +434,8 @@ benchmark <- data.frame(
   provisional_buffered_1994_2008 = c(24074, 290, 3656, 169, 25.97),
   stringsAsFactors = FALSE
 )
-full <- power[power$sample == "1994-2010", ]
-buf <- power[power$sample == "1994-2008", ]
+full <- power[power$sample == "1993-2010", ]
+buf <- power[power$sample == "1993-2008", ]
 counts <- DBI::dbGetQuery(con, "
 SELECT
   COUNT(*) AS treated_inventors,
@@ -444,16 +444,28 @@ FROM lmv2_treated_primary
 UNION ALL
 SELECT COUNT(*), COUNT(DISTINCT deal_id)
 FROM lmv2_treated_primary WHERE cohort <= 2008
+UNION ALL
+SELECT COUNT(*), COUNT(DISTINCT deal_id)
+FROM lmv2_treated_primary WHERE cohort >= 1994
+UNION ALL
+SELECT COUNT(*), COUNT(DISTINCT deal_id)
+FROM lmv2_treated_primary WHERE cohort BETWEEN 1994 AND 2008
 ")
-benchmark$post_repair_full_1994_2010 <- c(
+benchmark$post_repair_amended_1993_2010 <- c(
   counts$treated_inventors[1], counts$treated_deals[1],
   full$status_eligible_stayers, full$deals_with_stayers,
   full$raw_inventor_weighted_deal_ess
 )
-benchmark$post_repair_buffered_1994_2008 <- c(
+benchmark$post_repair_buffered_1993_2008 <- c(
   counts$treated_inventors[2], counts$treated_deals[2],
   buf$status_eligible_stayers, buf$deals_with_stayers,
   buf$raw_inventor_weighted_deal_ess
+)
+benchmark$frozen_reproduction_counts_1994_2010 <- c(
+  counts$treated_inventors[3], counts$treated_deals[3], rep(NA_real_, 3)
+)
+benchmark$frozen_reproduction_counts_1994_2008 <- c(
+  counts$treated_inventors[4], counts$treated_deals[4], rep(NA_real_, 3)
 )
 benchmark$explanation <- c(
   "latest-affiliation/transition rule plus approved supplementary promotions",
@@ -466,9 +478,9 @@ write_csv(benchmark, "provisional_benchmark_reconciliation.csv")
 
 stayer_definition <- DBI::dbGetQuery(con, "
 WITH scoped AS (
-  SELECT '1994-2010' AS sample, * FROM lmv2_treated_primary
+  SELECT '1993-2010' AS sample, * FROM lmv2_treated_primary
   UNION ALL
-  SELECT '1994-2008' AS sample, * FROM lmv2_treated_primary WHERE cohort <= 2008
+  SELECT '1993-2008' AS sample, * FROM lmv2_treated_primary WHERE cohort <= 2008
 ), positive_group_t1_t5 AS (
   SELECT DISTINCT s.sample, s.codinv, s.deal_id
   FROM scoped s
@@ -626,10 +638,10 @@ sample_crosswalk <- data.frame(
     "target_leavers",
     "nontarget_stayers",
     "nontarget_leavers",
-    "thesis_primary_treated_inventors_1994_2010",
-    "thesis_primary_treated_deals_1994_2010",
-    "thesis_status_eligible_stayers_1994_2010",
-    "thesis_status_eligible_stayers_1994_2008",
+    "thesis_primary_treated_inventors_1993_2010",
+    "thesis_primary_treated_deals_1993_2010",
+    "thesis_status_eligible_stayers_1993_2010",
+    "thesis_status_eligible_stayers_1993_2008",
     "thesis_preperiod_recurrent_inventors"
   ),
   cassi_ornaghi_published = c(
@@ -660,7 +672,7 @@ sample_crosswalk <- data.frame(
     "paper non-target status sample; thesis controls are cohort-specific and certified",
     "paper non-target status sample; thesis controls are cohort-specific and certified",
     "deal-specific target company + latest affiliation/transition + earliest exposure",
-    "1994-2010 primary deal assignment including rule-based supplementary promotions",
+    "1993-2010 primary deal assignment including rule-based supplementary promotions",
     "first post patent in t=0..5 identifies status; post outcomes remain t=1..5",
     "same first-post status rule with buffered cohorts",
     "diagnostic only: at least two distinct target-company patent years in g-5..g-1"

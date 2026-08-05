@@ -2,14 +2,14 @@
 # Configuration and small I/O helpers for PPSCM second-attempt census
 # ============================================================================
 
-LMV2_PPSCM_V2_VERSION <- "lmv2_ppscm_v2_symmetric_validation_v1"
+LMV2_PPSCM_V2_VERSION <- "lmv2_ppscm_v2_symmetric_validation_1993_release_v1"
 
 lmv2_ppscm_v2_config <- function(base = getwd()) {
   base <- normalizePath(base, winslash = "/", mustWork = TRUE)
   analysis_dir <- file.path(base, "02_analysis")
   output_dir <- file.path(
-    analysis_dir, "output", "audit", "local_match_v2",
-    "P6_PPSCM_V2_SYMMETRIC")
+    analysis_dir, "output", "audit", "local_match_v2_1993_amendment",
+    "ROBUSTNESS_RELEASE_1993", "P6_PPSCM_V2_SYMMETRIC")
   units_dir <- file.path(output_dir, "stage_b_units")
   census_dir <- file.path(output_dir, "stage_c_census")
   validation_dir <- file.path(output_dir, "stage_d_validation")
@@ -23,7 +23,7 @@ lmv2_ppscm_v2_config <- function(base = getwd()) {
       analysis_dir, "notes",
       "local_match_v2_ppscm_second_attempt_freeze.md"),
     expected_freeze_sha256 =
-      "c1b7907eb4a954e73f2e0775eb736fcc7db575a27fe2c3928394163a5898ee11",
+      "2820ff5600aa22e5eced2bbeb1c3689b01586046035ccde61445e5a7cd480910",
     output_dir = output_dir,
     units_dir = units_dir,
     census_dir = census_dir,

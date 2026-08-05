@@ -54,7 +54,9 @@ stamp_files <- sort(list.files(
   pattern = "^lmv2_event_panel_c[0-9]+_stamp\\.csv$",
   full.names = TRUE
 ))
-if (length(panel_files) != 17L || length(stamp_files) != 17L) {
+expected_shards <- length(unique(unlist(cfg$estimand$samples)))
+if (length(panel_files) != expected_shards ||
+    length(stamp_files) != expected_shards) {
   stop("Certified P5c panel bundle is incomplete")
 }
 panel_sql <- lmv2_panel_sql(panel_files)
@@ -500,7 +502,7 @@ balance <- bind_component("balance")
 # Family adjustment is applied prospectively to full-sample omnibus tests for
 # the three primary moderators plus conditional exclusivity.  Appendix tenure
 # remains outside that family.
-family_rows <- omnibus$sample == "full_1994_2010" &
+family_rows <- omnibus$sample == "full_1993_2010" &
   omnibus$designation %in% c("primary", "conditional")
 omnibus$holm_adjusted_governing_p <- NA_real_
 omnibus$holm_adjusted_governing_p[family_rows] <- stats::p.adjust(
@@ -550,13 +552,13 @@ SELECT SUM(q.q_g*c.estimate) estimate
 FROM cohort_att c JOIN q USING(cohort)
 ")
 headline_path <- file.path(
-  BASE, "output", "audit", "local_match_v2",
-  "P6_P5C_ESTIMATION_COUNT_ACTIVE", "p6_headline_post_att.csv"
+  BASE, "output", "audit", "local_match_v2_1993_amendment",
+  "P6_ESTIMATION_PRIMARY", "p6_headline_post_att.csv"
 )
 headline <- utils::read.csv(headline_path, stringsAsFactors = FALSE)
 headline <- headline[
   headline$outcome == "patent_count" &
-    headline$sample == "full_1994_2010" &
+    headline$sample == "full_1993_2010" &
     headline$summary == "average_annual_t1_to_t5" &
     headline$governing %in% c(TRUE, "TRUE"),
 ]

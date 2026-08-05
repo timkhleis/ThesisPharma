@@ -123,7 +123,8 @@ weighted_scalar_inference <- function(x, weights, reps, seed) {
 }
 
 message("Uniform control null: open control-only outcome universe")
-con <- DBI::dbConnect(duckdb::duckdb(), dbdir = config$database)
+con <- DBI::dbConnect(
+  duckdb::duckdb(), dbdir = config$database, read_only = TRUE)
 on.exit(DBI::dbDisconnect(con, shutdown = TRUE), add = TRUE)
 DBI::dbExecute(
   con, paste0("SET threads=", config$execution$threads))

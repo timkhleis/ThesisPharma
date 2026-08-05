@@ -2,17 +2,17 @@
 # Frozen configuration for the independent uniform top-20 branch
 # ============================================================================
 
-LMV2_UNIFORM_TOP20_VERSION <- "P6_UNIFORM_TOP20_SYMMETRIC_V1"
+LMV2_UNIFORM_TOP20_VERSION <- "P6_UNIFORM_TOP20_SYMMETRIC_1993_RELEASE_V1"
 
 lmv2_uniform_top20_config <- function(base = getwd()) {
   base <- normalizePath(base, winslash = "/", mustWork = TRUE)
   analysis <- file.path(base, "02_analysis")
   ppscm <- file.path(
-    analysis, "output", "audit", "local_match_v2",
-    "P6_PPSCM_V2_SYMMETRIC")
+    analysis, "output", "audit", "local_match_v2_1993_amendment",
+    "ROBUSTNESS_RELEASE_1993", "P6_PPSCM_V2_SYMMETRIC")
   output <- file.path(
-    analysis, "output", "audit", "local_match_v2",
-    "P6_UNIFORM_TOP20_SYMMETRIC")
+    analysis, "output", "audit", "local_match_v2_1993_amendment",
+    "ROBUSTNESS_RELEASE_1993", "P6_UNIFORM_TOP20_SYMMETRIC")
   list(
     version = LMV2_UNIFORM_TOP20_VERSION,
     base = base,
@@ -22,11 +22,11 @@ lmv2_uniform_top20_config <- function(base = getwd()) {
     freeze_path = file.path(
       analysis, "notes", "local_match_v2_uniform_top20_freeze.md"),
     expected_freeze_sha256 =
-      "263494b2380dedcc1dd1bf832ff4570f1d9b84555edb7c819f905cd2043b5ce6",
+      "fe5d8f25074bc065c188a89d0f656ef78e368ea854374b50900d17b8741f0ec9",
     source_census_dir = file.path(ppscm, "stage_c_census"),
     source_units_dir = file.path(ppscm, "stage_b_units"),
     expected_census_manifest_sha256 =
-      "e1bbb5b876cf036903060d2b41b39bea9a6311ffea189453e06ebb762b73536b",
+      "43b55bb831e0a56c961bad57b94cd57cc58c9364ebb528aae12fc994a716387c",
     prepanel_path = file.path(
       ppscm, "stage_c_census", "ppscm_prepanel.parquet"),
     units_path = file.path(

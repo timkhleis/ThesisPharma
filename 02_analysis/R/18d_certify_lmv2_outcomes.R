@@ -379,7 +379,7 @@ run_lmv2_roster_validation_tests <- function(con, fixture_schema = "p6_fixture",
          msg = "exactly one cohort"),
     list(name = "cohort_out_of_range",
          sql = sprintf("UPDATE %s SET cohort = 1980", work),
-         msg = "must lie in 1994-2010"),
+         msg = "Roster cohorts must lie in"),
     list(name = "missing_focal_group",
          sql = sprintf("UPDATE %s SET focal_group_1 = NULL
                         WHERE codinv = 202", work),

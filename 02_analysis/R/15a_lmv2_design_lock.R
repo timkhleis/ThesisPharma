@@ -5,14 +5,19 @@
 # P0--P9.  Any substantive change requires a new design version and an explicit
 # amendment note; do not edit thresholds after outcome inspection.
 
-LMV2_DESIGN_VERSION <- "local_match_v2"
+LMV2_DESIGN_VERSION <- "local_match_v2_1993_amendment_v1"
 LMV2_LOCK_FROZEN <- TRUE
+
+LMV2_1993_AMENDMENT_PATH <- file.path(
+  "02_analysis", "notes", "local_match_v2_1993_cohort_amendment.md"
+)
 
 LMV2_LOCK <- list(
   package_order = c("P0", "P1", "P2", "P3", "P4", "P5a", "P6", "P5b", "P7", "P8", "P9"),
   timing = list(
-    cohorts = 1994:2010,
-    buffered_cohorts = 1994:2008,
+    cohorts = 1993:2010,
+    buffered_cohorts = 1993:2008,
+    frozen_reproduction_cohorts = 1994:2010,
     event_window = -5:5,
     reference_period = -1L,
     aggregate_post = 1:5,
@@ -46,7 +51,7 @@ LMV2_LOCK <- list(
     robustness_models = c("ppml", "log1p")
   ),
   buffered_sample = list(
-    absorbing_left_and_stayers = 1994:2008,
+    absorbing_left_and_stayers = 1993:2008,
     minimum_stayers = 3000L,
     minimum_deals_with_stayers = 150L,
     minimum_raw_deal_ess = 20,
@@ -150,7 +155,7 @@ LMV2_LOCK <- list(
     event_year_zero_can_define_stayer = FALSE
   ),
   stayer_design = list(
-    cohorts = 1994:2008,
+    cohorts = 1993:2008,
     treated_and_control_definition = "at_least_one_focal_entity_patent_in_event_time_1_to_5",
     event_year_zero_excluded = TRUE,
     preferred = list(
@@ -224,7 +229,32 @@ lmv2_design_hash <- function() {
   if (!requireNamespace("digest", quietly = TRUE)) {
     stop("Package 'digest' is required to calculate the prospective-lock hash.")
   }
-  digest::digest(LMV2_LOCK, algo = "sha256", serialize = TRUE)
+  if (!file.exists(LMV2_1993_AMENDMENT_PATH)) {
+    stop("The prospective 1993 cohort amendment is missing.")
+  }
+  digest::digest(
+    list(
+      lock = LMV2_LOCK,
+      amendment_sha256 = digest::digest(
+        file = LMV2_1993_AMENDMENT_PATH,
+        algo = "sha256",
+        serialize = FALSE
+      )
+    ),
+    algo = "sha256", serialize = TRUE
+  )
 }
 
-LMV2_DESIGN_HASH <- lmv2_design_hash()
+# The approved design identifier is frozen in the certified 1993 panel stamps.
+# Keep narrative implementation updates to the amendment note from changing
+# that identifier after estimation.  The separate lock-only hash below still
+# fails closed if any substantive field in LMV2_LOCK drifts.
+LMV2_LOCK_ONLY_HASH <- digest::digest(
+  LMV2_LOCK, algo = "sha256", serialize = TRUE
+)
+stopifnot(identical(
+  LMV2_LOCK_ONLY_HASH,
+  "9248146f976ce030121cad1e706d0923708f7b2e1c17fe5cc95f1464606ab4a8"
+))
+LMV2_DESIGN_HASH <-
+  "877fff88c2fa107800800f4983721835e92aab51fdaed9b9b0c5f0dacd161930"

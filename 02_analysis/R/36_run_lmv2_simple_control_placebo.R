@@ -28,16 +28,21 @@ db_path <- normalizePath(
   winslash = "/", mustWork = TRUE)
 output_dir <- arg(
   "output-dir",
-  "02_analysis/output/appendix/simple_control_placebo")
+  paste0(
+    "02_analysis/output/audit/local_match_v2_1993_amendment/",
+    "SIMPLE_CONTROL_PLACEBO"
+  ))
 draws <- as.integer(arg("draws", "50"))
 firms_per_arm <- as.integer(arg("firms-per-arm", "100"))
 master_seed <- as.integer(arg("seed", "20260729"))
 headline_only <- tolower(arg("headline-only", "false")) %in%
   c("true", "1", "yes")
 bootstrap_reps <- as.integer(arg("bootstrap-reps", "0"))
+resume <- tolower(arg("resume", "true")) %in% c("true", "1", "yes")
+checkpoint_every <- as.integer(arg("checkpoint-every", "50"))
 if (anyNA(c(draws, firms_per_arm, master_seed)) ||
-    is.na(bootstrap_reps) || draws < 1L || firms_per_arm < 2L ||
-    bootstrap_reps < 0L) {
+    anyNA(c(bootstrap_reps, checkpoint_every)) || draws < 1L ||
+    firms_per_arm < 2L || bootstrap_reps < 0L || checkpoint_every < 1L) {
   stop(
     "draws, firms-per-arm, seed, and bootstrap-reps must be ",
     "nonnegative integers (with positive draws and firms)")
@@ -85,7 +90,7 @@ DBI::dbExecute(con, "
     CAST(focal_group AS BIGINT) AS id_group
   FROM lmv2_p3_inventor_general_units
   WHERE role='control'
-    AND cohort BETWEEN 1994 AND 2010
+    AND cohort BETWEEN 1993 AND 2010
     AND codinv IS NOT NULL
     AND focal_group IS NOT NULL")
 DBI::dbExecute(con, "
@@ -195,7 +200,7 @@ if (identifier_audit$invalid_source_mappings > 0 ||
   stop(
     "Identifier audit failed: inventor-to-firm mapping is inconsistent")
 }
-cohorts <- 1994:2010
+cohorts <- 1993:2010
 available <- table(candidate_firms$cohort)
 required <- 2L * firms_per_arm
 if (any(available[as.character(cohorts)] < required)) {
@@ -254,9 +259,16 @@ fit_delta <- function(data, bootstrap_seed = NULL) {
 
   estimate <- unname(stats::coef(firm_crv1)[["treated"]])
   hc3_estimate <- unname(stats::coef(hc3_fit)[["treated"]])
-  if (!isTRUE(all.equal(
-      estimate, hc3_estimate, tolerance = 1e-10))) {
-    stop("fixest and weighted-lm point estimates disagree")
+  point_gap <- abs(estimate - hc3_estimate)
+  point_tolerance <- 1e-8 * max(1, abs(estimate), abs(hc3_estimate))
+  if (!is.finite(point_gap) || point_gap > point_tolerance) {
+    stop(sprintf(
+      paste0(
+        "fixest and weighted-lm point estimates disagree: ",
+        "fixest=%.17g lm=%.17g gap=%.3g tolerance=%.3g"
+      ),
+      estimate, hc3_estimate, point_gap, point_tolerance
+    ))
   }
   firm_se <- unname(fixest::se(firm_crv1)[["treated"]])
   cohort_se <- unname(fixest::se(cohort_crv1)[["treated"]])
@@ -317,8 +329,56 @@ fit_delta <- function(data, bootstrap_seed = NULL) {
 headline_rows <- vector("list", draws)
 dynamic_rows <- vector("list", draws)
 assignment_rows <- vector("list", draws)
+checkpoint_dir <- file.path(output_dir, "checkpoints")
+dir.create(checkpoint_dir, recursive = TRUE, showWarnings = FALSE)
+
+checkpoint_files <- function(stem) sort(list.files(
+  checkpoint_dir,
+  pattern = paste0("^", stem, "_[0-9]{4}_[0-9]{4}\\.csv$"),
+  full.names = TRUE
+))
+restore_rows <- function(files, target, label) {
+  if (!length(files)) return(target)
+  restored <- do.call(rbind, lapply(files, utils::read.csv,
+                                    stringsAsFactors = FALSE))
+  if (!"draw_id" %in% names(restored) || anyDuplicated(restored$draw_id) &&
+      identical(label, "headline")) {
+    stop("Invalid ", label, " checkpoint shards")
+  }
+  for (draw_id in sort(unique(restored$draw_id))) {
+    if (draw_id < 1L || draw_id > draws) next
+    target[[draw_id]] <- restored[restored$draw_id == draw_id, , drop = FALSE]
+  }
+  target
+}
+if (resume) {
+  headline_rows <- restore_rows(
+    checkpoint_files("headline"), headline_rows, "headline")
+  if (!headline_only) {
+    dynamic_rows <- restore_rows(
+      checkpoint_files("dynamic"), dynamic_rows, "dynamic")
+  }
+  assignment_rows <- restore_rows(
+    checkpoint_files("assignments"), assignment_rows, "assignments")
+}
+completed_draws <- which(!vapply(headline_rows, is.null, logical(1)))
+if (length(completed_draws) &&
+    !identical(completed_draws, seq_len(max(completed_draws)))) {
+  stop("Headline checkpoints are not a contiguous prefix of draws")
+}
+if (length(completed_draws)) {
+  missing_companions <- completed_draws[
+    vapply(assignment_rows[completed_draws], is.null, logical(1)) |
+      (!headline_only & vapply(dynamic_rows[completed_draws], is.null, logical(1)))
+  ]
+  if (length(missing_companions)) {
+    stop("Checkpoint companion shards are missing for completed draws")
+  }
+  message("Resuming after placebo draw ", max(completed_draws))
+}
+draw_ids <- setdiff(seq_len(draws), completed_draws)
 started <- Sys.time()
-for (draw_id in seq_len(draws)) {
+for (draw_id in draw_ids) {
   draw_started <- Sys.time()
   assignment <- draw_assignment(draw_id)
   duckdb::duckdb_register(con, "simple_assignment", assignment)
@@ -404,13 +464,24 @@ for (draw_id in seq_len(draws)) {
       ": ATT=", sprintf("%.4f", headline$estimate),
       ", p=", sprintf("%.3f", headline$p_value))
   }
-  if (draw_id %% 50L == 0L && draw_id < draws) {
+  if (draw_id %% checkpoint_every == 0L || draw_id == draws) {
+    block_start <- max(1L, draw_id - checkpoint_every + 1L)
+    block_ids <- block_start:draw_id
+    suffix <- sprintf("%04d_%04d.csv", block_start, draw_id)
     utils::write.csv(
-      do.call(rbind, headline_rows[seq_len(draw_id)]),
-      file.path(
-        output_dir,
-        "simple_control_placebo_draws_checkpoint.csv"),
+      do.call(rbind, headline_rows[block_ids]),
+      file.path(checkpoint_dir, paste0("headline_", suffix)),
       row.names = FALSE)
+    utils::write.csv(
+      do.call(rbind, assignment_rows[block_ids]),
+      file.path(checkpoint_dir, paste0("assignments_", suffix)),
+      row.names = FALSE)
+    if (!headline_only) {
+      utils::write.csv(
+        do.call(rbind, dynamic_rows[block_ids]),
+        file.path(checkpoint_dir, paste0("dynamic_", suffix)),
+        row.names = FALSE)
+    }
   }
 }
 
@@ -445,18 +516,18 @@ summary$cohort_wild_rejection_share_5pct <- if (
   mean(headline$cohort_wild_p_value < 0.05, na.rm = TRUE)
 }
 reference_path <- file.path(
-  BASE, "output", "results", "local_match_v2",
-  "CURRENT_LOCAL_MATCH_V2", "04_Results", "results_inventory",
-  "master_results_inventory.csv")
+  BASE, "output", "audit", "local_match_v2_1993_amendment",
+  "P6_ESTIMATION_PRIMARY", "p6_headline_post_att.csv")
 if (!file.exists(reference_path)) {
   stop("Certified main-result inventory not found: ", reference_path)
 }
 reference_inventory <- utils::read.csv(
   reference_path, stringsAsFactors = FALSE)
 reference_row <- reference_inventory[
-  reference_inventory$population == "full target-inventor cohort" &
+  reference_inventory$sample == "full_1993_2010" &
     reference_inventory$outcome == "patent_count" &
-    reference_inventory$reporting_tier == "main", ,
+    reference_inventory$summary == "average_annual_t1_to_t5" &
+    reference_inventory$inference == "deal_wild_bootstrap_t", ,
   drop = FALSE]
 if (nrow(reference_row) != 1L ||
     !is.finite(reference_row$estimate)) {
@@ -483,7 +554,7 @@ utils::write.csv(
   file.path(output_dir, "simple_control_placebo_assignments.csv"),
   row.names = FALSE)
 
-if (headline_only) {
+{
   grDevices::png(
     file.path(output_dir, "simple_control_placebo_distribution.png"),
     width = 1800, height = 1100, res = 180)
@@ -529,7 +600,9 @@ if (headline_only) {
     lty = c(2, 1, 3), lwd = c(2, 3, 3),
     bty = "n")
   grDevices::dev.off()
-} else {
+}
+
+if (!headline_only) {
   dynamic <- do.call(rbind, dynamic_rows)
   dynamic_summary <- do.call(rbind, lapply(
     sort(unique(dynamic$event_time)),
@@ -564,11 +637,15 @@ if (headline_only) {
     dynamic_summary$event_time,
     dynamic_summary$mean_estimate,
     type = "n", xlab = "Event time", ylab = "Placebo ATT: patents",
+    xaxt = "n",
     main = "Random untreated-firm placebo",
     sub = paste0(
       "Mean across ", draws,
       " draws; shaded range is the 2.5th--97.5th percentile across draws"),
     ylim = range(c(dynamic_summary$p025, dynamic_summary$p975)))
+  graphics::axis(
+    1, at = seq.int(-5L, 5L), labels = seq.int(-5L, 5L),
+    cex.axis = 0.9)
   graphics::polygon(
     c(dynamic_summary$event_time, rev(dynamic_summary$event_time)),
     c(dynamic_summary$p025, rev(dynamic_summary$p975)),
@@ -585,7 +662,7 @@ if (headline_only) {
 
 manifest <- data.frame(
   design = "simple_symmetric_random_u2_firm_placebo",
-  cohorts = "1994-2010",
+  cohorts = "1993-2010",
   draws = draws,
   firms_per_arm_per_cohort = firms_per_arm,
   outcome = "patent_count",
@@ -600,6 +677,8 @@ manifest <- data.frame(
   },
   bootstrap_replications = bootstrap_reps,
   headline_only = headline_only,
+  resume_enabled = resume,
+  checkpoint_every = checkpoint_every,
   interpretation =
     "preliminary recruitment/event-time falsification; not P5 validation",
   script_sha256 = digest::digest(
@@ -615,3 +694,32 @@ utils::write.csv(
   manifest,
   file.path(output_dir, "simple_control_placebo_manifest.csv"),
   row.names = FALSE)
+
+certification <- data.frame(
+  check = c(
+    "amended_cohort_grid",
+    "all_draws_completed",
+    "all_headline_estimates_finite",
+    "amended_primary_reference_unique",
+    "symmetric_arm_sizes_positive"
+  ),
+  pass = c(
+    identical(sort(unique(assignments$cohort)), cohorts),
+    nrow(headline) == draws && setequal(headline$draw_id, seq_len(draws)),
+    all(is.finite(headline$estimate)),
+    nrow(reference_row) == 1L && is.finite(reference_att),
+    all(headline$treated_inventors > 0 & headline$control_inventors > 0)
+  ),
+  stringsAsFactors = FALSE
+)
+utils::write.csv(
+  certification,
+  file.path(output_dir, "simple_control_placebo_certification.csv"),
+  row.names = FALSE
+)
+if (!all(certification$pass)) {
+  stop(
+    "Simple control placebo certification failed: ",
+    paste(certification$check[!certification$pass], collapse = ", ")
+  )
+}

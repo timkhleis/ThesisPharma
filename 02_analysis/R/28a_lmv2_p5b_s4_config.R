@@ -4,7 +4,7 @@ if (!exists("lmv2_p5b_s3_config")) {
   source(file.path("02_analysis", "R", "27a_lmv2_p5b_s3_config.R"))
 }
 
-LMV2_P5B_S4_VERSION <- "lmv2_p5b_stayer_s4_v1"
+LMV2_P5B_S4_VERSION <- "lmv2_p5b_stayer_s4_1993_amendment_v1"
 
 lmv2_p5b_s4_config <- function(base = getwd()) {
   base <- normalizePath(base, winslash = "/", mustWork = TRUE)
@@ -12,15 +12,18 @@ lmv2_p5b_s4_config <- function(base = getwd()) {
   user_root <- Sys.getenv("USERPROFILE")
   p6_root <- lmv2_stayer_existing_path(
     c(
+      base,
       Sys.getenv("LMV2_P6_ROOT"),
       file.path(user_root, "Documents", "Thesis", ".worktrees",
                 "lmv2-p6-outcomes")
     ),
     "the authoritative P6 outcomes worktree")
   p6_audit <- file.path(
-    p6_root, "02_analysis", "output", "audit", "local_match_v2")
+    p6_root, "02_analysis", "output", "audit",
+    "local_match_v2_1993_amendment")
   output_dir <- file.path(
-    base, "02_analysis", "output", "audit", "local_match_v2",
+    base, "02_analysis", "output", "audit",
+    "local_match_v2_1993_amendment",
     "P5B_STAYER_S4_RESULTS")
 
   list(
@@ -29,9 +32,9 @@ lmv2_p5b_s4_config <- function(base = getwd()) {
     p6_root = p6_root,
     p6_r_dir = file.path(p6_root, "02_analysis", "R"),
     base_panel_dir = file.path(
-      p6_audit, "P6_P5C_PANEL_COUNT_ACTIVE", "panel_matched"),
+      p6_audit, "P6_P5C_COUNT_ACTIVE", "panel_matched"),
     base_p6_manifest = file.path(
-      p6_audit, "P6_P5C_PANEL_COUNT_ACTIVE", "p6_manifest.csv"),
+      p6_audit, "P6_P5C_COUNT_ACTIVE", "p6_manifest.csv"),
     s3 = s3,
     s3_weights = file.path(
       s3$output_dir, "s3_production_weights.parquet"),
@@ -41,8 +44,7 @@ lmv2_p5b_s4_config <- function(base = getwd()) {
     output_dir = output_dir,
     production_specs = s3$production_specs,
     samples = list(
-      full_1994_2010 = 1994:2010,
-      buffered_1994_2008 = 1994:2008
+      full_1993_2010 = 1993:2010
     ),
     outcomes = c("patent_count", "active_patenting"),
     event_window = -5:5,

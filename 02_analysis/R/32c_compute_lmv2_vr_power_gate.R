@@ -52,7 +52,9 @@ stamp_files <- sort(list.files(
   pattern = "^lmv2_event_panel_c[0-9]+_stamp\\.csv$",
   full.names = TRUE
 ))
-if (length(panel_files) != 17L || length(stamp_files) != 17L) {
+expected_shards <- length(unique(unlist(cfg$estimand$samples)))
+if (length(panel_files) != expected_shards ||
+    length(stamp_files) != expected_shards) {
   stop("Certified P5c panel bundle is incomplete")
 }
 panel_sql <- lmv2_panel_sql(panel_files)
@@ -151,7 +153,7 @@ unit_checks <- data.frame(
     "all_p5c_weights_are_positive"
   ),
   pass = c(
-    unit_audit$unit_rows == 500906L &&
+    unit_audit$unit_rows == moderator_manifest$moderator_rows &&
       unit_audit$unit_rows == unit_audit$unique_rows,
     unit_audit$incomplete_paths == 0,
     unit_audit$missing_outcomes == 0,
@@ -204,7 +206,7 @@ outcomes <- c(
 # Verify the nested aggregate regression before calculating any moderator
 # precision. Only pass/fail is serialized at this stage.
 base <- lmv2_vr_prepare_data(
-  unit, cfg$estimand$samples$full_1994_2010
+  unit, cfg$estimand$samples$full_1993_2010
 )$data
 base_rhs <- c("factor(cohort)", "treated")
 base_count <- lmv2_vr_fit_wls(base, "d_patent_ref", base_rhs)
@@ -213,7 +215,7 @@ headline <- utils::read.csv(cfg$inputs$headline, stringsAsFactors = FALSE)
 get_headline <- function(outcome) {
   z <- headline[
     headline$outcome == outcome &
-      headline$sample == "full_1994_2010" &
+      headline$sample == "full_1993_2010" &
       headline$summary == "average_annual_t1_to_t5" &
       headline$governing %in% c(TRUE, "TRUE"),
   ]
@@ -233,7 +235,7 @@ row_id <- 0L
 for (moderator in names(model_spec)) {
   spec <- model_spec[[moderator]]
   prepared <- lmv2_vr_prepare_data(
-    unit, cfg$estimand$samples$full_1994_2010,
+    unit, cfg$estimand$samples$full_1993_2010,
     techfit_variant = spec$techfit
   )
   x <- prepared$data

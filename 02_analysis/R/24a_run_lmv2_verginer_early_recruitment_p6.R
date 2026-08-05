@@ -55,13 +55,14 @@ WEIGHT_CERT <- file.path(
 WEIGHT_DIAGNOSTICS <- file.path(
   WEIGHT_DIR, "verginer_cell_diagnostics.csv")
 BASE_PANEL_DIR <- file.path(
-  BASE, "output", "audit", "local_match_v2",
-  "P6_P5C_PANEL_COUNT_ACTIVE", "panel_matched")
+  BASE, "output", "audit", "local_match_v2_1993_amendment",
+  "P6_P5C_COUNT_ACTIVE", "panel_matched")
 MAIN_RESULT_DIR <- file.path(
-  BASE, "output", "audit", "local_match_v2",
-  "P6_P5C_ESTIMATION_COUNT_ACTIVE")
+  BASE, "output", "audit", "local_match_v2_1993_amendment",
+  "P6_ESTIMATION_PRIMARY")
 OUT_DIR <- file.path(
-  BASE, "output", "audit", "local_match_v2",
+  BASE, "output", "audit", "local_match_v2_1993_amendment",
+  "ROBUSTNESS_RELEASE_1993",
   if (identical(DESIGN, "inventor_only")) {
     "P6_VERGINER_EARLY_RECRUITMENT"
   } else {
@@ -123,7 +124,6 @@ if (identical(DESIGN, "inventor_only")) {
 }
 weight_manifest <- weight_manifest[order(weight_manifest$cohort), ]
 COHORTS <- as.integer(weight_manifest$cohort)
-BUFFERED_COHORTS <- COHORTS[COHORTS <= 2008L]
 if (nrow(weight_manifest) != length(COHORTS) ||
     !identical(as.integer(weight_manifest$cohort), COHORTS) ||
     !all(file.exists(weight_manifest$path))) {
@@ -140,8 +140,8 @@ panel_files <- sort(list.files(
   BASE_PANEL_DIR,
   pattern = "^lmv2_event_panel_c[0-9]+\\.parquet$",
   full.names = TRUE))
-if (length(panel_files) != 17L) {
-  stop("Expected the 17 certified count-active panel shards")
+if (length(panel_files) != 18L) {
+  stop("Expected the 18 certified count-active panel shards")
 }
 
 atomic_csv <- function(x, name) {
@@ -291,9 +291,7 @@ paths <- DBI::dbGetQuery(con, "
   ORDER BY event_time,arm")
 atomic_csv(paths, "verginer_weighted_patent_paths.csv")
 
-sample_definitions <- list(
-  full = COHORTS,
-  buffered = BUFFERED_COHORTS)
+sample_definitions <- list(full = COHORTS)
 fit_rows <- list()
 for (sample_id in names(sample_definitions)) {
   cohorts <- sample_definitions[[sample_id]]
@@ -325,7 +323,7 @@ main_dynamic <- utils::read.csv(
   stringsAsFactors = FALSE)
 main_dynamic <- main_dynamic[
     main_dynamic$outcome == "patent_count" &
-    main_dynamic$sample == "full_1994_2010",
+    main_dynamic$sample == "full_1993_2010",
   , drop = FALSE]
 plot_dynamic <- rbind(
   transform(

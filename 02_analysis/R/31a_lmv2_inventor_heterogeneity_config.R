@@ -6,7 +6,7 @@
 # information dated t=-5,...,-1.  Outcome estimates are opened only by 31c,
 # after 31b has built and certified this moderator table.
 
-LMV2_INVENTOR_HET_VERSION <- "lmv2_inventor_heterogeneity_v2"
+LMV2_INVENTOR_HET_VERSION <- "lmv2_inventor_heterogeneity_1993_amendment_v1"
 
 LMV2_INVENTOR_HET <- list(
   construction = list(
@@ -48,10 +48,7 @@ LMV2_INVENTOR_HET <- list(
     outcome = "patent_count",
     reference_event_time = -1L,
     post_event_times = 1:5,
-    samples = list(
-      full_1994_2010 = 1994:2010,
-      buffered_1994_2008 = 1994:2008
-    ),
+    samples = list(full_1993_2010 = 1993:2010),
     standardization = paste(
       "group-specific treated-control first-difference ATT standardized to",
       "the same full-treated cohort shares over moderator-common cohorts"
@@ -84,20 +81,20 @@ LMV2_INVENTOR_HET <- list(
       "02_analysis", "output", "thesis_foundation.duckdb"
     ),
     panel_dir = file.path(
-      "02_analysis", "output", "audit", "local_match_v2",
-      "P6_P5C_PANEL_COUNT_ACTIVE", "panel_matched"
+      "02_analysis", "output", "audit", "local_match_v2_1993_amendment",
+      "P6_P5C_COUNT_ACTIVE", "panel_matched"
     ),
     panel_manifest = file.path(
-      "02_analysis", "output", "audit", "local_match_v2",
-      "P6_P5C_PANEL_COUNT_ACTIVE", "p6_manifest.csv"
+      "02_analysis", "output", "audit", "local_match_v2_1993_amendment",
+      "P6_P5C_COUNT_ACTIVE", "p6_manifest.csv"
     )
   ),
   output_dir = file.path(
-    "02_analysis", "output", "audit", "local_match_v2",
+    "02_analysis", "output", "audit", "local_match_v2_1993_amendment",
     "P7_INVENTOR_HETEROGENEITY"
   ),
   result_dir = file.path(
-    "02_analysis", "output", "results", "local_match_v2",
+    "02_analysis", "output", "results", "local_match_v2_1993_amendment",
     "inventor_heterogeneity"
   )
 )

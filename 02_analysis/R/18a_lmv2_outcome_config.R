@@ -6,21 +6,21 @@
 # It performs no data access. Authority order: approved amendments
 # (02_analysis/notes/local_match_v2_amendments.md) > frozen P0 lock (15a).
 
-LMV2_P6_VERSION <- "local_match_v2_p6_v3"
+LMV2_P6_VERSION <- "local_match_v2_p6_1993_amendment_v1"
 
 LMV2_P6_PREANALYSIS_FREEZE_SHA256 <-
-  "1ed37807124f72ae85d10fed00c3959016530f1e6fade61c416227d8350ff2d4"
+  "a37d0d953845a549f4011ec13ad2e52a46768c3ff8a7aa7f12898a255fac1645"
 LMV2_P6_APPROVED_PRIMARY_ROSTER_SHA256 <-
-  "19c8245b499a5186b3c8a83e796def82dba522303eccd3507ab7cdc362f26107"
+  "970a3e9200ae9f1b074b2ff3bc437aa89876fd96f582228a0dc24e898564f9ce"
 LMV2_P6_APPROVED_P5_DESIGN_HASH <-
-  "188f7735a6fe39dd090c03eb7a15b01b7bafc7e3118e5a75f411020cf5423507"
+  "2c64d3b8cc7957a32adda1708eacab84003483d1e2240a43fa0aee9e00f68e97"
 LMV2_P6_APPROVED_P5_PRODUCTION_FREEZE_SHA256 <-
   "637e7535239a835ffadc5cbba17a96c2f9a2410d997f36ff127568493b9b33d4"
 
 LMV2_P6_CONFIG <- list(
   # -- sample clocks (P0 lock + P2 amendments) -------------------------------
-  cohorts = 1994:2010,
-  buffered_cohorts = 1994:2008,
+  cohorts = 1993:2010,
+  buffered_cohorts = 1993:2008,
   event_window = -5:5,
   headline_post_window = 1:5,
   headline_terminal_event_time = 5L,
@@ -85,7 +85,7 @@ LMV2_P6_CONFIG <- list(
   cohort_weight_mass_tolerance = 1e-7,
   approved_primary = list(
     roster_sha256 = LMV2_P6_APPROVED_PRIMARY_ROSTER_SHA256,
-    roster_rows = 500906L,
+    roster_rows = 512625L,
     p5_design_hash = LMV2_P6_APPROVED_P5_DESIGN_HASH,
     p5_production_freeze_sha256 =
       LMV2_P6_APPROVED_P5_PRODUCTION_FREEZE_SHA256

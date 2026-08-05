@@ -15,7 +15,7 @@ output_arg <- sub(
   "^--output-dir=", "", grep(
     "^--output-dir=", args, value = TRUE))
 default_output <- file.path(
-  "02_analysis", "output", "audit", "local_match_v2",
+  "02_analysis", "output", "audit", "local_match_v2_1993_amendment",
   if (smoke) "P8_EXIT_DECOMPOSITION_SMOKE" else "P8_EXIT_DECOMPOSITION")
 output_dir <- if (length(output_arg)) output_arg[[1L]] else default_output
 dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)

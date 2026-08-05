@@ -1,0 +1,11 @@
+"cohort","deal_id","reason","n_treated_inventors"
+1995,10,"thinnest_in_cohort",102
+1995,11,"median_in_cohort(lower,rank2_of_4)",191
+2002,105,"given_failed_firm_stage; thinnest_in_cohort",2
+2002,106,"median_in_cohort(lower,rank7_of_13)",25
+2009,328,"thinnest_in_cohort",4
+2009,329,"given_difficult_large_2009",12
+2009,332,"median_in_cohort(lower,rank10_of_20)",21
+2009,339,"given_difficult_large_2009",107
+2009,344,"given_difficult_large_2009",642
+2009,346,"given_difficult_large_2009",1279

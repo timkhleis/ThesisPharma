@@ -25,6 +25,7 @@ result_dir <- cfg$result_dir
 dir.create(result_dir, recursive = TRUE, showWarnings = FALSE)
 input_paths <- setNames(file.path(out_dir, c(
   "moderator_build_certification.csv",
+  "moderator_build_audit.csv",
   "moderator_build_manifest.csv",
   "unit_analysis_certification.csv",
   "power_gate_manifest.csv",
@@ -36,7 +37,7 @@ input_paths <- setNames(file.path(out_dir, c(
   "team_persistence_counts.csv",
   "techfit_coverage_funnel.csv"
 )), c(
-  "moderator_cert", "moderator_manifest", "unit_cert",
+  "moderator_cert", "moderator_audit", "moderator_manifest", "unit_cert",
   "power_manifest", "power", "heterogeneity", "aggregate",
   "decomposition", "estimation_manifest", "team_counts",
   "techfit_funnel"
@@ -48,6 +49,7 @@ read_csv <- function(path) {
   utils::read.csv(path, stringsAsFactors = FALSE, check.names = FALSE)
 }
 moderator_cert <- read_csv(input_paths[["moderator_cert"]])
+moderator_audit <- read_csv(input_paths[["moderator_audit"]])
 moderator_manifest <- read_csv(input_paths[["moderator_manifest"]])
 unit_cert <- read_csv(input_paths[["unit_cert"]])
 power_manifest <- read_csv(input_paths[["power_manifest"]])
@@ -68,7 +70,7 @@ s4_inference <- read_csv(s4_inference_path)
 s4_primary_inference <- s4_inference[
   s4_inference$spec == cfg$construction$primary_spec &
     s4_inference$support_variant == cfg$construction$primary_support &
-    s4_inference$sample == "full_1994_2010" &
+    s4_inference$sample == "full_1993_2010" &
     s4_inference$summary == "average_annual_t1_to_t5", ,
   drop = FALSE
 ]
@@ -84,12 +86,12 @@ tenure <- heterogeneity[
   drop = FALSE
 ]
 full_aggregate <- aggregate[
-  aggregate$sample == "full_1994_2010" &
+  aggregate$sample == "full_1993_2010" &
     aggregate$window == "post_mean_minus_t_minus_1", ,
   drop = FALSE
 ]
 full_decomp <- decomposition[
-  decomposition$sample == "full_1994_2010", ,
+  decomposition$sample == "full_1993_2010", ,
   drop = FALSE
 ]
 
@@ -149,7 +151,7 @@ checks <- data.frame(
     "primary_family_has_exactly_eight_rows",
     "holm_appendix_complete_for_primary_family",
     "all_primary_estimates_and_intervals_finite",
-    "tenure_is_appendix_only_and_reported_for_both_samples",
+    "tenure_is_appendix_only_and_reported_for_amended_sample",
     "aggregate_stayer_att_reproduced",
     "certified_s4_aggregate_inference_is_complete_and_reproduced",
     "extensive_intensive_identity_passes",
@@ -175,7 +177,7 @@ checks <- data.frame(
       all(is.finite(primary$ci_high)) &&
       all(primary$ci_low <= primary$estimate) &&
       all(primary$estimate <= primary$ci_high),
-    nrow(tenure) == 4L &&
+    nrow(tenure) == 2L &&
       all(is.na(tenure$holm_adjusted_governing_p)),
     isTRUE(est_manifest$aggregate_att_reproduced),
     nrow(s4_primary_inference) == 6L &&
@@ -258,8 +260,7 @@ p <- ggplot2::ggplot(
     y = NULL,
     title = "Initially retained inventor heterogeneity",
     subtitle = paste(
-      "P5b weights; conservative intervals; raw p-values",
-      "(Holm adjustment in appendix)"
+      "P5b weights; conservative intervals; ordinary unadjusted p-values"
     ),
     shape = NULL
   ) +
@@ -282,21 +283,22 @@ utils::write.csv(
   file.path(result_dir, "table_stayer_heterogeneity_primary.csv"),
   row.names = FALSE
 )
-table_holm <- primary[, c(
+table_diagnostics <- primary[, c(
   "moderator", "outcome", "contrast", "estimate", "ci_low", "ci_high",
-  "governing_p", "holm_adjusted_governing_p"
+  "governing_p", "power_gate_pass", "precision_mde",
+  "type_m_exaggeration_ratio_at_threshold"
 )]
-names(table_holm)[names(table_holm) == "governing_p"] <-
-  "unadjusted_p_value"
-names(table_holm)[names(table_holm) == "holm_adjusted_governing_p"] <-
-  "holm_adjusted_p_value"
+names(table_diagnostics)[names(table_diagnostics) == "governing_p"] <-
+  "p_value"
 utils::write.csv(
-  table_holm,
-  file.path(result_dir, "table_stayer_heterogeneity_holm_appendix.csv"),
+  table_diagnostics,
+  file.path(result_dir, "table_stayer_heterogeneity_diagnostics.csv"),
   row.names = FALSE
 )
 utils::write.csv(
-  heterogeneity,
+  heterogeneity[, setdiff(
+    names(heterogeneity), "holm_adjusted_governing_p"
+  ), drop = FALSE],
   file.path(result_dir, "table_stayer_heterogeneity_complete.csv"),
   row.names = FALSE
 )
@@ -342,7 +344,7 @@ utils::write.csv(
 )
 
 selection_path <- file.path(
-  BASE, "output", "audit", "local_match_v2",
+  BASE, "output", "audit", "local_match_v2_1993_amendment",
   "P5B_STAYER_SELECTION_DIAGNOSTICS", "selection_group_summary.csv"
 )
 if (file.exists(selection_path)) {
@@ -383,7 +385,7 @@ age_count <- get_primary("career_age", "patent_count")
 team_count <- get_primary("team_persistence", "patent_count")
 tech_count <- get_primary("techfit", "patent_count")
 tenure_count <- tenure[
-  tenure$sample == "full_1994_2010" &
+  tenure$sample == "full_1993_2010" &
     tenure$outcome == "patent_count", ,
   drop = FALSE
 ]
@@ -394,11 +396,16 @@ note <- c(
   "",
   sprintf(
     paste(
-      "The separately balanced P5b design contains 2,663 initially retained",
-      "treated inventors across 151 deals. Their aggregate patent-count ATT is",
+      "The separately balanced P5b design contains %s initially retained",
+      "treated inventors across %s deals. Their aggregate patent-count ATT is",
       "%s patents per inventor-year (two-way deal/inventor 95%% CI %s to %s;",
       "p=%s)."
     ),
+    format(
+      moderator_audit$treated_inventors,
+      big.mark = ",", scientific = FALSE
+    ),
+    format(moderator_audit$treated_deals, big.mark = ",", scientific = FALSE),
     fmt(count_att$estimate), fmt(count_att$ci_low),
     fmt(count_att$ci_high), fmt(count_att$p_value)
   ),
@@ -431,6 +438,11 @@ note <- c(
     fmt(team_count$estimate), fmt(team_count$governing_p),
     fmt(tech_count$estimate), fmt(tech_count$governing_p)
   ),
+  paste(
+    "None of the eight predeclared stayer contrasts passes the prospective",
+    "MDE gate. The point estimates and unadjusted p-values are reported for",
+    "completeness, but they do not support a confirmatory heterogeneity claim."
+  ),
   sprintf(
     paste(
       "Corrected focal tenure is appendix-only. Its p75-minus-p25 patent-count",
@@ -445,12 +457,12 @@ note <- c(
   "ATT reports the previously selected two-way inference with wild bootstrap",
   "shown transparently as a companion.",
   "",
-  "## Multiplicity appendix",
+  "## Precision diagnostics",
   "",
   paste(
-    "The main table reports unadjusted governing p-values. The complete",
-    "eight-test Holm adjustment is retained in",
-    "`table_stayer_heterogeneity_holm_appendix.csv`."
+    "The main table and diagnostics report ordinary unadjusted governing",
+    "p-values. MDE and Type-M diagnostics are retained in",
+    "`table_stayer_heterogeneity_diagnostics.csv`."
   ),
   paste(
     "The decomposition's inferential diagnostics are retained separately in",
@@ -476,7 +488,7 @@ note <- c(
   )
 )
 note_path <- file.path(
-  BASE, "notes", "local_match_v2_stayer_heterogeneity_results.md"
+  cfg$output_dir, "stayer_heterogeneity_results.md"
 )
 writeLines(note, note_path, useBytes = TRUE)
 
@@ -484,7 +496,7 @@ artifact_paths <- c(
   figure_path,
   file.path(result_dir, c(
     "table_stayer_heterogeneity_primary.csv",
-    "table_stayer_heterogeneity_holm_appendix.csv",
+    "table_stayer_heterogeneity_diagnostics.csv",
     "table_stayer_heterogeneity_complete.csv",
     "table_stayer_aggregate_effects.csv",
     "table_stayer_aggregate_reconstruction.csv",

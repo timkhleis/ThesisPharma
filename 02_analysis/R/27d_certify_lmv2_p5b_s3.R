@@ -89,7 +89,7 @@ lmv2_certify_p5b_s3 <- function(config = lmv2_p5b_s3_config()) {
   add("all_17_cohorts_present",
       identical(
         sort(unique(as.integer(diagnostics$cohort))),
-        1994:2010))
+        config$production_cohorts))
   expected_exclusions <- config$treated_support_exclusions[
     c("cohort", "codinv")]
   observed_exclusions <- exclusions[c("cohort", "codinv")]
@@ -288,7 +288,9 @@ lmv2_certify_p5b_s3 <- function(config = lmv2_p5b_s3_config()) {
       min(diagnostics$effective_control_firms[
         diagnostics$spec == primary_spec]),
       max(diagnostics$max_smd_after),
-      paste(setdiff(1994:2010, production_cohorts), collapse = ";"),
+      paste(
+        setdiff(config$production_cohorts, production_cohorts),
+        collapse = ";"),
       nrow(exclusions),
       nrow(single_firm_deals),
       single_firm_share,

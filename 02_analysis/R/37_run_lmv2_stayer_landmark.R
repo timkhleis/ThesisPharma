@@ -10,10 +10,10 @@ parent_arg <- sub(
   "^--parent-exit-dir=", "",
   grep("^--parent-exit-dir=", args, value = TRUE))
 output_dir <- if (length(output_arg)) output_arg[[1L]] else file.path(
-  "02_analysis", "output", "audit", "local_match_v2",
+  "02_analysis", "output", "audit", "local_match_v2_1993_amendment",
   if (smoke) "P8_STAYER_LANDMARK_SMOKE" else "P8_STAYER_LANDMARK")
 parent_exit_dir <- if (length(parent_arg)) parent_arg[[1L]] else file.path(
-  "02_analysis", "output", "audit", "local_match_v2",
+  "02_analysis", "output", "audit", "local_match_v2_1993_amendment",
   if (smoke) "P8_EXIT_DECOMPOSITION_SMOKE" else "P8_EXIT_DECOMPOSITION")
 dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
 output_dir <- normalizePath(output_dir, winslash = "/", mustWork = TRUE)

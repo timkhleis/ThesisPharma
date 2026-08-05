@@ -37,6 +37,9 @@ if (!all(file.exists(paths))) {
 }
 
 deals <- utils::read.csv(paths[["deal"]], stringsAsFactors = FALSE)
+build_manifest <- utils::read.csv(
+  paths[["build_manifest"]], stringsAsFactors = FALSE
+)
 assignment <- utils::read.csv(
   paths[["assignment"]], stringsAsFactors = FALSE
 )
@@ -65,7 +68,7 @@ reassigned <- lmv2_dealsim_assign_terciles(
 
 checks <- data.frame(
   check = c(
-    "exact_frozen_deal_count",
+    "deal_count_matches_amended_panel",
     "one_row_per_deal",
     "placeholder_acquirers_excluded",
     "only_predeal_ipc_years_used",
@@ -81,7 +84,8 @@ checks <- data.frame(
     "all_manifests_use_current_design_hash"
   ),
   pass = c(
-    nrow(deals) == 341L,
+    nrow(build_manifest) == 1L &&
+      nrow(deals) == build_manifest$nominal_deals,
     !anyDuplicated(deals$deal_id),
     !any(
       !is.na(deals$acquirer_group) &

@@ -63,11 +63,11 @@ lmv2_estimate_stayer_landmark <- function(
   ", lmv2_exit_sql_string(config$landmark_weights)))
   panel <- lmv2_exit_extract_panel(con, "landmark_exit_panel")
   cohorts <- sort(unique(panel$cohort))
-  if (!smoke) cohorts <- intersect(cohorts, 1994:2010)
+  if (!smoke) cohorts <- intersect(cohorts, 1993:2010)
   sample <- if (smoke) {
     paste0("smoke_", min(cohorts), "_", max(cohorts), "_t2_t5")
   } else {
-    "headline_1994_2010_t2_t5"
+    "headline_1993_2010_t2_t5"
   }
   decomp <- lmv2_estimate_exit_decomposition(
     panel, cohorts, config$landmark_post_window, sample,
