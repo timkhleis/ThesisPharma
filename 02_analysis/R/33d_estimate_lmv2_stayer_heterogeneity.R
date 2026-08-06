@@ -245,35 +245,25 @@ run_grid <- function(
 primary_mods <- cfg$construction$primary_moderators
 all_results <- list(
   run_grid(
-    primary_mods, "full_1994_2010",
-    cfg$estimand$samples$full_1994_2010, outcomes_ref,
+    primary_mods, "full_1993_2010",
+    cfg$estimand$samples$full_1993_2010, outcomes_ref,
     "post_mean_minus_t_minus_1", "separate_primary"
   ),
   run_grid(
-    primary_mods, "buffered_1994_2008",
-    cfg$estimand$samples$buffered_1994_2008, outcomes_ref,
-    "post_mean_minus_t_minus_1", "censoring_companion"
-  ),
-  run_grid(
-    primary_mods, "full_1994_2010",
-    cfg$estimand$samples$full_1994_2010, outcomes_5x5,
+    primary_mods, "full_1993_2010",
+    cfg$estimand$samples$full_1993_2010, outcomes_5x5,
     "five_post_minus_five_pre", "five_by_five_companion"
   ),
   run_grid(
-    "focal_tenure", "full_1994_2010",
-    cfg$estimand$samples$full_1994_2010, outcomes_ref,
+    "focal_tenure", "full_1993_2010",
+    cfg$estimand$samples$full_1993_2010, outcomes_ref,
     "post_mean_minus_t_minus_1", "tenure_appendix"
-  ),
-  run_grid(
-    "focal_tenure", "buffered_1994_2008",
-    cfg$estimand$samples$buffered_1994_2008, outcomes_ref,
-    "post_mean_minus_t_minus_1", "tenure_appendix_censoring"
   )
 )
 techfit_5y <- lapply(names(outcomes_ref), function(outcome) {
   run_one(
-    "techfit", outcome, outcomes_ref[[outcome]], "full_1994_2010",
-    cfg$estimand$samples$full_1994_2010,
+    "techfit", outcome, outcomes_ref[[outcome]], "full_1993_2010",
+    cfg$estimand$samples$full_1993_2010,
     "post_mean_minus_t_minus_1", "techfit_five_year_robustness", "5y"
   )
 })
@@ -281,7 +271,7 @@ all_results[[length(all_results) + 1L]] <- do.call(rbind, techfit_5y)
 results <- do.call(rbind, all_results)
 
 primary <- results$result_type == "focal_contrast" &
-  results$sample == "full_1994_2010" &
+  results$sample == "full_1993_2010" &
   results$window == "post_mean_minus_t_minus_1" &
   results$model_type == "separate_primary" &
   results$techfit_variant %in% c("not_applicable", "full")
@@ -473,14 +463,14 @@ decomposition <- do.call(rbind, lapply(
   names(cfg$estimand$samples),
   function(s) estimate_decomposition(s, cfg$estimand$samples[[s]])
 ))
-full_decomp <- decomposition[decomposition$sample == "full_1994_2010", ]
+full_decomp <- decomposition[decomposition$sample == "full_1993_2010", ]
 sym_sum <- sum(full_decomp$estimate[
   full_decomp$component %in%
     c("symmetric_extensive", "symmetric_intensive")
 ])
 total <- full_decomp$estimate[full_decomp$component == "total"]
 headline_count <- aggregate_results$estimate[
-  aggregate_results$sample == "full_1994_2010" &
+  aggregate_results$sample == "full_1993_2010" &
     aggregate_results$outcome == "patent_count" &
     aggregate_results$window == "post_mean_minus_t_minus_1"
 ]

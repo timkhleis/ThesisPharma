@@ -56,7 +56,7 @@ lmv2_build_p5b_s3_support <- function(config = lmv2_p5b_s3_config()) {
   if (length(old_csv)) unlink(old_csv, force = TRUE)
 
   copy_statements <- unlist(lapply(config$support_variants, function(v) {
-    vapply(1994:2010, function(g) {
+    vapply(config$production_cohorts, function(g) {
       path <- file.path(config$source_dir, sprintf("%s_c%d.csv", v, g))
       sprintf(
         paste0(
@@ -243,7 +243,9 @@ lmv2_build_p5b_s3_support <- function(config = lmv2_p5b_s3_config()) {
   lmv2_write_csv(excluded, exclusion_path)
 
   expected_csv <- unlist(lapply(config$support_variants, function(v) {
-    file.path(config$source_dir, sprintf("%s_c%d.csv", v, 1994:2010))
+    file.path(
+      config$source_dir,
+      sprintf("%s_c%d.csv", v, config$production_cohorts))
   }))
   required <- c(
     output_parquet, diagnostics_path, deal_path, exclusion_path,

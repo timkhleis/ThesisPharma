@@ -25,6 +25,7 @@ result_dir <- cfg$result_dir
 dir.create(result_dir, recursive = TRUE, showWarnings = FALSE)
 input_paths <- setNames(file.path(out_dir, c(
   "moderator_build_certification.csv",
+  "moderator_build_audit.csv",
   "moderator_build_manifest.csv",
   "team_persistence_counts.csv",
   "techfit_coverage_funnel.csv",
@@ -37,7 +38,7 @@ input_paths <- setNames(file.path(out_dir, c(
   "vr_margin_decomposition.csv",
   "vr_estimation_manifest.csv"
 )), c(
-  "moderator_cert", "moderator_manifest", "team_counts",
+  "moderator_cert", "moderator_audit", "moderator_manifest", "team_counts",
   "techfit_funnel", "techfit_distribution", "unit_cert",
   "power_manifest", "power", "heterogeneity", "aggregate",
   "decomposition", "estimation_manifest"
@@ -50,6 +51,7 @@ read_csv <- function(path) {
   utils::read.csv(path, stringsAsFactors = FALSE)
 }
 moderator_cert <- read_csv(input_paths[["moderator_cert"]])
+moderator_audit <- read_csv(input_paths[["moderator_audit"]])
 moderator_manifest <- read_csv(input_paths[["moderator_manifest"]])
 team_counts <- read_csv(input_paths[["team_counts"]])
 techfit_funnel <- read_csv(input_paths[["techfit_funnel"]])
@@ -61,6 +63,14 @@ heterogeneity <- read_csv(input_paths[["heterogeneity"]])
 aggregate <- read_csv(input_paths[["aggregate"]])
 decomposition <- read_csv(input_paths[["decomposition"]])
 est_manifest <- read_csv(input_paths[["estimation_manifest"]])
+certified_headline <- read_csv(cfg$inputs$headline)
+certified_headline <- certified_headline[
+  certified_headline$outcome == "patent_count" &
+    certified_headline$sample == "full_1993_2010" &
+    certified_headline$summary == "average_annual_t1_to_t5" &
+    certified_headline$governing %in% c(TRUE, "TRUE"), ,
+  drop = FALSE
+]
 
 assert_close <- function(x, y, tolerance = 1e-10) {
   length(x) == 1L && length(y) == 1L &&
@@ -122,7 +132,7 @@ tooth_tests <- data.frame(
 
 primary <- heterogeneity[
   heterogeneity$result_type == "focal_contrast" &
-    heterogeneity$sample == "full_1994_2010" &
+    heterogeneity$sample == "full_1993_2010" &
     heterogeneity$window == "post_mean_minus_t_minus_1" &
     heterogeneity$model_type == "separate_primary" &
     heterogeneity$techfit_variant %in% c("not_applicable", "full"),
@@ -132,13 +142,13 @@ strongest <- heterogeneity[
     heterogeneity$result_type == "focal_contrast",
 ]
 full_decomp <- decomposition[
-  decomposition$sample == "full_1994_2010",
+  decomposition$sample == "full_1993_2010",
 ]
 component <- function(name) {
   full_decomp$estimate[full_decomp$component == name]
 }
 headline <- aggregate$estimate[
-  aggregate$sample == "full_1994_2010" &
+  aggregate$sample == "full_1993_2010" &
     aggregate$outcome == "patent_count" &
     aggregate$window == "post_mean_minus_t_minus_1"
 ]
@@ -205,8 +215,8 @@ checks <- data.frame(
       all(is.finite(primary$precision_mde)) &&
       all(is.finite(primary$meaningful_threshold)) &&
       all(is.finite(primary$type_m_exaggeration_ratio_at_threshold)),
-    length(headline) == 1L &&
-      assert_close(headline, -.0534044541698586, 1e-10),
+    length(headline) == 1L && nrow(certified_headline) == 1L &&
+      assert_close(headline, certified_headline$estimate, 1e-10),
     assert_close(
       component("ordering_a_extensive") +
         component("ordering_a_intensive"),
@@ -224,12 +234,12 @@ checks <- data.frame(
     ),
     abs(component("pre_gap")) < 1e-7 &&
       abs(component("pre_active_gap")) < 1e-7,
-    sum(team_counts$roster_rows[
-      team_counts$arm == "treated" & team_counts$team_any == 0
-    ]) == 22715L &&
-      sum(team_counts$roster_rows[
-        team_counts$arm == "treated" & team_counts$team_any == 1
-      ]) == 4363L,
+    sum(team_counts$roster_rows[team_counts$arm == "treated"]) ==
+      moderator_audit$treated_rows &&
+      identical(
+        sort(as.integer(team_counts$team_any[team_counts$arm == "treated"])),
+        0:1
+      ),
     identical(cfg$construction$techfit_primary_window,
               "all_observable_years_before_treatment") &&
       any(heterogeneity$model_type ==
@@ -329,7 +339,7 @@ p_het <- ggplot2::ggplot(
     shape = NULL,
     caption = paste(
       "All eight predeclared contrasts are reported. Filled points have raw",
-      "p<0.05; Holm adjustment covers the full eight-test family."
+      "p<0.05; inference is reported with ordinary, unadjusted p-values."
     )
   ) +
   lmv2_theme(10.5, "bottom")
@@ -426,8 +436,7 @@ utils::write.csv(
   primary_main, table_paths["heterogeneity_primary"], row.names = FALSE
 )
 primary_diagnostics <- primary[, c(
-  "moderator", "outcome", "governing_p",
-  "holm_adjusted_governing_p", "power_gate_pass", "precision_mde",
+  "moderator", "outcome", "governing_p", "power_gate_pass", "precision_mde",
   "type_m_exaggeration_ratio_at_threshold"
 )]
 names(primary_diagnostics)[names(primary_diagnostics) == "governing_p"] <-
@@ -437,7 +446,10 @@ utils::write.csv(
   row.names = FALSE
 )
 utils::write.csv(
-  heterogeneity, table_paths["heterogeneity_complete"], row.names = FALSE
+  heterogeneity[, setdiff(
+    names(heterogeneity), "holm_adjusted_governing_p"
+  ), drop = FALSE],
+  table_paths["heterogeneity_complete"], row.names = FALSE
 )
 utils::write.csv(power, table_paths["power"], row.names = FALSE)
 utils::write.csv(
@@ -472,23 +484,52 @@ if (nrow(strong_count) != 1L || nrow(strong_active) != 1L) {
 prod_marg <- heterogeneity[
   heterogeneity$moderator == "predeal_productivity" &
     heterogeneity$outcome == "patent_count" &
-    heterogeneity$sample == "full_1994_2010" &
+    heterogeneity$sample == "full_1993_2010" &
     heterogeneity$window == "post_mean_minus_t_minus_1" &
     heterogeneity$model_type == "separate_primary" &
     heterogeneity$result_type %in%
       c("low_marginal_effect", "high_marginal_effect"),
 ]
+aggregate_count <- aggregate[
+  aggregate$sample == "full_1993_2010" &
+    aggregate$outcome == "patent_count" &
+    aggregate$window == "post_mean_minus_t_minus_1", ,
+  drop = FALSE
+]
+decomp_full <- decomposition[
+  decomposition$sample == "full_1993_2010" &
+    decomposition$component %in% c(
+      "symmetric_extensive", "symmetric_intensive", "total"
+    ), ,
+  drop = FALSE
+]
+if (nrow(aggregate_count) != 1L || nrow(decomp_full) != 3L) {
+  stop("Amended aggregate/decomposition rows are not unique")
+}
+get_decomp <- function(component, field) {
+  z <- decomp_full[decomp_full$component == component, field]
+  if (length(z) != 1L) stop("Decomposition row is not unique")
+  z
+}
 note <- c(
   "# Local Match v2: five-year inventor heterogeneity",
   "",
   "## TL;DR",
   "",
-  paste(
-    "The aggregate quantity result is unchanged: acquisitions reduce patent",
-    "output by 0.053 patents per inventor-year, or 0.267 patents over five",
-    "years. The symmetric accounting assigns 0.197 of the cumulative loss",
-    "(74%) to fewer active inventor-years and 0.070 (26%) to fewer patents",
-    "during active inventor-years."
+  sprintf(
+    paste(
+      "In the amended 1993--2010 sample, acquisitions reduce patent output by",
+      "%.3f patents per inventor-year, or %.3f patents over five years. The",
+      "symmetric accounting assigns %.3f of the cumulative loss (%.0f%%) to",
+      "fewer active inventor-years and %.3f (%.0f%%) to fewer patents during",
+      "active inventor-years."
+    ),
+    abs(aggregate_count$estimate),
+    abs(get_decomp("total", "five_year_patents")),
+    abs(get_decomp("symmetric_extensive", "five_year_patents")),
+    100 * get_decomp("symmetric_extensive", "share_of_total"),
+    abs(get_decomp("symmetric_intensive", "five_year_patents")),
+    100 * get_decomp("symmetric_intensive", "share_of_total")
   ),
   "",
   paste(
@@ -508,7 +549,13 @@ note <- c(
     sprintf("contrast is %.3f (p=%.3f); and the TechFit",
             team_count$estimate, team_count$governing_p),
     sprintf("contrast is %.3f (p=%.3f).",
-            tech_count$estimate, tech_count$governing_p)
+             tech_count$estimate, tech_count$governing_p)
+  ),
+  paste(
+    "Only two of the eight predeclared contrasts pass the prospective MDE",
+    "gate, and none of these three significant patent-count gradients does.",
+    "They are therefore precision-limited heterogeneity patterns, not",
+    "confirmatory mechanism results."
   ),
   "",
   "## Interpretation",
@@ -530,7 +577,14 @@ note <- c(
   ),
   paste(
     "Persistent collaborators are a plausible relationship-specific",
-    "human-capital channel, but only 4,363 treated inventors have a temporal",
+    sprintf(
+      "human-capital channel, but only %s treated inventors have a temporal",
+      format(
+        team_counts$roster_rows[
+          team_counts$arm == "treated" & team_counts$team_any == 1
+        ], big.mark = ",", scientific = FALSE
+      )
+    ),
     "persistent tie. The outcome-blind StrongestTie",
     "extension is reported separately among inventors with a persistent tie.",
     sprintf(
@@ -543,7 +597,7 @@ note <- c(
       strong_count$estimate, strong_count$governing_p,
       strong_active$estimate, strong_active$governing_p
     ),
-    "The data therefore support a persistent-team gradient but do not show",
+    "The estimates show an observed persistent-team gradient but do not show",
     "that greater dependence on one particular collaborator magnifies the",
     "loss."
   ),
@@ -562,8 +616,8 @@ note <- c(
     "structure but uses treated versus matched-control status instead of",
     "their post-treatment Left indicator. The latter belongs in the separate",
     "stayer analysis. Full-history IPC4 cosine is primary; the five-year",
-    "cosine and 1994--2008 sample are fixed robustness variants and cannot",
-    "replace their primary specifications."
+    "cosine is a fixed robustness variant and cannot replace the primary",
+    "specification. All estimates use the amended 1993--2010 sample."
   ),
   paste(
     "Both valid extensive/intensive orderings are reported. They place",
@@ -575,14 +629,14 @@ note <- c(
   "## Appendix diagnostics",
   "",
   paste(
-    "Holm-adjusted p-values, minimum detectable effects, and Type-M",
+    "Ordinary unadjusted p-values, minimum detectable effects, and Type-M",
     "diagnostics are retained in",
     "`table_vr_heterogeneity_diagnostics_appendix.csv`. They are not used",
     "to decide which predeclared heterogeneity estimates are reported."
   )
 )
 note_path <- file.path(
-  BASE, "notes", "local_match_v2_vr_heterogeneity_results.md"
+  cfg$output_dir, "vr_heterogeneity_results.md"
 )
 writeLines(note, note_path, useBytes = TRUE)
 

@@ -53,7 +53,9 @@ stamp_files <- sort(list.files(
   pattern = "^lmv2_event_panel_c[0-9]+_stamp\\.csv$",
   full.names = TRUE
 ))
-if (length(panel_files) != 17L || length(stamp_files) != 17L) {
+expected_shards <- length(unique(unlist(cfg$estimand$samples)))
+if (length(panel_files) != expected_shards ||
+    length(stamp_files) != expected_shards) {
   stop("Certified P6 panel bundle is incomplete")
 }
 
@@ -123,6 +125,9 @@ unit_path <- normalizePath(
   file.path(out_dir, "stayer_unit_analysis.parquet"),
   winslash = "/", mustWork = FALSE
 )
+if (file.exists(unit_path) && !file.remove(unit_path)) {
+  stop("Could not replace stale stayer unit-analysis artifact")
+}
 DBI::dbExecute(con, sprintf("
 COPY (
   SELECT * FROM stayer_unit_analysis
@@ -159,8 +164,8 @@ checks <- data.frame(
     unit_audit$incomplete_paths == 0,
     unit_audit$missing_outcomes == 0,
     unit_audit$invalid_weights == 0,
-    unit_audit$treated_inventors == 2663L &&
-      unit_audit$treated_deals == 151L
+    unit_audit$treated_inventors == moderator_manifest$treated_inventors &&
+      unit_audit$treated_deals == moderator_manifest$treated_deals
   ),
   stringsAsFactors = FALSE
 )
@@ -178,7 +183,7 @@ deal_levels <- sort(unique(unit$deal_id))
 deal_multipliers <- lmv2_vr_webb_multipliers(deal_levels, cfg)
 
 base <- lmv2_stayer_prepare_data(
-  unit, cfg$estimand$samples$full_1994_2010
+  unit, cfg$estimand$samples$full_1993_2010
 )$data
 base_count <- lmv2_vr_fit_wls(
   base, "d_patent_ref", c("factor(cohort)", "treated")
@@ -194,7 +199,7 @@ get_headline <- function(outcome) {
     headline$spec == cfg$construction$primary_spec &
       headline$support_variant == cfg$construction$primary_support &
       headline$outcome == outcome &
-      headline$sample == "full_1994_2010" &
+      headline$sample == "full_1993_2010" &
       headline$summary == "average_annual_t1_to_t5" &
       headline$governing %in% c(TRUE, "TRUE"), ,
     drop = FALSE
@@ -241,7 +246,7 @@ row_id <- 0L
 for (moderator in names(model_spec)) {
   spec <- model_spec[[moderator]]
   prepared <- lmv2_stayer_prepare_data(
-    unit, cfg$estimand$samples$full_1994_2010, spec$techfit
+    unit, cfg$estimand$samples$full_1993_2010, spec$techfit
   )
   contrast <- setNames(
     unname(prepared$contrasts[[moderator]]), spec$term

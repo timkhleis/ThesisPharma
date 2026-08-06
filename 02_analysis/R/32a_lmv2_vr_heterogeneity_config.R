@@ -2,7 +2,7 @@
 # 32a_lmv2_vr_heterogeneity_config.R -- frozen five-year heterogeneity design
 # ============================================================================
 
-LMV2_VR_HET_VERSION <- "lmv2_vr_heterogeneity_v1"
+LMV2_VR_HET_VERSION <- "lmv2_vr_heterogeneity_1993_amendment_v1"
 
 LMV2_VR_HET <- list(
   construction = list(
@@ -22,10 +22,7 @@ LMV2_VR_HET <- list(
     reference_event_time = -1L,
     pre_event_times = -5:-1,
     post_event_times = 1:5,
-    samples = list(
-      full_1994_2010 = 1994:2010,
-      buffered_1994_2008 = 1994:2008
-    ),
+    samples = list(full_1993_2010 = 1993:2010),
     meaningful_contrast = c(
       patent_count = 0.053,
       active_patenting = 0.020
@@ -53,24 +50,24 @@ LMV2_VR_HET <- list(
       "02_analysis", "output", "thesis_foundation.duckdb"
     ),
     panel_dir = file.path(
-      "02_analysis", "output", "audit", "local_match_v2",
-      "P6_P5C_PANEL_COUNT_ACTIVE", "panel_matched"
+      "02_analysis", "output", "audit", "local_match_v2_1993_amendment",
+      "P6_P5C_COUNT_ACTIVE", "panel_matched"
     ),
     panel_manifest = file.path(
-      "02_analysis", "output", "audit", "local_match_v2",
-      "P6_P5C_PANEL_COUNT_ACTIVE", "p6_manifest.csv"
+      "02_analysis", "output", "audit", "local_match_v2_1993_amendment",
+      "P6_P5C_COUNT_ACTIVE", "p6_manifest.csv"
     ),
     inherited_moderators = file.path(
-      "02_analysis", "output", "audit", "local_match_v2",
+      "02_analysis", "output", "audit", "local_match_v2_1993_amendment",
       "P7_INVENTOR_HETEROGENEITY", "inventor_moderators.parquet"
     ),
     inherited_moderator_manifest = file.path(
-      "02_analysis", "output", "audit", "local_match_v2",
+      "02_analysis", "output", "audit", "local_match_v2_1993_amendment",
       "P7_INVENTOR_HETEROGENEITY", "moderator_build_manifest.csv"
     ),
     headline = file.path(
-      "02_analysis", "output", "audit", "local_match_v2",
-      "P6_P5C_ESTIMATION_COUNT_ACTIVE", "p6_headline_post_att.csv"
+      "02_analysis", "output", "audit", "local_match_v2_1993_amendment",
+      "P6_ESTIMATION_PRIMARY", "p6_headline_post_att.csv"
     )
   ),
   freeze_path = file.path(
@@ -78,11 +75,11 @@ LMV2_VR_HET <- list(
     "local_match_v2_vr_heterogeneity_freeze.md"
   ),
   output_dir = file.path(
-    "02_analysis", "output", "audit", "local_match_v2",
+    "02_analysis", "output", "audit", "local_match_v2_1993_amendment",
     "P7_VR_HETEROGENEITY"
   ),
   result_dir = file.path(
-    "02_analysis", "output", "results", "local_match_v2",
+    "02_analysis", "output", "results", "local_match_v2_1993_amendment",
     "vr_heterogeneity"
   )
 )

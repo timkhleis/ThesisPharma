@@ -82,7 +82,7 @@ lmv2_certify_p5b_s4 <- function(config = lmv2_p5b_s4_config()) {
       nrow(base) == 1L && isTRUE(base$pass[[1L]]))
   add("weight_panel_mapping_passes",
       nrow(mapping) == 1L && isTRUE(mapping$pass[[1L]]))
-  add("all_24_cells_present",
+  add("all_frozen_cells_present",
       identical(progress_keys, expected_keys), nrow(progress))
   add("no_duplicate_progress_cells",
       !anyDuplicated(progress_keys))
@@ -154,13 +154,13 @@ lmv2_certify_p5b_s4 <- function(config = lmv2_p5b_s4_config()) {
     data = headline, FUN = sum)
   add("one_governing_interval_per_result",
       all(governing_counts$governing == 1L))
-  add("primary_full_sample_has_151_deals",
+  add("primary_full_sample_has_153_deals",
       all(annual$nominal_treated_deals[
         annual$spec == config$production_specs[[1L]] &
-          annual$sample == "full_1994_2010"] == 151L))
+          annual$sample == "full_1993_2010"] == 153L))
   primary_effective_deals <- unique(annual$effective_treated_deals[
     annual$spec == config$production_specs[[1L]] &
-      annual$sample == "full_1994_2010"])
+      annual$sample == "full_1993_2010"])
   add("primary_effective_deals_at_least_20",
       length(primary_effective_deals) == 1L &&
         primary_effective_deals >= 20,
@@ -192,7 +192,8 @@ lmv2_certify_p5b_s4 <- function(config = lmv2_p5b_s4_config()) {
     is.na(corrupted_mapping$duplicate_map_positive) &&
     corrupted_mapping$specifications ==
       length(config$production_specs) &&
-    corrupted_mapping$minimum_cohorts == 17L &&
+    corrupted_mapping$minimum_cohorts ==
+      length(config$s3$production_cohorts) &&
     corrupted_mapping$bad_spec_maps == 0L &&
     corrupted_mapping$bad_panel_counts == 0L
   map_tooth <- !isTRUE(corrupted_mapping_pass)

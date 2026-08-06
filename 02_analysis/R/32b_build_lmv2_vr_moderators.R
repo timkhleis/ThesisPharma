@@ -295,6 +295,9 @@ moderator_path <- normalizePath(
   file.path(out_dir, "vr_moderators.parquet"),
   winslash = "/", mustWork = FALSE
 )
+if (file.exists(moderator_path) && !file.remove(moderator_path)) {
+  stop("Could not replace stale VR moderator artifact")
+}
 DBI::dbExecute(con, sprintf("
 COPY (
   SELECT * FROM vr_moderators
@@ -353,6 +356,7 @@ utils::write.csv(
 audit <- DBI::dbGetQuery(con, "
 SELECT
   (SELECT COUNT(*) FROM vr_base) roster_rows,
+  (SELECT COUNT(*) FROM vr_base WHERE arm='treated') treated_rows,
   (SELECT COUNT(*) FROM vr_moderators) moderator_rows,
   (SELECT COUNT(DISTINCT roster_row_id) FROM vr_moderators) unique_rows,
   (SELECT COUNT(*) FROM vr_moderators
@@ -396,12 +400,11 @@ checks <- data.frame(
     "techfit_values_are_bounded",
     "ineligible_techfit_is_never_silently_zero",
     "deal_to_acquirer_mapping_is_unique",
-    "temporal_team_split_matches_outcome_blind_preview",
+    "temporal_team_split_exhausts_amended_treated_roster",
     "both_team_groups_have_treated_support"
   ),
   pass = c(
-    audit$roster_rows == 500906L &&
-      audit$roster_rows == audit$moderator_rows &&
+    audit$roster_rows == audit$moderator_rows &&
       audit$moderator_rows == audit$unique_rows,
     audit$patent_reconstruction_mismatches == 0,
     audit$team_future_violations == 0,
@@ -411,8 +414,8 @@ checks <- data.frame(
       audit$techfit_5y_bound_violations == 0,
     audit$ineligible_full_values == 0 && audit$ineligible_5y_values == 0,
     audit$nonunique_deal_mappings == 0,
-    treated_team$roster_rows[treated_team$team_any == 0] == 22715L &&
-      treated_team$roster_rows[treated_team$team_any == 1] == 4363L,
+    identical(sort(as.integer(treated_team$team_any)), 0:1) &&
+      sum(treated_team$roster_rows) == audit$treated_rows,
     all(treated_team$roster_rows >= 500L)
   ),
   stringsAsFactors = FALSE

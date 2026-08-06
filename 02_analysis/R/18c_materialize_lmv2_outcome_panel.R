@@ -62,7 +62,9 @@ validate_lmv2_roster <- function(con, roster_tbl, config = LMV2_P6_CONFIG,
   fail_if(q(sprintf(
     "SELECT COUNT(*) n FROM %s WHERE cohort NOT BETWEEN %d AND %d", r,
     min(config$cohorts), max(config$cohorts)))$n,
-    "Roster cohorts must lie in 1994-2010")
+    sprintf(
+      "Roster cohorts must lie in %d-%d",
+      min(config$cohorts), max(config$cohorts)))
   fail_if(q(sprintf(
     "SELECT COUNT(*) n FROM %s WHERE focal_group_1 IS NULL", r))$n,
     "focal_group_1 must be non-missing for every roster row")

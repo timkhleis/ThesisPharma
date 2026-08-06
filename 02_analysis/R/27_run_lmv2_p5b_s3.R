@@ -14,7 +14,7 @@ lmv2_run_p5b_s3 <- function(run_stress_tests = FALSE) {
     config$production_specs
   }
   cohorts <- if (isTRUE(run_stress_tests)) {
-    1994:2010
+    config$production_cohorts
   } else {
     config$production_cohorts
   }

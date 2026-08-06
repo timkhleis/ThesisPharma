@@ -49,8 +49,9 @@ LMV2_P6_ESTIMATION$outcomes <- rbind(
     stringsAsFactors = FALSE))
 
 audit_root <- file.path(
-  config$p6_root, "02_analysis", "output", "audit", "local_match_v2")
-panel_root <- file.path(audit_root, "P6_V3_STAYER_SECONDARY_REFRESH")
+  config$p6_root, "02_analysis", "output", "audit",
+  "local_match_v2_1993_amendment")
+panel_root <- file.path(audit_root, "P6_P5C_COUNT_ACTIVE")
 panel_dir <- file.path(panel_root, "panel_matched")
 panel_manifest <- file.path(panel_root, "p6_manifest.csv")
 panel_files <- sort(list.files(
@@ -65,7 +66,8 @@ cassi_path <- normalizePath(
     "inventor_production.csv"),
   winslash = "/", mustWork = TRUE)
 out_dir <- file.path(
-  config$base, "02_analysis", "output", "audit", "local_match_v2",
+  config$base, "02_analysis", "output", "audit",
+  "local_match_v2_1993_amendment",
   "P5B_STAYER_S6_SECONDARY_OUTCOMES")
 dir.create(out_dir, recursive = TRUE, showWarnings = FALSE)
 
@@ -73,7 +75,8 @@ required_inputs <- c(
   panel_files, stamp_files, panel_manifest, config$s3_weights,
   config$s3_manifest, config$s3_certification, cassi_path)
 missing_inputs <- required_inputs[!file.exists(required_inputs)]
-if (length(panel_files) != 17L || length(stamp_files) != 17L ||
+if (length(panel_files) != length(LMV2_P6_CONFIG$cohorts) ||
+    length(stamp_files) != length(LMV2_P6_CONFIG$cohorts) ||
     length(missing_inputs)) {
   stop("Missing or incomplete S6 inputs: ",
        paste(missing_inputs, collapse = ", "))

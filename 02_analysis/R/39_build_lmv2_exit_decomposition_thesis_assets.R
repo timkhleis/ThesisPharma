@@ -15,13 +15,13 @@ if (!requireNamespace("ggplot2", quietly = TRUE)) {
 source(file.path(BASE, "R", "00_lmv2_visual_style.R"))
 
 audit_root <- file.path(
-  BASE, "output", "audit", "local_match_v2")
+  BASE, "output", "audit", "local_match_v2_1993_amendment")
 main_dir <- file.path(audit_root, "P8_EXIT_DECOMPOSITION")
 recurrent_dir <- file.path(audit_root, "P8_RECURRENT_INVENTORS")
 figure_dir <- file.path(
-  BASE, "output", "figures", "local_match_v2", "patenting_exit")
+  BASE, "output", "figures", "local_match_v2_1993_amendment", "patenting_exit")
 table_dir <- file.path(
-  BASE, "output", "results", "local_match_v2", "patenting_exit")
+  BASE, "output", "results", "local_match_v2_1993_amendment", "patenting_exit")
 dir.create(figure_dir, recursive = TRUE, showWarnings = FALSE)
 dir.create(table_dir, recursive = TRUE, showWarnings = FALSE)
 
@@ -44,7 +44,7 @@ if (!all(main_cert$pass) || !all(recurrent_cert$pass)) {
 
 main <- utils::read.csv(required[[2L]], stringsAsFactors = FALSE)
 main <- main[
-  main$sample == "headline_1994_2010" &
+  main$sample == "headline_1993_2010" &
     main$population %in%
       c("full_cohort", "initially_retained_broad"), ]
 recurrent <- utils::read.csv(required[[5L]], stringsAsFactors = FALSE)
@@ -158,7 +158,7 @@ lmv2_save_figure(
 
 main_exit <- utils::read.csv(required[[3L]], stringsAsFactors = FALSE)
 main_exit <- main_exit[
-  main_exit$sample == "headline_1994_2010" &
+  main_exit$sample == "headline_1993_2010" &
     main_exit$inference == "deal_wild_bootstrap_t", ]
 recurrent_exit <- utils::read.csv(required[[6L]], stringsAsFactors = FALSE)
 recurrent_exit <- recurrent_exit[
@@ -317,7 +317,7 @@ figure_tex <- c(
   "\\centering",
   paste0(
     "\\includegraphics[width=0.94\\textwidth]{",
-    "02_analysis/output/figures/local_match_v2/patenting_exit/",
+    "02_analysis/output/figures/local_match_v2_1993_amendment/patenting_exit/",
     "figure_patenting_exit_decomposition.pdf}"),
   "\\caption{Accounting decomposition of the post-acquisition patent decline}",
   "\\label{fig:patenting-exit-decomposition}",

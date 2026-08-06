@@ -68,10 +68,10 @@ add_check(
 
 range_primary <- DBI::dbGetQuery(con, "SELECT MIN(cohort) lo, MAX(cohort) hi FROM lmv2_treated_primary")
 range_control <- DBI::dbGetQuery(con, "SELECT MIN(cohort) lo, MAX(cohort) hi FROM lmv2_control_inventor_eligibility")
-add_check("treated_cohort_range", paste(range_primary, collapse = ":"), "1994:2010",
-          range_primary$lo == 1994 && range_primary$hi == 2010)
-add_check("control_cohort_range", paste(range_control, collapse = ":"), "1994:2010",
-          range_control$lo == 1994 && range_control$hi == 2010)
+add_check("treated_cohort_range", paste(range_primary, collapse = ":"), "1993:2010",
+          range_primary$lo == 1993 && range_primary$hi == 2010)
+add_check("control_cohort_range", paste(range_control, collapse = ":"), "1993:2010",
+          range_control$lo == 1993 && range_control$hi == 2010)
 
 primary_not_broad <- scalar("
 SELECT COUNT(*) FROM lmv2_treated_primary p
@@ -126,7 +126,7 @@ promoted <- DBI::dbGetQuery(con, "
 SELECT
   string_agg(CAST(deal_id AS VARCHAR), ',' ORDER BY deal_id) AS all_ids,
   string_agg(
-    CASE WHEN target_year BETWEEN 1994 AND 2010
+    CASE WHEN target_year BETWEEN 1993 AND 2010
          THEN CAST(deal_id AS VARCHAR) END,
     ',' ORDER BY deal_id
   ) AS analysis_ids
@@ -292,7 +292,7 @@ add_check("cassi_ornaghi_sample_counts_reproduced",
 
 power <- utils::read.csv(file.path(AUDIT_DIR, "buffered_stayer_power_gates.csv"),
                          stringsAsFactors = FALSE)
-buffered <- power[power$sample == "1994-2008", ]
+buffered <- power[power$sample == "1993-2008", ]
 power_pass <- nrow(buffered) == 1L && isTRUE(buffered$pass_all_power_gates)
 add_check("buffered_stayer_power_gate", power_pass, TRUE, power_pass)
 

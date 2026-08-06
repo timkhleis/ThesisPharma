@@ -231,7 +231,7 @@ write_csv(magnitude, "s4_primary_magnitude.csv")
 # in treated inventors' patenting.
 patent_levels <- levels[
   levels$outcome == "patent_count" &
-    levels$cohort %in% config$samples$full_1994_2010, ]
+    levels$cohort %in% config$samples$full_1993_2010, ]
 path_mass <- patent_levels[
   patent_levels$event_time == -1 &
     patent_levels$arm == "treated",
@@ -256,7 +256,7 @@ write_csv(patent_paths, "s4_primary_weighted_patent_paths.csv")
 # Primary event-study plot.
 plot_dynamic <- dynamic[
   dynamic$spec == config$production_specs[[1L]] &
-    dynamic$sample == "full_1994_2010", ]
+    dynamic$sample == "full_1993_2010", ]
 plot_dynamic$outcome_label <- ifelse(
   plot_dynamic$outcome == "patent_count",
   "A. Annual patent count",
@@ -400,7 +400,7 @@ lmv2_save_figure(
 # Forest plot of the frozen patent-count specifications.
 forest <- two_way_reporting[
   two_way_reporting$outcome == "patent_count" &
-    two_way_reporting$sample == "full_1994_2010", ]
+    two_way_reporting$sample == "full_1993_2010", ]
 spec_labels <- c(
   primary_count_active_scale = "Headline",
   primary_count_active_scale_loyo_m3 = "LOYO t = -3",

@@ -2,7 +2,7 @@
 # 30b_build_lmv2_dealsim_table.R -- build outcome-blind deal-level DealSim
 # ============================================================================
 # Creates IPC4 cosine similarity from target and acquirer patent portfolios in
-# event times -5 through -1.  It covers the 341 deals in the frozen P5c panel
+# event times -5 through -1. It covers every deal in the amended P5c panel
 # and explicitly records every exclusion.
 
 BASE <- normalizePath("02_analysis", mustWork = TRUE)
@@ -28,7 +28,9 @@ panel_files <- sort(list.files(
   pattern = "^lmv2_event_panel_c[0-9]+\\.parquet$",
   full.names = TRUE
 ))
-if (length(panel_files) != 17L) stop("Expected 17 certified P5c panel shards")
+if (length(panel_files) != length(LMV2_LOCK$timing$cohorts)) {
+  stop("P5c panel shard count does not match the amended cohort set")
+}
 panel_glob <- normalizePath(
   file.path(cfg$inputs$panel_dir, "*.parquet"),
   winslash = "/", mustWork = FALSE
@@ -65,7 +67,8 @@ deal_base <- DBI::dbGetQuery(con, sprintf("
   LEFT JOIN mapping m USING (deal_id)
   ORDER BY p.deal_id
 ", gsub("'", "''", panel_glob, fixed = TRUE)))
-if (nrow(deal_base) != 341L || anyDuplicated(deal_base$deal_id) ||
+if (!nrow(deal_base) || anyDuplicated(deal_base$deal_id) ||
+    anyNA(deal_base[c("cohort", "target_group")]) ||
     any(deal_base$n_target_groups != 1L) ||
     any(deal_base$n_acquirer_groups > 1L)) {
   stop("Frozen panel-to-deal mapping is incomplete or nonunique")

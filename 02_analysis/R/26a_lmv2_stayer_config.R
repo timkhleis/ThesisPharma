@@ -3,7 +3,7 @@
 # This package is intentionally additive. It reads the authoritative P2
 # interfaces but does not modify the frozen P5a/P5c roster or weights.
 
-LMV2_STAYER_VERSION <- "lmv2_p5b_stayer_s0_s2_v1"
+LMV2_STAYER_VERSION <- "lmv2_p5b_stayer_s0_s2_1993_amendment_v1"
 
 lmv2_stayer_existing_path <- function(candidates, label) {
   hits <- candidates[file.exists(candidates) | dir.exists(candidates)]
@@ -32,7 +32,8 @@ lmv2_stayer_config <- function(base = getwd()) {
     "the authoritative foundation database")
 
   output_dir <- file.path(
-    base, "02_analysis", "output", "audit", "local_match_v2",
+    base, "02_analysis", "output", "audit",
+    "local_match_v2_1993_amendment",
     "P5B_STAYER_S0_S2")
 
   list(

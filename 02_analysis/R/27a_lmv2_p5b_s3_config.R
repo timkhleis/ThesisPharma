@@ -4,9 +4,9 @@ if (!exists("lmv2_stayer_existing_path")) {
   source(file.path("02_analysis", "R", "26a_lmv2_stayer_config.R"))
 }
 
-LMV2_P5B_S3_VERSION <- "lmv2_p5b_stayer_s3_v4"
+LMV2_P5B_S3_VERSION <- "lmv2_p5b_stayer_s3_1993_amendment_v1"
 LMV2_P5C_EXECUTION_HASH <- paste0(
-  "b64ecb850b840df3163fbe686da7713500be14fd16c83868eece6f3f41d7af02")
+  "4b78b1bb54f8f1ade0bb6a6b08d1971071e719ff2cdfbee851fcf9f88f93aff5")
 
 LMV2_P5B_S3_INV_VARS <- c(
   paste0("patent_count_m", 5:1),
@@ -33,9 +33,11 @@ lmv2_p5b_s3_config <- function(base = getwd()) {
     "the authoritative P4/P5 worktree")
   foundation_db <- lmv2_stayer_config(base)$foundation_db
   p5_root <- file.path(
-    p4_root, "02_analysis", "output", "audit", "local_match_v2")
+    p4_root, "02_analysis", "output", "audit",
+    "local_match_v2_1993_amendment")
   output_dir <- file.path(
-    base, "02_analysis", "output", "audit", "local_match_v2",
+    base, "02_analysis", "output", "audit",
+    "local_match_v2_1993_amendment",
     "P5B_STAYER_S3")
   source_dir <- file.path(output_dir, "support_rosters")
   weight_dir <- file.path(output_dir, "weights")
@@ -48,7 +50,8 @@ lmv2_p5b_s3_config <- function(base = getwd()) {
     p4_root = p4_root,
     foundation_db = foundation_db,
     s2_dir = file.path(
-      base, "02_analysis", "output", "audit", "local_match_v2",
+      base, "02_analysis", "output", "audit",
+      "local_match_v2_1993_amendment",
       "P5B_STAYER_S0_S2"),
     p5_root = file.path(p5_root, "P5_PRODUCTION_FINAL"),
     p5c_diagnostics = file.path(
@@ -64,7 +67,7 @@ lmv2_p5b_s3_config <- function(base = getwd()) {
       "raw_unmixed_t1",
       "timing_resolved_t2"
     ),
-    production_cohorts = 1994:2010,
+    production_cohorts = 1993:2010,
     production_specs = c(
       "primary_count_active_scale",
       "primary_count_active_scale_loyo_m3",
@@ -234,8 +237,9 @@ lmv2_p5b_s3_selected_p5c <- function(config) {
   keep <- d$execution_hash == config$execution_hash_p5c &
     d$scheme == "primary" & d$variant == "count_active" & d$feasible
   d <- d[keep, ]
-  if (nrow(d) != 17L || anyDuplicated(d$cohort)) {
-    stop("Expected exactly one certified P5c count-active row for 17 cohorts")
+  if (nrow(d) != length(config$production_cohorts) ||
+      anyDuplicated(d$cohort)) {
+    stop("Expected exactly one certified P5c count-active row per cohort")
   }
   missing <- d$weight_path[!file.exists(d$weight_path)]
   if (length(missing)) stop("Missing P5c weight files: ", paste(missing, collapse = ", "))
@@ -244,17 +248,18 @@ lmv2_p5b_s3_selected_p5c <- function(config) {
 
 lmv2_p5b_s3_edge_manifest <- function(config) {
   paths <- file.path(
-    config$p5_root, sprintf("cohort_%d", 1994:2010),
+    config$p5_root, sprintf("cohort_%d", config$production_cohorts),
     sprintf("disk_tech_cache/cohort_%d/profile_edge_covers/manifest.csv",
-            1994:2010))
+            config$production_cohorts))
   missing <- paths[!file.exists(paths)]
   if (length(missing)) stop("Missing edge manifests: ", paste(missing, collapse = ", "))
   rows <- do.call(rbind, lapply(paths, function(path) {
     x <- read.csv(path, stringsAsFactors = FALSE)
     x[x$universe == "u2" & x$status == "complete", ]
   }))
-  if (nrow(rows) != 17L || anyDuplicated(rows$cohort)) {
-    stop("Expected exactly one completed U2 edge cover for 17 cohorts")
+  if (nrow(rows) != length(config$production_cohorts) ||
+      anyDuplicated(rows$cohort)) {
+    stop("Expected exactly one completed U2 edge cover per cohort")
   }
   missing_edges <- rows$path[!file.exists(rows$path)]
   if (length(missing_edges)) {
@@ -265,9 +270,9 @@ lmv2_p5b_s3_edge_manifest <- function(config) {
 
 lmv2_p5b_s3_shard_manifest <- function(config) {
   paths <- file.path(
-    config$p5_root, sprintf("cohort_%d", 1994:2010),
+    config$p5_root, sprintf("cohort_%d", config$production_cohorts),
     sprintf("disk_tech_cache/cohort_%d/universe_u2/shard_manifest.csv",
-            1994:2010))
+            config$production_cohorts))
   missing <- paths[!file.exists(paths)]
   if (length(missing)) {
     stop("Missing U2 shard manifests: ", paste(missing, collapse = ", "))

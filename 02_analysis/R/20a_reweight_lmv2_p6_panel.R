@@ -63,9 +63,12 @@ quote_path <- function(path) {
     con, normalizePath(path, winslash = "/", mustWork = TRUE)))
 }
 roster_sql <- sprintf("read_parquet(%s)", quote_path(roster_path))
+cohorts <- DBI::dbGetQuery(con, sprintf(
+  "SELECT DISTINCT CAST(cohort AS INTEGER) cohort
+   FROM %s ORDER BY cohort", roster_sql))$cohort
 
 results <- list()
-for (cohort in 1994:2010) {
+for (cohort in cohorts) {
   base_path <- file.path(
     base_panel_dir,
     sprintf("lmv2_event_panel_c%d.parquet", cohort))

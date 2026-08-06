@@ -6,12 +6,12 @@
 # own roster, weights, hash, outputs, and reporting family.
 source(file.path("02_analysis", "R", "32a_lmv2_vr_heterogeneity_config.R"))
 
-LMV2_STAYER_HET_VERSION <- "lmv2_stayer_heterogeneity_v1"
+LMV2_STAYER_HET_VERSION <- "lmv2_stayer_heterogeneity_1993_amendment_v1"
 
 lmv2_stayer_root <- function() {
   project_root <- normalizePath(".", winslash = "/", mustWork = TRUE)
   ok <- dir.exists(file.path(
-    project_root, "02_analysis", "output", "audit", "local_match_v2",
+    project_root, "02_analysis", "output", "audit", "local_match_v2_1993_amendment",
     "P5B_STAYER_S3"
   ))
   if (!isTRUE(ok)) {
@@ -23,7 +23,7 @@ lmv2_stayer_root <- function() {
 LMV2_STAYER_HET <- local({
   stayer_root <- lmv2_stayer_root()
   stayer_audit <- file.path(
-    stayer_root, "02_analysis", "output", "audit", "local_match_v2"
+    stayer_root, "02_analysis", "output", "audit", "local_match_v2_1993_amendment"
   )
   list(
     construction = list(
@@ -41,10 +41,7 @@ LMV2_STAYER_HET <- local({
       reference_event_time = -1L,
       pre_event_times = -5:-1,
       post_event_times = 1:5,
-      samples = list(
-        full_1994_2010 = 1994:2010,
-        buffered_1994_2008 = 1994:2008
-      ),
+      samples = list(full_1993_2010 = 1993:2010),
       meaningful_contrast = c(
         patent_count = 0.053,
         active_patenting = 0.020
@@ -73,19 +70,19 @@ LMV2_STAYER_HET <- local({
         "02_analysis", "output", "thesis_foundation.duckdb"
       ),
       panel_dir = file.path(
-        "02_analysis", "output", "audit", "local_match_v2",
-        "P6_P5C_PANEL_COUNT_ACTIVE", "panel_matched"
+        "02_analysis", "output", "audit", "local_match_v2_1993_amendment",
+        "P6_P5C_COUNT_ACTIVE", "panel_matched"
       ),
       panel_manifest = file.path(
-        "02_analysis", "output", "audit", "local_match_v2",
-        "P6_P5C_PANEL_COUNT_ACTIVE", "p6_manifest.csv"
+        "02_analysis", "output", "audit", "local_match_v2_1993_amendment",
+        "P6_P5C_COUNT_ACTIVE", "p6_manifest.csv"
       ),
       full_moderators = file.path(
-        "02_analysis", "output", "audit", "local_match_v2",
+        "02_analysis", "output", "audit", "local_match_v2_1993_amendment",
         "P7_VR_HETEROGENEITY", "vr_moderators.parquet"
       ),
       full_moderator_manifest = file.path(
-        "02_analysis", "output", "audit", "local_match_v2",
+        "02_analysis", "output", "audit", "local_match_v2_1993_amendment",
         "P7_VR_HETEROGENEITY", "moderator_build_manifest.csv"
       ),
       s3_weights = file.path(
@@ -116,11 +113,11 @@ LMV2_STAYER_HET <- local({
       "local_match_v2_stayer_heterogeneity_freeze.md"
     ),
     output_dir = file.path(
-      "02_analysis", "output", "audit", "local_match_v2",
+      "02_analysis", "output", "audit", "local_match_v2_1993_amendment",
       "P7_STAYER_HETEROGENEITY"
     ),
     result_dir = file.path(
-      "02_analysis", "output", "results", "local_match_v2",
+      "02_analysis", "output", "results", "local_match_v2_1993_amendment",
       "stayer_heterogeneity"
     )
   )

@@ -71,7 +71,7 @@ if (!length(outcomes) ||
   stop("Requested outcome set is empty or contains an unfrozen outcome")
 }
 samples <- if (SMOKE) {
-  list(smoke_1994_1996 = 1994:1996)
+  list(smoke_1993_1995 = 1993:1995)
 } else {
   LMV2_P6_ESTIMATION$samples
 }

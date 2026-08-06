@@ -19,21 +19,20 @@ source(file.path(BASE, "R", "18a_lmv2_outcome_config.R"))
 source(file.path(BASE, "R", "19a_lmv2_p6_estimation_config.R"))
 source(file.path(BASE, "R", "19b_lmv2_p6_estimation_core.R"))
 
-AUDIT_ROOT <- file.path(
-  BASE, "output", "audit", "local_match_v2")
+AMEND_ROOT <- file.path(
+  BASE, "output", "audit", "local_match_v2_1993_amendment")
+AUDIT_ROOT <- file.path(AMEND_ROOT, "ROBUSTNESS_RELEASE_1993")
 OUT_DIR <- file.path(AUDIT_ROOT, "P6_PACKAGE1_LOYO_GRID")
 dir.create(OUT_DIR, recursive = TRUE, showWarnings = FALSE)
 FREEZE_PATH <- file.path(
   BASE, "notes", "local_match_v2_package1_preperiod_freeze.md")
 
-design_dirs <- c(
-  count_active = "P6_P5C_ESTIMATION_COUNT_ACTIVE",
-  loyo_m2 = "P6_PACKAGE1_ESTIMATION_LOYO_M2",
-  loyo_m3 = "P6_P5C_ESTIMATION_LOYO_M3",
-  loyo_m4 = "P6_P5C_ESTIMATION_LOYO_M4",
-  loyo_m5 = "P6_PACKAGE1_ESTIMATION_LOYO_M5")
-paths <- file.path(AUDIT_ROOT, unname(design_dirs))
-names(paths) <- names(design_dirs)
+paths <- c(
+  count_active = file.path(AMEND_ROOT, "P6_ESTIMATION_PRIMARY"),
+  loyo_m2 = file.path(AUDIT_ROOT, "P6_PACKAGE1_ESTIMATION_LOYO_M2"),
+  loyo_m3 = file.path(AUDIT_ROOT, "P6_PACKAGE1_ESTIMATION_LOYO_M3"),
+  loyo_m4 = file.path(AUDIT_ROOT, "P6_PACKAGE1_ESTIMATION_LOYO_M4"),
+  loyo_m5 = file.path(AUDIT_ROOT, "P6_PACKAGE1_ESTIMATION_LOYO_M5"))
 required_files <- c(
   "p6_event_study_dynamic.csv",
   "p6_headline_post_att.csv",
@@ -87,8 +86,8 @@ placebo <- do.call(rbind, lapply(seq_len(nrow(placebo_spec)), function(i) {
       dynamic$event_time == spec$held_out_event_time &
       dynamic$inference == "two_way_deal_inventor", ,
     drop = FALSE]
-  if (nrow(x) != 2L) {
-    stop("Expected full and buffered held-out rows for ", spec$design)
+  if (nrow(x) != 1L) {
+    stop("Expected one amended-primary held-out row for ", spec$design)
   }
   x$held_out_event_time <- spec$held_out_event_time
   x$equivalence_margin <- 0.05
@@ -122,8 +121,8 @@ post <- headline[
     headline$summary == "average_annual_t1_to_t5" &
     headline$governing, ,
   drop = FALSE]
-if (nrow(post) != 10L) {
-  stop("Expected five designs by two samples in post-treatment comparison")
+if (nrow(post) != 5L) {
+  stop("Expected five designs in the amended-primary post-treatment comparison")
 }
 baseline <- post[post$design == "count_active", c(
   "sample", "estimate", "ci_low", "ci_high")]
@@ -170,8 +169,8 @@ panel_files <- sort(list.files(
   timing_panel_dir,
   pattern = "^lmv2_event_panel_c[0-9]+\\.parquet$",
   full.names = TRUE))
-if (length(panel_files) != 17L) {
-  stop("Timing-placebo panel does not contain 17 shards")
+if (length(panel_files) != 18L) {
+  stop("Timing-placebo panel does not contain 18 shards")
 }
 panel_sql <- lmv2_panel_sql(panel_files)
 con <- DBI::dbConnect(duckdb::duckdb())
@@ -179,9 +178,7 @@ on.exit(DBI::dbDisconnect(con, shutdown = TRUE), add = TRUE)
 DBI::dbExecute(con, "PRAGMA threads=4")
 DBI::dbExecute(con, "PRAGMA memory_limit='6GB'")
 
-timing_samples <- list(
-  full_1994_2010 = 1994:2010,
-  buffered_1994_2008 = 1994:2008)
+timing_samples <- list(full_1993_2010 = 1993:2010)
 timing_results <- lapply(names(timing_samples), function(sample) {
   cohorts <- timing_samples[[sample]]
   cohort_sql <- paste(cohorts, collapse = ",")
@@ -343,8 +340,8 @@ manifest <- data.frame(
       source_paths, digest::digest, character(1),
       file = TRUE, algo = "sha256"),
     algo = "sha256", serialize = TRUE),
-  all_pass = nrow(placebo) == 8L && nrow(post) == 10L &&
-    nrow(timing_placebo) == 4L,
+  all_pass = nrow(placebo) == 4L && nrow(post) == 5L &&
+    nrow(timing_placebo) == 2L,
   completed_at = as.character(Sys.time()),
   stringsAsFactors = FALSE)
 utils::write.csv(

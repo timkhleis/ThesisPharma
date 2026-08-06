@@ -37,12 +37,12 @@ source(file.path(BASE, "R", "19a_lmv2_p6_estimation_config.R"))
 source(file.path(BASE, "R", "19b_lmv2_p6_estimation_core.R"))
 
 input_dir <- file.path(
-  BASE, "output", "audit", "local_match_v2",
-  "P6_P5C_PANEL_COUNT_ACTIVE"
+  BASE, "output", "audit", "local_match_v2_1993_amendment",
+  "P6_P5C_COUNT_ACTIVE"
 )
 panel_dir <- file.path(input_dir, "panel_matched")
 output_dir <- file.path(
-  BASE, "output", "audit", "local_match_v2",
+  BASE, "output", "audit", "local_match_v2_1993_amendment",
   "P6_COMPLETION_YEAR_SENSITIVITY"
 )
 dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)

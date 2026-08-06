@@ -18,6 +18,7 @@ for (pkg in c("DBI", "duckdb", "digest")) {
 source(file.path(BASE, "R", "15a_lmv2_design_lock.R"))
 source(file.path(BASE, "R", "18a_lmv2_outcome_config.R"))
 source(file.path(BASE, "R", "19a_lmv2_p6_estimation_config.R"))
+source(file.path(BASE, "R", "16c_lmv2_matching_utils.R"))
 source(file.path(BASE, "R", "31a_lmv2_inventor_heterogeneity_config.R"))
 
 cfg <- LMV2_INVENTOR_HET
@@ -41,7 +42,8 @@ DBI::dbExecute(con, sprintf(
 
 t0 <- Sys.time()
 for (tbl in c(
-  "p6.lmv2_p5a_roster", "lmv2_p3_inventor_units",
+  "p6.lmv2_p5a_roster", "lmv2_p3_inventor_general_units",
+  "lmv2_p3_treated_inventor_units",
   "patent_inventor_enriched"
 )) {
   if (!DBI::dbExistsTable(con, DBI::Id(
@@ -52,11 +54,21 @@ for (tbl in c(
   ))) stop("Required table is missing: ", tbl)
 }
 
-# The control-unit table is cohort x inventor x focal group and intentionally
-# has no deal_id.  Treated units retain deal_id.  Separate joins avoid a broad
-# OR condition over the four-million-row P3 table.
-# P3 stores focal tenure as an inclusive count through the cohort year. Shift
-# it back by one so both tenure and career age are measured at t=-1.
+# The current P3 interface separates treated units from the general control
+# pool. Reconstruct control focal covariates only for roster rows, using the
+# same pre-treatment helper as matching. P3 treated tenure is inclusive
+# through the cohort year, so shift it back by one to measure both arms at t=-1.
+control_roster <- DBI::dbGetQuery(con, "
+  SELECT DISTINCT cohort, codinv, focal_group_1 AS focal_group
+  FROM p6.lmv2_p5a_roster
+  WHERE arm='control'
+")
+control_focal <- lmv2_build_control_focal_covariates(con, control_roster)
+DBI::dbWriteTable(
+  con, "het_control_focal", control_focal,
+  temporary = TRUE, overwrite = TRUE
+)
+
 DBI::dbExecute(con, "
 CREATE OR REPLACE TEMP TABLE het_mod_base AS
 SELECT
@@ -67,7 +79,7 @@ SELECT
   u.focal_group_tenure-1 AS focal_group_tenure,
   u.focal_group_exclusivity
 FROM p6.lmv2_p5a_roster r
-JOIN lmv2_p3_inventor_units u
+JOIN lmv2_p3_treated_inventor_units u
   ON r.arm='treated' AND u.role='treated'
  AND u.cohort=r.cohort AND u.deal_id=r.deal_id
  AND u.codinv=r.codinv AND u.focal_group=r.focal_group_1
@@ -77,13 +89,16 @@ SELECT
   r.focal_group_1,
   CAST(u.patent_count_5y AS BIGINT) AS patent_count_5y,
   u.log_patent_count_5y, u.patent_trajectory, u.career_age,
-  u.focal_group_tenure-1 AS focal_group_tenure,
-  u.focal_group_exclusivity
+  f.focal_group_tenure-1 AS focal_group_tenure,
+  f.focal_group_exclusivity
 FROM p6.lmv2_p5a_roster r
-JOIN lmv2_p3_inventor_units u
+JOIN lmv2_p3_inventor_general_units u
   ON r.arm='control' AND u.role='control'
  AND u.cohort=r.cohort AND u.codinv=r.codinv
  AND u.focal_group=r.focal_group_1
+JOIN het_control_focal f
+  ON f.cohort=r.cohort AND f.codinv=r.codinv
+ AND f.focal_group=r.focal_group_1
 ")
 
 DBI::dbExecute(con, "
@@ -193,6 +208,9 @@ moderator_path <- normalizePath(
   file.path(out_dir, "inventor_moderators.parquet"),
   winslash = "/", mustWork = FALSE
 )
+if (file.exists(moderator_path) && !file.remove(moderator_path)) {
+  stop("Could not replace stale moderator artifact")
+}
 DBI::dbExecute(con, sprintf(
   "COPY (SELECT * FROM het_moderators ORDER BY cohort,deal_id,arm,codinv)
    TO %s (FORMAT PARQUET, COMPRESSION ZSTD)",

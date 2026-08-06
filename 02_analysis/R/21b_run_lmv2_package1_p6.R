@@ -15,22 +15,16 @@ if (!requireNamespace("digest", quietly = TRUE)) {
   stop("Missing package: digest")
 }
 
-P6_ROOT <- normalizePath(file.path(BASE, ".."), winslash = "/", mustWork = TRUE)
-WORKTREES <- normalizePath(
-  file.path(P6_ROOT, ".."), winslash = "/", mustWork = TRUE)
-P4_ROOT <- normalizePath(
-  file.path(WORKTREES, "lmv2-p4-ebal"), winslash = "/", mustWork = TRUE)
 AUDIT_ROOT <- file.path(
-  BASE, "output", "audit", "local_match_v2")
-P4_AUDIT_ROOT <- file.path(
-  P4_ROOT, "02_analysis", "output", "audit", "local_match_v2")
+  BASE, "output", "audit", "local_match_v2_1993_amendment")
+RELEASE_ROOT <- file.path(AUDIT_ROOT, "ROBUSTNESS_RELEASE_1993")
 
 base_panel_dir <- file.path(
-  AUDIT_ROOT, "P6_V3_PRODUCTION_FREEZE_1ED", "panel_matched")
+  AUDIT_ROOT, "P6_P5C_COUNT_ACTIVE", "panel_matched")
 base_manifest <- file.path(
-  AUDIT_ROOT, "P6_V3_PRODUCTION_FREEZE_1ED", "p6_manifest.csv")
+  AUDIT_ROOT, "P6_P5C_COUNT_ACTIVE", "p6_manifest.csv")
 p4_grid_cert <- file.path(
-  P4_AUDIT_ROOT, "P5C_PACKAGE1_LOYO_GRID",
+  RELEASE_ROOT, "P5C_LOYO_GRID",
   "package1_loyo_grid_certification.csv")
 freeze_path <- file.path(
   BASE, "notes", "local_match_v2_package1_preperiod_freeze.md")
@@ -61,12 +55,12 @@ run_r <- function(script, args) {
   }
 }
 
-variants <- c("loyo_m2", "loyo_m5")
+variants <- c("loyo_m2", "loyo_m3", "loyo_m4", "loyo_m5")
 results <- list()
 for (variant in variants) {
   label <- toupper(variant)
   handoff_dir <- file.path(
-    P4_AUDIT_ROOT, paste0("P5C_P6_HANDOFF_PACKAGE1_", label))
+    RELEASE_ROOT, paste0("P5C_P6_HANDOFF_", label))
   roster <- file.path(
     handoff_dir, "p5c_p6_primary_weighted_roster.parquet")
   roster_manifest <- file.path(
@@ -76,7 +70,7 @@ for (variant in variants) {
   }
 
   panel_out <- file.path(
-    AUDIT_ROOT, paste0("P6_PACKAGE1_PANEL_", label))
+    RELEASE_ROOT, paste0("P6_PACKAGE1_PANEL_", label))
   panel_manifest <- file.path(panel_out, "p6_manifest.csv")
   if (!file.exists(panel_manifest)) {
     run_r(
@@ -97,7 +91,7 @@ for (variant in variants) {
   }
 
   estimation_out <- file.path(
-    AUDIT_ROOT, paste0("P6_PACKAGE1_ESTIMATION_", label))
+    RELEASE_ROOT, paste0("P6_PACKAGE1_ESTIMATION_", label))
   estimation_cert <- file.path(
     estimation_out, "p6_estimation_certification_manifest.csv")
   if (!file.exists(estimation_cert)) {
@@ -147,7 +141,7 @@ for (variant in variants) {
     stringsAsFactors = FALSE)
 }
 
-out_dir <- file.path(AUDIT_ROOT, "P6_PACKAGE1_LOYO_GRID")
+out_dir <- file.path(RELEASE_ROOT, "P6_PACKAGE1_LOYO_GRID")
 dir.create(out_dir, recursive = TRUE, showWarnings = FALSE)
 run_manifest <- do.call(rbind, results)
 run_manifest$freeze_sha256 <- digest::digest(

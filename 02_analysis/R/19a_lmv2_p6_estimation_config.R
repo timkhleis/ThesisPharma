@@ -7,16 +7,16 @@
 stopifnot(
   identical(
     LMV2_P6_PREANALYSIS_FREEZE_SHA256,
-    "1ed37807124f72ae85d10fed00c3959016530f1e6fade61c416227d8350ff2d4"
+    "a37d0d953845a549f4011ec13ad2e52a46768c3ff8a7aa7f12898a255fac1645"
   )
 )
 
-LMV2_P6_ESTIMATION_VERSION <- "local_match_v2_p6_estimation_v1"
+LMV2_P6_ESTIMATION_VERSION <-
+  "local_match_v2_p6_estimation_1993_amendment_v1"
 
 LMV2_P6_ESTIMATION <- list(
   samples = list(
-    full_1994_2010 = 1994:2010,
-    buffered_1994_2008 = 1994:2008
+    full_1993_2010 = 1993:2010
   ),
   event_window = -5:5,
   reference_event_time = -1L,

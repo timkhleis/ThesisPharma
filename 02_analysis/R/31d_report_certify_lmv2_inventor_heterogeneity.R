@@ -41,8 +41,8 @@ if (!all(file.exists(input_paths))) {
   stop("Inventor heterogeneity output bundle is incomplete")
 }
 headline_path <- file.path(
-  BASE, "output", "audit", "local_match_v2",
-  "P6_P5C_ESTIMATION_COUNT_ACTIVE", "p6_headline_post_att.csv"
+  BASE, "output", "audit", "local_match_v2_1993_amendment",
+  "P6_ESTIMATION_PRIMARY", "p6_headline_post_att.csv"
 )
 if (!file.exists(headline_path)) {
   stop("Certified P5c headline table is missing")
@@ -62,7 +62,7 @@ est_manifest <- read_csv(input_paths[["estimation_manifest"]])
 headline <- read_csv(headline_path)
 headline <- headline[
   headline$outcome == "patent_count" &
-    headline$sample == "full_1994_2010" &
+    headline$sample == "full_1993_2010" &
     headline$summary == "average_annual_t1_to_t5" &
     headline$governing %in% c(TRUE, "TRUE"),
 ]
@@ -124,9 +124,9 @@ tooth_tests <- data.frame(
 expected_groups <- unlist(lapply(
   cfg$construction$moderators, `[[`, "order"
 ), use.names = FALSE)
-actual_full <- groups[groups$sample == "full_1994_2010", ]
+actual_full <- groups[groups$sample == "full_1993_2010", ]
 full_family <- omnibus[
-  omnibus$sample == "full_1994_2010" &
+  omnibus$sample == "full_1993_2010" &
     omnibus$designation %in% c("primary", "conditional"),
 ]
 source_31b <- readLines(
@@ -150,7 +150,7 @@ checks <- data.frame(
     "current_freeze_matches_preoutcome_manifest",
     "current_design_hash_used_by_both_stages",
     "overall_certified_att_reproduced",
-    "all_predeclared_groups_reported_in_both_samples",
+    "all_predeclared_groups_reported_in_amended_sample",
     "all_estimates_and_intervals_finite",
     "all_predeclared_contrasts_reported",
     "four_test_primary_omnibus_family",
@@ -160,7 +160,7 @@ checks <- data.frame(
   pass = c(
     all(build_cert$pass),
     all(tooth_tests$pass),
-    build_audit$moderator_rows == 500906L &&
+    build_audit$roster_rows == build_audit$moderator_rows &&
       build_audit$moderator_rows == build_audit$unique_moderator_rows,
     build_audit$reconstructed_patent_mismatches == 0,
     build_manifest$maximum_team_input_event_time <= -1,
@@ -177,7 +177,7 @@ checks <- data.frame(
         est_manifest$reproduced_overall_att,
         headline$estimate
       ),
-    nrow(groups) == 2L * length(expected_groups) &&
+    nrow(groups) == length(expected_groups) &&
       identical(
         sort(unique(paste(actual_full$moderator,
                           actual_full$group_name))),
@@ -191,7 +191,11 @@ checks <- data.frame(
       "estimate", "ci_low", "ci_high", "governing_p"
     )]))) && all(groups$ci_low <= groups$estimate) &&
       all(groups$estimate <= groups$ci_high),
-    nrow(contrasts) == 18L &&
+    nrow(contrasts) == sum(vapply(
+      cfg$construction$moderators,
+      function(z) length(z$order) - 1L,
+      integer(1)
+    )) &&
       all(is.finite(contrasts$mde_annual_patents)),
     nrow(full_family) == 4L,
     sum(!is.na(omnibus$holm_adjusted_governing_p)) == 4L &&
@@ -218,7 +222,7 @@ utils::write.csv(
 # ---------------------------------------------------------------------------
 plot_data <- merge(
   actual_full,
-  support[support$sample == "full_1994_2010",
+  support[support$sample == "full_1993_2010",
           c("moderator", "group_name", "support_balance_pass")],
   by = c("moderator", "group_name"), all.x = TRUE, sort = FALSE
 )
@@ -351,18 +355,24 @@ utils::write.csv(
   row.names = FALSE
 )
 utils::write.csv(
-  omnibus,
+  omnibus[, setdiff(names(omnibus), "holm_adjusted_governing_p"), drop = FALSE],
   file.path(result_dir, "table_inventor_heterogeneity_omnibus.csv"),
   row.names = FALSE
 )
 
-full <- groups[groups$sample == "full_1994_2010", ]
+full <- report_table[report_table$sample == "full_1993_2010", ]
 get_est <- function(m, g) {
   full$estimate[full$moderator == m & full$group_name == g]
 }
+get_group <- function(m, g, field) {
+  z <- unique(full[full$moderator == m & full$group_name == g, field])
+  z <- z[is.finite(z)]
+  if (!length(z)) stop("Heterogeneity group value is missing")
+  max(z)
+}
 get_omnibus <- function(m, field = "omnibus_governing_p") {
   z <- omnibus[
-    omnibus$sample == "full_1994_2010" & omnibus$moderator == m,
+    omnibus$sample == "full_1993_2010" & omnibus$moderator == m,
   ]
   z[[field]]
 }
@@ -374,7 +384,7 @@ note <- c(
   sprintf(
     paste(
       "The certified overall ATT remains %.3f patents per inventor-year.",
-      "The clearest credible heterogeneity is by pre-deal productivity:"
+      "The largest observed heterogeneity pattern is by pre-deal productivity:"
     ), overall_att
   ),
   sprintf(
@@ -387,14 +397,13 @@ note <- c(
   ),
   sprintf(
     paste(
-      "The governing omnibus p-value is %.4f (Holm-adjusted %.4f),",
-      "and every productivity group passes the prospective support/balance",
-      "gate."
+      "The ordinary omnibus p-value is %.4f, but the",
+      "three-or-more-patent cell misses the balance gate (maximum SMD %.3f).",
+      "The productivity gradient is therefore appendix evidence, not a causal",
+      "heterogeneity headline."
     ),
     get_omnibus("predeal_productivity"),
-    get_omnibus(
-      "predeal_productivity", "holm_adjusted_governing_p"
-    )
+    get_group("predeal_productivity", "3+ patents", "max_abs_smd")
   ),
   "",
   sprintf(
@@ -409,13 +418,12 @@ note <- c(
   ),
   sprintf(
     paste(
-      "Its governing omnibus p-value is %.4f (Holm-adjusted %.4f), and the",
-      "1994--2008 companion is nearly identical. The full-sample partial-team",
-      "cell narrowly misses the balance gate (maximum SMD 0.112, driven by",
-      "focal-firm exclusivity); it passes in the buffered companion."
+      "Its ordinary omnibus p-value is %.4f. The",
+      "partial-team cell narrowly misses the balance gate (maximum SMD 0.112,",
+      "driven by focal-firm exclusivity), so the team pattern is suggestive",
+      "rather than part of the causal headline."
     ),
-    get_omnibus("team_embeddedness"),
-    get_omnibus("team_embeddedness", "holm_adjusted_governing_p")
+    get_omnibus("team_embeddedness")
   ),
   "",
   "## Design and interpretation",
@@ -449,9 +457,10 @@ note <- c(
   ),
   "",
   paste(
-    "The productivity result supports an incentive/restructuring channel:",
-    "the average decline is concentrated among inventors who entered the deal",
-    "with the largest recent patent stock. The team result is consistent with",
+    "The productivity pattern is consistent with an incentive/restructuring",
+    "channel because the decline is concentrated among inventors who entered",
+    "the deal with the largest recent patent stock. Its balance failure prevents",
+    "a clean causal interpretation. The team result is consistent with",
     "collaboration-network disruption, but its non-monotone pattern and the",
     "narrow balance miss mean it should motivate a focused appendix analysis",
     "rather than carry the thesis's causal headline."
@@ -459,13 +468,13 @@ note <- c(
   "",
   paste(
     "The prospective MDE gate shows that the design was not powered to detect",
-    "heterogeneity contrasts as small as the 0.053 overall ATT. The observed",
-    "productivity and partial-team contrasts are much larger and statistically",
-    "distinguishable; this distinction should be stated explicitly."
+    "heterogeneity contrasts as small as the 0.053 overall ATT. Some observed",
+    "contrasts are larger and statistically distinguishable, but neither power",
+    "nor statistical significance repairs the failed balance gates."
   )
 )
 note_path <- file.path(
-  BASE, "notes", "local_match_v2_inventor_heterogeneity_results.md"
+  cfg$output_dir, "inventor_heterogeneity_results.md"
 )
 writeLines(note, note_path, useBytes = TRUE)
 

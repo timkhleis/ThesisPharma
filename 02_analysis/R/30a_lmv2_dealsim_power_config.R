@@ -4,7 +4,7 @@
 # Declarative Stage A contract.  This stage may use the certified full-cohort
 # patent-count variance structure, but it must not save or report subgroup ATTs.
 
-LMV2_DEALSIM_POWER_VERSION <- "lmv2_dealsim_power_gate_v1"
+LMV2_DEALSIM_POWER_VERSION <- "lmv2_dealsim_power_gate_1993_amendment_v1"
 
 LMV2_DEALSIM_POWER <- list(
   construction = list(
@@ -51,16 +51,16 @@ LMV2_DEALSIM_POWER <- list(
       "02_analysis", "output", "thesis_foundation.duckdb"
     ),
     panel_dir = file.path(
-      "02_analysis", "output", "audit", "local_match_v2",
-      "P6_P5C_PANEL_COUNT_ACTIVE", "panel_matched"
+      "02_analysis", "output", "audit", "local_match_v2_1993_amendment",
+      "P6_P5C_COUNT_ACTIVE", "panel_matched"
     ),
     construction_manifest = file.path(
-      "02_analysis", "output", "audit", "local_match_v2",
-      "P6_P5C_PANEL_COUNT_ACTIVE", "p6_manifest.csv"
+      "02_analysis", "output", "audit", "local_match_v2_1993_amendment",
+      "P6_P5C_COUNT_ACTIVE", "p6_manifest.csv"
     )
   ),
   output_dir = file.path(
-    "02_analysis", "output", "audit", "local_match_v2",
+    "02_analysis", "output", "audit", "local_match_v2_1993_amendment",
     "P7_DEALSIM_POWER_GATE"
   )
 )

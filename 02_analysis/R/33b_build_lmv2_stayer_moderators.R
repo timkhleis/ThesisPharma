@@ -74,7 +74,9 @@ stamp_files <- sort(list.files(
   pattern = "^lmv2_event_panel_c[0-9]+_stamp\\.csv$",
   full.names = TRUE
 ))
-if (length(panel_files) != 17L || length(stamp_files) != 17L) {
+expected_shards <- length(unique(unlist(cfg$estimand$samples)))
+if (length(panel_files) != expected_shards ||
+    length(stamp_files) != expected_shards) {
   stop("Certified P6 panel bundle is incomplete")
 }
 
@@ -159,6 +161,9 @@ moderator_path <- normalizePath(
   file.path(out_dir, "stayer_moderators.parquet"),
   winslash = "/", mustWork = FALSE
 )
+if (file.exists(moderator_path) && !file.remove(moderator_path)) {
+  stop("Could not replace stale stayer moderator artifact")
+}
 DBI::dbExecute(con, sprintf("
 COPY (
   SELECT * FROM stayer_moderators
@@ -204,7 +209,7 @@ checks <- data.frame(
     "all_primary_p5b_rows_map_once",
     "one_moderator_row_per_p5b_row",
     "all_weights_positive_and_finite",
-    "all_17_cohorts_present",
+    "all_amended_cohorts_present",
     "treated_count_reproduces_s3",
     "treated_deal_count_reproduces_s3",
     "control_count_reproduces_s3",
@@ -218,7 +223,7 @@ checks <- data.frame(
     audit$expected_rows == audit$moderator_rows &&
       audit$moderator_rows == audit$unique_rows,
     audit$invalid_weights == 0,
-    audit$cohorts == 17L,
+    audit$cohorts == expected_shards,
     audit$treated_inventors == metric("primary_supported_treated"),
     audit$treated_deals == metric("primary_supported_deals"),
     audit$control_rows == metric("primary_control_rows"),
@@ -279,6 +284,8 @@ manifest <- data.frame(
     file = moderator_path, algo = "sha256"
   ),
   moderator_rows = audit$moderator_rows,
+  treated_inventors = audit$treated_inventors,
+  treated_deals = audit$treated_deals,
   outcome_columns_written = 0L,
   runtime_minutes = as.numeric(
     difftime(Sys.time(), t0, units = "mins")

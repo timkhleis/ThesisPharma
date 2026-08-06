@@ -9,7 +9,8 @@ if (!requireNamespace("ggplot2", quietly = TRUE)) {
 }
 
 audit_root <- file.path(
-  cfg$base, "02_analysis", "output", "audit", "local_match_v2")
+  cfg$base, "02_analysis", "output", "audit",
+  "local_match_v2_1993_amendment")
 s4_dir <- file.path(audit_root, "P5B_STAYER_S4_RESULTS")
 s6_dir <- file.path(audit_root, "P5B_STAYER_S6_SECONDARY_OUTCOMES")
 out_dir <- file.path(s6_dir, "reporting")
@@ -30,12 +31,12 @@ dynamic <- utils::read.csv(
 
 primary <- s4[
   s4$spec == "primary_count_active_scale" &
-    s4$sample == "full_1994_2010" &
+    s4$sample == "full_1993_2010" &
     s4$summary == "average_annual_t1_to_t5" &
     s4$inference == "two_way_deal_inventor",
   ]
 secondary <- s6[
-  s6$sample == "full_1994_2010" &
+  s6$sample == "full_1993_2010" &
     s6$summary == "average_annual_t1_to_t5" &
     s6$inference == "two_way_deal_inventor",
   ]
@@ -165,7 +166,7 @@ plot_outcomes <- c(
   "tech_drift", "pqii_scaled", "fwcit5w_cassi_total",
   "fwcit5w_cassi_per_patent")
 dyn <- dynamic[
-  dynamic$sample == "full_1994_2010" &
+  dynamic$sample == "full_1993_2010" &
     dynamic$outcome %in% plot_outcomes, ]
 dyn$outcome_label <- unname(labels[dyn$outcome])
 dyn$outcome_label <- factor(

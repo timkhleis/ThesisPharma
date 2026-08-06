@@ -7,25 +7,34 @@
 
 options(stringsAsFactors = FALSE)
 root <- normalizePath(".", winslash = "/", mustWork = TRUE)
-out_dir <- file.path(root, "02_analysis/output/audit/local_match_v2/P5B_STAYER_SELECTION_DIAGNOSTICS")
+source(file.path(root, "02_analysis", "R", "00_utils.R"))
+use_project_library()
+shared_lib <- file.path(
+  Sys.getenv("USERPROFILE"), "Documents", "Thesis", ".r_libs"
+)
+if (dir.exists(shared_lib)) .libPaths(unique(c(shared_lib, .libPaths())))
+out_dir <- file.path(root, "02_analysis/output/audit/local_match_v2_1993_amendment/P5B_STAYER_SELECTION_DIAGNOSTICS")
 dir.create(out_dir, recursive = TRUE, showWarnings = FALSE)
 stayer_root <- root
-partition <- file.path(stayer_root, "02_analysis/output/audit/local_match_v2/P5B_STAYER_S0_S2/treated_retention_partition.parquet")
-funnel_csv <- file.path(stayer_root, "02_analysis/output/audit/local_match_v2/P5B_STAYER_S0_S2/treated_retention_funnel.csv")
+partition <- file.path(stayer_root, "02_analysis/output/audit/local_match_v2_1993_amendment/P5B_STAYER_S0_S2/treated_retention_partition.parquet")
+funnel_csv <- file.path(stayer_root, "02_analysis/output/audit/local_match_v2_1993_amendment/P5B_STAYER_S0_S2/treated_retention_funnel.csv")
 db_candidates <- c(
   Sys.getenv("LMV2_FOUNDATION_DB"),
   file.path(root, "02_analysis/output/thesis_foundation.duckdb")
 )
 db_candidates <- db_candidates[nzchar(db_candidates)]
 db <- db_candidates[file.exists(db_candidates)][1]
-duckdb_bin <- Sys.getenv("DUCKDB_BIN", "duckdb")
 stopifnot(file.exists(partition), !is.na(db), file.exists(db))
 sql_escape <- function(x) gsub("'", "''", normalizePath(x, winslash = "/", mustWork = FALSE), fixed = TRUE)
+if (!requireNamespace("DBI", quietly = TRUE) ||
+    !requireNamespace("duckdb", quietly = TRUE)) {
+  stop("Packages DBI and duckdb are required")
+}
+con <- DBI::dbConnect(duckdb::duckdb(), dbdir = db, read_only = TRUE)
+on.exit(DBI::dbDisconnect(con, shutdown = TRUE), add = TRUE)
 run_duckdb <- function(sql) {
-  z <- system2(duckdb_bin, c(shQuote(db), "-c", shQuote(sql)), stdout = TRUE, stderr = TRUE)
-  status <- attr(z, "status")
-  if (!is.null(status) && status != 0) stop(paste(z, collapse = "\n"))
-  invisible(z)
+  DBI::dbExecute(con, sql)
+  invisible(TRUE)
 }
 
 metrics_csv <- file.path(out_dir, "selection_inventor_predeal_metrics.csv")
@@ -51,7 +60,7 @@ pair_rows <- do.call(rbind, lapply(c("leaver","no_post_patent"), function(s) {
 write.csv(pair_rows, file.path(out_dir, "selection_pairwise_differences.csv"), row.names = FALSE)
 
 if (file.exists(funnel_csv)) { funnel <- read.csv(funnel_csv, check.names=FALSE); write.csv(funnel, file.path(out_dir,"selection_funnel.csv"), row.names=FALSE) } else funnel <- data.frame()
-s3 <- file.path(stayer_root,"02_analysis/output/audit/local_match_v2/P5B_STAYER_S3/s3_summary.csv")
+s3 <- file.path(stayer_root,"02_analysis/output/audit/local_match_v2_1993_amendment/P5B_STAYER_S3/s3_summary.csv")
 if (file.exists(s3)) file.copy(s3,file.path(out_dir,"selection_support_summary.csv"),overwrite=TRUE)
 
 checks <- data.frame(check=c("partition_exists","metrics_nonempty","statuses_complete","no_duplicate_inventor_deal","funnel_available","support_summary_available"), pass=c(file.exists(partition),nrow(metrics)>0,all(unique(metrics$retention_status)%in%statuses),!anyDuplicated(metrics[c("deal_id","codinv")]),file.exists(funnel_csv),file.exists(s3)), detail=c(partition,nrow(metrics),paste(sort(unique(metrics$retention_status)),collapse=";"),sum(duplicated(metrics[c("deal_id","codinv")])),funnel_csv,s3))

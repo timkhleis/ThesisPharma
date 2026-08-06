@@ -59,10 +59,10 @@ lmv2_estimate_recurrent_inventors <- function(
   ", lmv2_exit_sql_string(config$recurrent_weights)))
   panel <- lmv2_exit_extract_panel(con, "recurrent_exit_panel")
   cohorts <- sort(unique(panel$cohort))
-  if (!smoke) cohorts <- intersect(cohorts, 1994:2010)
+  if (!smoke) cohorts <- intersect(cohorts, 1993:2010)
   sample <- if (smoke) {
     paste0("smoke_", min(cohorts), "_", max(cohorts), "_t1_t5")
-  } else "headline_1994_2010_t1_t5"
+  } else "headline_1993_2010_t1_t5"
   decomp <- lmv2_estimate_exit_decomposition(
     panel, cohorts, 1:5, sample, "recurrent_predeal_inventors",
     survival_col = "survival",

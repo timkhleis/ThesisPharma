@@ -280,14 +280,15 @@ lmv2_p5b_run_cell <- function(config, spec_name, cohort) {
 lmv2_run_p5b_s3_weights <- function(
     config = lmv2_p5b_s3_config(),
     spec_names = names(config$weight_specs),
-    cohorts = 1994:2010) {
+    cohorts = config$production_cohorts) {
   dir.create(config$weight_dir, recursive = TRUE, showWarnings = FALSE)
   dir.create(config$balance_dir, recursive = TRUE, showWarnings = FALSE)
   if (!length(spec_names) ||
       any(!spec_names %in% names(config$weight_specs))) {
     stop("Unknown or empty S3 weight specification selection")
   }
-  if (!length(cohorts) || any(!cohorts %in% 1994:2010)) {
+  if (!length(cohorts) ||
+      any(!cohorts %in% config$production_cohorts)) {
     stop("Unknown or empty S3 cohort selection")
   }
   lmv2_p5b_load_solver(config)
