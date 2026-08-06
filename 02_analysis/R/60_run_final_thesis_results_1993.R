@@ -35,6 +35,7 @@ if (rebuild) {
   run("61_run_lmv2_network_n1.R")
   run("62_certify_lmv2_network_n2_lock.R")
   run("63_census_lmv2_retained_network_support.R")
+  run("64_build_lmv2_network_descriptive.R")
 }
 
 run("58_build_final_thesis_release_1993.R")

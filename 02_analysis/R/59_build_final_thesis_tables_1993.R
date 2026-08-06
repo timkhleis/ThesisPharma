@@ -131,4 +131,49 @@ writeLines(c(
   file.path(table_dir, "table_network_validation_1993.tex"),
   useBytes = TRUE)
 
+network_desc <- read_csv("../NETWORK_N4_DESCRIPTIVE/network_retained_descriptive_summary.csv")
+network_desc <- network_desc[network_desc$metric %in% c(
+  "any_post_collaboration", "post_collaborators",
+  "any_legacy_recurrence", "legacy_recurrence_share",
+  "legacy_focal_group_share", "legacy_outside_only_share",
+  "legacy_no_post_patent_share", "legacy_share_post_team",
+  "new_post_focal_group_share", "new_pre_target_group_share",
+  "new_other_share"), ]
+metric_labels <- c(
+  any_post_collaboration = "Any post-acquisition collaboration",
+  post_collaborators = "Number of post-acquisition collaborators",
+  any_legacy_recurrence = "Any strict legacy collaborator reconnects",
+  legacy_recurrence_share = "Share of strict legacy ties that recur",
+  legacy_focal_group_share = "Legacy partner patents in focal/acquirer group",
+  legacy_outside_only_share = "Legacy partner patents only outside group",
+  legacy_no_post_patent_share = "Legacy partner does not patent",
+  legacy_share_post_team = "Legacy share of post-acquisition team",
+  new_post_focal_group_share = "New collaborators in focal/acquirer group",
+  new_pre_target_group_share = "New collaborators in old target group",
+  new_other_share = "Other new collaborators")
+is_share <- network_desc$metric != "post_collaborators"
+network_desc$display <- ifelse(
+  is_share, paste0(fmt(100 * network_desc$estimate, 1L), "\\%"),
+  fmt(network_desc$estimate, 1L))
+network_desc$sample_label <- ifelse(
+  network_desc$sample == "all_initially_retained",
+  "All retained", "Strict legacy-tie subset")
+network_desc_lines <- vapply(seq_len(nrow(network_desc)), function(i) sprintf(
+  "%s & %s & %s & %d \\\\",
+  network_desc$sample_label[i], metric_labels[network_desc$metric[i]],
+  network_desc$display[i], network_desc$focal_inventors[i]), character(1))
+writeLines(c(
+  "\\begin{table}[!htbp]", "\\centering",
+  "\\caption{Descriptive collaboration-network continuity among initially retained inventors}",
+  "\\label{tab:network-descriptive-1993}",
+  "\\small", "\\begin{tabular}{p{0.18\\linewidth}p{0.44\\linewidth}rr}",
+  "\\toprule",
+  paste0("Sample & Metric & Weighted value & Inventors ", "\\\\"),
+  "\\midrule", network_desc_lines, "\\bottomrule", "\\end{tabular}",
+  "\\begin{minipage}{0.96\\linewidth}\\footnotesize",
+  "\\textit{Notes:} Event times $+1$ through $+5$. A strict legacy tie requires at least two joint applications in at least two years during event times $-5$ through $-3$. Legacy-partner states are mutually exclusive: focal/acquirer group, outside only, or no post-window patent. New-collaborator states use the fixed priority focal/acquirer group, old target group, then other. These are selected-population descriptions, not causal acquisition effects. Table~\\ref{tab:network-validation-1993} reports the failed annual validation that prevents a causal network ATT.",
+  "\\end{minipage}", "\\end{table}"),
+  file.path(table_dir, "table_network_descriptive_1993.tex"),
+  useBytes = TRUE)
+
 message("Final 1993 LaTeX tables written to: ", table_dir)

@@ -373,7 +373,8 @@ add(
   status = "failed validation and precision gate",
   thesis_use = paste0(
     "Path ", network_n1$selected_path[[1L]],
-    " closes N2; positive-event network outcomes remain unopened."),
+    " closes causal N2 estimation; the later positive-event package is ",
+    "descriptive accounting only."),
   result_file = network_n1_path,
   code_file = path_r("61_run_lmv2_network_n1.R"))
 retained_network_path <- path_a(
@@ -388,6 +389,67 @@ add(
   thesis_use = "Report support only; do not estimate a selected-group post-treatment network effect.",
   result_file = retained_network_path,
   code_file = path_r("63_census_lmv2_retained_network_support.R"))
+
+# Post-gate descriptive network accounting. These rows contain no causal ATT,
+# confidence interval, or p-value. They coexist with, and never override, the
+# failed annual validation above.
+network_desc_path <- path_a(
+  "NETWORK_N4_DESCRIPTIVE", "network_retained_descriptive_summary.csv")
+network_desc <- read_csv(network_desc_path)
+for (i in seq_len(nrow(network_desc))) {
+  add(
+    "Team disruption: descriptive",
+    paste0("Retained network accounting: ", network_desc$metric[i]),
+    if (network_desc$sample[i] == "all_initially_retained")
+      "All initially retained treated inventors" else
+      "Initially retained treated inventors with strict persistent ties",
+    network_desc$metric[i], network_desc$estimate[i],
+    status = network_desc$status[i],
+    thesis_use = paste0(
+      "Selected-population description over event times +1 through +5; ",
+      "denominator: ", network_desc$denominator[i],
+      ". No causal acquisition effect or p-value."),
+    result_file = network_desc_path,
+    code_file = path_r("64_build_lmv2_network_descriptive.R"))
+}
+network_pool_path <- path_a(
+  "NETWORK_N4_DESCRIPTIVE", "network_pooled_descriptive_levels.csv")
+network_pool <- read_csv(network_pool_path)
+for (i in seq_len(nrow(network_pool))) {
+  add(
+    "Team disruption: descriptive benchmark",
+    paste0(
+      "Pooled partner focal-organization level: ",
+      network_pool$analysis_window[i], ", ", network_pool$arm[i]),
+    if (network_pool$population[i] == "full_cohort")
+      "Strict-tie full pre-deal target-inventor cohort" else
+      "Strict-tie initially retained population",
+    "partner_focal_persistence_rate", network_pool$weighted_mean[i],
+    status = network_pool$status[i],
+    thesis_use = paste0(
+      "Arm-window level only (", network_pool$population[i],
+      "); do not difference or interpret causally."),
+    result_file = network_pool_path,
+    code_file = path_r("64_build_lmv2_network_descriptive.R"))
+}
+network_balance_path <- path_a(
+  "NETWORK_N4_DESCRIPTIVE", "network_specific_balance_maximum.csv")
+network_balance <- read_csv(network_balance_path)
+for (i in seq_len(nrow(network_balance))) {
+  add(
+    "Team disruption: balance diagnostic",
+    "Maximum absolute network-specific baseline SMD",
+    if (network_balance$population[i] == "full_cohort")
+      "Strict-tie full pre-deal target-inventor cohort" else
+      "Strict-tie initially retained population",
+    "maximum_absolute_smd", network_balance$absolute_smd[i],
+    status = "diagnostic_only_no_rematching",
+    thesis_use = paste0(
+      "Network-specific balance audit for ", network_balance$population[i],
+      "; reinforces the descriptive-only interpretation."),
+    result_file = network_balance_path,
+    code_file = path_r("64_build_lmv2_network_descriptive.R"))
+}
 bounds_path <- path_a("SELECTION_BOUNDS_DECISION", "selection_bounds_decision.csv")
 add(
   "Selection", "Lee-bounds identification decision",
@@ -446,6 +508,7 @@ requirements <- data.frame(
     "DealSim tercile, quadratic, and spline patterns",
     "DealSim by deal-size regime",
     "Persistent-team-tie post-acquisition effect",
+    "Initially retained collaboration-network decomposition",
     "Inventor productivity and team heterogeneity",
     "VR and retained-inventor heterogeneity"),
   status = c(
@@ -470,6 +533,7 @@ requirements <- data.frame(
     "built as exploratory only after failed power gate",
     "not estimated after failed DealSim power gate",
     "not estimated after failed held-out validation and precision gate",
+    "built as post-gate descriptive accounting; no causal ATT",
     "built for feasible cells; failed prospective cells remain appendix-only",
     "built for cells passing prospective power/balance gates"),
   thesis_action = c(
@@ -494,6 +558,7 @@ requirements <- data.frame(
     "Appendix/descriptive figure; no confirmatory inverted-U claim.",
     "List as power-gated future work, not a missing regression to fill post hoc.",
     "Report the N1 gate result: the t=-1 gap is nonzero and precision is below the frozen threshold; no post-treatment effect is opened.",
+    "Report selected-population extensive/intensive and legacy-tie recomposition descriptively, alongside the failed annual validation.",
     "Report only pre-specified feasible cells and omnibus qualification.",
     "Report gate outcomes and feasible contrasts."),
   code_file = c(
@@ -508,7 +573,8 @@ requirements <- data.frame(
     "29a_lmv2_p5b_selection_diagnostics.R", "57_certify_selection_bounds_decision.R",
     "54_run_lmv2_mechanism_selection.R", "54_run_lmv2_mechanism_selection.R",
     "55_run_dealsim_exploratory.R", "55_run_dealsim_exploratory.R",
-    "61_run_lmv2_network_n1.R", "31c_estimate_lmv2_inventor_heterogeneity.R",
+    "61_run_lmv2_network_n1.R", "64_build_lmv2_network_descriptive.R",
+    "31c_estimate_lmv2_inventor_heterogeneity.R",
     "32_run_lmv2_vr_heterogeneity.R"),
   stringsAsFactors = FALSE)
 requirements$code_file <- file.path("02_analysis", "R", requirements$code_file)
@@ -526,12 +592,18 @@ utils::write.csv(
 # valid completed outcomes; certification checks that they are labelled as such.
 required_code <- unique(file.path(root, registry$code_file))
 required_results <- unique(file.path(root, registry$result_file))
+network_desc_cert <- read_csv(path_a(
+  "NETWORK_N4_DESCRIPTIVE", "network_descriptive_certification.csv"))
+network_desc_rows <- startsWith(
+  registry$section, "Team disruption: descriptive")
 cert <- data.frame(
   check = c(
     "registry_nonempty", "all_rows_start_1993", "all_rows_end_2010",
     "all_code_files_exist", "all_result_files_exist",
     "techdrift_main_is_qualified", "dealsim_is_exploratory",
-    "network_gate_failure_is_preserved", "lee_bounds_not_claimed",
+    "network_gate_failure_is_preserved", "network_descriptive_is_noncausal",
+    "network_descriptive_has_no_inference", "network_descriptive_certified",
+    "lee_bounds_not_claimed",
     "full_decomposition_reconciles", "retained_decomposition_reconciles"),
   pass = c(
     nrow(registry) > 0L,
@@ -542,6 +614,11 @@ cert <- data.frame(
     all(grepl("qualified", registry$status[registry$outcome == "tech_drift" & registry$section == "Main results"])),
     all(grepl("exploratory", registry$status[registry$section == "DealSim"])),
     all(grepl("failed", registry$status[registry$section == "Team disruption"])),
+    all(grepl("descriptive|diagnostic", registry$status[network_desc_rows])),
+    all(is.na(registry$p_value[network_desc_rows])) &&
+      all(is.na(registry$ci_low[network_desc_rows])) &&
+      all(is.na(registry$ci_high[network_desc_rows])),
+    all(as.logical(network_desc_cert$pass)),
     all(grepl("not identified", registry$status[registry$result == "Lee-bounds identification decision"])),
     abs(sum(full_decomp$estimate[1:2]) - full_decomp$estimate[3]) <= 1e-12,
     abs(sum(retained_decomp$estimate[1:2]) - retained_decomp$estimate[3]) <= 1e-12),
@@ -550,7 +627,11 @@ cert <- data.frame(
     paste(length(required_code), "code files"),
     paste(length(required_results), "result files"),
     "No clean causal TechDrift claim", "Prospective Path U gate retained",
-    "Original N0 result plus amended N1 Path-F decision retained", "No unsupported Lee bounds",
+    "Original N0 result plus amended N1 Path-F decision retained",
+    "All post-gate network rows are explicitly descriptive or diagnostic",
+    "No post-gate network confidence interval or p-value",
+    paste(nrow(network_desc_cert), "descriptive-package checks pass"),
+    "No unsupported Lee bounds",
     format(abs(sum(full_decomp$estimate[1:2]) - full_decomp$estimate[3]), scientific = TRUE),
     format(abs(sum(retained_decomp$estimate[1:2]) - retained_decomp$estimate[3]), scientific = TRUE)),
   stringsAsFactors = FALSE)
@@ -601,6 +682,22 @@ network_result_lines <- vapply(seq_len(nrow(network_leads)), function(i) sprintf
   network_leads$event_time[i], fmt(network_leads$estimate[i]),
   fmt(network_leads$ci95_low[i]), fmt(network_leads$ci95_high[i]),
   fmt(network_leads$governing_p[i])), character(1))
+network_desc_lines <- vapply(seq_len(nrow(network_desc)), function(i) sprintf(
+  "| %s | %s | %s | %d | [`%s`](../R/%s) |",
+  network_desc$sample[i], network_desc$metric[i],
+  fmt(network_desc$estimate[i]), network_desc$focal_inventors[i],
+  basename("64_build_lmv2_network_descriptive.R"),
+  basename("64_build_lmv2_network_descriptive.R")), character(1))
+network_pool_lines <- vapply(seq_len(nrow(network_pool)), function(i) sprintf(
+  "| %s | %s | %s | %s | %s |",
+  network_pool$population[i], network_pool$arm[i],
+  network_pool$analysis_window[i], fmt(network_pool$weighted_mean[i]),
+  network_pool$status[i]), character(1))
+network_balance_lines <- vapply(seq_len(nrow(network_balance)), function(i) sprintf(
+  "| %s | %s | [`%s`](../R/%s) |",
+  network_balance$population[i], fmt(network_balance$absolute_smd[i]),
+  basename("64_build_lmv2_network_descriptive.R"),
+  basename("64_build_lmv2_network_descriptive.R")), character(1))
 note <- c(
   "# Final thesis results inventory: 1993--2010 cohort release",
   "", "This is the authoritative map from thesis claims to result artifacts and code.",
@@ -618,7 +715,7 @@ note <- c(
   "", "| Held-out event time | Treated-control gap | 95% CI | p |",
   "|---:|---:|---:|---:|", network_result_lines,
   "", sprintf(
-    "The joint held-out test has p=%s and the largest 80%% MDE is %s, versus the frozen 0.05 threshold. N1 therefore selects Path %s and no positive-event network outcome is opened.",
+    "The joint held-out test has p=%s and the largest 80%% MDE is %s, versus the frozen 0.05 threshold. N1 therefore selects Path %s and no positive-event causal network effect is estimated.",
     fmt(as.numeric(network_n1$joint_governing_p)),
     fmt(as.numeric(network_n1$maximum_mde_80)),
     network_n1$selected_path),
@@ -629,6 +726,16 @@ note <- c(
     fmt(as.numeric(retained_network$retained_effective_deals))),
   "No Holm-adjusted p-value is reported because the amended design has one governing network outcome.",
   "A provisional endpoint-conditioned denominator was superseded before any positive event time was opened; partner patenting cessation is treated as an observed zero, not denominator attrition.",
+  "", "## Descriptive network continuity among initially retained inventors", "",
+  "The failed annual validation remains governing. The following post-gate rows are selected-population descriptions over event times +1 through +5, not causal acquisition effects.",
+  "", "| Sample | Metric | Weighted value | Inventors | Code |",
+  "|---|---|---:|---:|---|", network_desc_lines,
+  "", "Supporting arm-window levels are shown without a pooled difference-in-differences contrast:",
+  "", "| Population | Arm | Window | Weighted level | Status |",
+  "|---|---|---|---:|---|", network_pool_lines,
+  "", "Network-specific balance remains imperfect, especially near treatment:",
+  "", "| Population | Maximum absolute SMD | Code |",
+  "|---|---:|---|", network_balance_lines,
   "", "## Extensive/intensive decomposition", "",
   "| Population | Component | Contribution | Interpretation | Code |",
   "|---|---|---:|---|---|", decomp_note_lines,
@@ -642,6 +749,7 @@ note <- c(
   "- CS(2021) is a co-equal not-yet-treated companion, but each outcome must be read with its own pretrend result.",
   "- DealSim estimates are exploratory because the prospective power gate selected Path U; they do not confirm the inverted-U hypothesis.",
   "- The strict persistent-tie N1 gate fails: the t=-1 partner-persistence gap is nonzero and the design cannot detect the frozen 0.05 effect. No post-treatment network effect is estimated.",
+  "- Post-acquisition network continuity and recomposition among initially retained inventors are descriptive selected-population evidence, not a pooled DiD or causal ATT.",
   "- Ordinary Lee bounds are not reported because defensible monotonicity/exchangeability and bounded-support conditions are not established.",
   "- The retained-inventor decomposition is an exact Shapley accounting identity; its intensive component conditions descriptively on post-treatment activity.",
   "", "## One-command refresh", "",
