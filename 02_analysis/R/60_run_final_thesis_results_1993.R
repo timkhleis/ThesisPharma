@@ -31,6 +31,10 @@ if (rebuild) {
   run("55_run_dealsim_exploratory.R")
   run("56_run_lmv2_network_census.R")
   run("57_certify_selection_bounds_decision.R")
+  run("60_amend_lmv2_network_n0.R")
+  run("61_run_lmv2_network_n1.R")
+  run("62_certify_lmv2_network_n2_lock.R")
+  run("63_census_lmv2_retained_network_support.R")
 }
 
 run("58_build_final_thesis_release_1993.R")

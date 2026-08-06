@@ -35,6 +35,20 @@ Average annual t=+1,...,+5 Local Match v2 estimates; 9,999-draw deal-wild infere
 | Treatment timing shifted three years early | active_patenting | 0.0083 | [-0.0193, 0.0374] | 0.5483 | [`53_run_lmv2_timing_placebo.R`](../R/53_run_lmv2_timing_placebo.R) |
 | Treatment timing shifted three years early | active_patenting | 0.0166 | [-0.0386, 0.0749] | 0.5483 | [`53_run_lmv2_timing_placebo.R`](../R/53_run_lmv2_timing_placebo.R) |
 
+## Collaboration-network gate
+
+The strict persistent-tie design uses one governing outcome: the share of baseline collaborators who remain patent-active in the focal organization while observable and at risk.
+
+| Held-out event time | Treated-control gap | 95% CI | p |
+|---:|---:|---:|---:|
+| -2 | -0.0227 | [-0.0722, 0.0267] | 0.3671 |
+| -1 | -0.1053 | [-0.1508, -0.0597] | 0.0001 |
+
+The joint held-out test has p=0.0001 and the largest 80% MDE is 0.0706, versus the frozen 0.05 threshold. N1 therefore selects Path F and no positive-event network outcome is opened.
+The strict retained companion contains 574 inventors across 75 deals (24.8736 effective deals) and remains blocked by the full-cohort gate.
+No Holm-adjusted p-value is reported because the amended design has one governing network outcome.
+A provisional endpoint-conditioned denominator was superseded before any positive event time was opened; partner patenting cessation is treated as an observed zero, not denominator attrition.
+
 ## Extensive/intensive decomposition
 
 | Population | Component | Contribution | Interpretation | Code |
@@ -72,7 +86,11 @@ Average annual t=+1,...,+5 Local Match v2 estimates; 9,999-draw deal-wild infere
 | DealSim | Exploratory DealSim tercile: low | exploratory after failed prospective power gate | [`55_run_dealsim_exploratory.R`](../R/55_run_dealsim_exploratory.R) |
 | DealSim | Exploratory DealSim tercile: middle | exploratory after failed prospective power gate | [`55_run_dealsim_exploratory.R`](../R/55_run_dealsim_exploratory.R) |
 | DealSim | Exploratory DealSim tercile: high | exploratory after failed prospective power gate | [`55_run_dealsim_exploratory.R`](../R/55_run_dealsim_exploratory.R) |
-| Team disruption | Persistent pre-deal tie support census | support gate failed | [`56_run_lmv2_network_census.R`](../R/56_run_lmv2_network_census.R) |
+| Team disruption | Persistent pre-deal tie support census | original support gate failed | [`56_run_lmv2_network_census.R`](../R/56_run_lmv2_network_census.R) |
+| Team disruption | Partner focal-organization persistence, t=-2 | validation gate failed | [`61_run_lmv2_network_n1.R`](../R/61_run_lmv2_network_n1.R) |
+| Team disruption | Partner focal-organization persistence, t=-1 | validation gate failed | [`61_run_lmv2_network_n1.R`](../R/61_run_lmv2_network_n1.R) |
+| Team disruption | Network N1 release decision | failed validation and precision gate | [`61_run_lmv2_network_n1.R`](../R/61_run_lmv2_network_n1.R) |
+| Team disruption | Initially retained strict-tie support census | blocked after failed full-cohort N1 gate | [`63_census_lmv2_retained_network_support.R`](../R/63_census_lmv2_retained_network_support.R) |
 | Selection | Lee-bounds identification decision | not identified under defensible assumptions | [`57_certify_selection_bounds_decision.R`](../R/57_certify_selection_bounds_decision.R) |
 | Robustness | Full robustness battery | completed | [`49a_build_lmv2_1993_robustness_release.R`](../R/49a_build_lmv2_1993_robustness_release.R) |
 | Co-equal identification | Verginer-style matched comparison | completed with design-specific qualification | [`24a_run_lmv2_verginer_early_recruitment_p6.R`](../R/24a_run_lmv2_verginer_early_recruitment_p6.R) |
@@ -101,7 +119,7 @@ Average annual t=+1,...,+5 Local Match v2 estimates; 9,999-draw deal-wild infere
 | T_NO_POST_5Y management-transition diagnostic | built; management-transition interpretation not supported | Classification caveat: evidence points away from senior management exit. | [`54_run_lmv2_mechanism_selection.R`](../R/54_run_lmv2_mechanism_selection.R) |
 | DealSim tercile, quadratic, and spline patterns | built as exploratory only after failed power gate | Appendix/descriptive figure; no confirmatory inverted-U claim. | [`55_run_dealsim_exploratory.R`](../R/55_run_dealsim_exploratory.R) |
 | DealSim by deal-size regime | not estimated after failed DealSim power gate | List as power-gated future work, not a missing regression to fill post hoc. | [`55_run_dealsim_exploratory.R`](../R/55_run_dealsim_exploratory.R) |
-| Persistent-team-tie post-acquisition effect | not estimated after failed persistent-tie support gate | List as support-gated future work. | [`56_run_lmv2_network_census.R`](../R/56_run_lmv2_network_census.R) |
+| Persistent-team-tie post-acquisition effect | not estimated after failed held-out validation and precision gate | Report the N1 gate result: the t=-1 gap is nonzero and precision is below the frozen threshold; no post-treatment effect is opened. | [`61_run_lmv2_network_n1.R`](../R/61_run_lmv2_network_n1.R) |
 | Inventor productivity and team heterogeneity | built for feasible cells; failed prospective cells remain appendix-only | Report only pre-specified feasible cells and omnibus qualification. | [`31c_estimate_lmv2_inventor_heterogeneity.R`](../R/31c_estimate_lmv2_inventor_heterogeneity.R) |
 | VR and retained-inventor heterogeneity | built for cells passing prospective power/balance gates | Report gate outcomes and feasible contrasts. | [`32_run_lmv2_vr_heterogeneity.R`](../R/32_run_lmv2_vr_heterogeneity.R) |
 
@@ -110,7 +128,7 @@ Average annual t=+1,...,+5 Local Match v2 estimates; 9,999-draw deal-wild infere
 - TechDrift rejects its Local Match joint pretrend test and is not a clean causal result.
 - CS(2021) is a co-equal not-yet-treated companion, but each outcome must be read with its own pretrend result.
 - DealSim estimates are exploratory because the prospective power gate selected Path U; they do not confirm the inverted-U hypothesis.
-- The persistent-team-tie census fails its frozen support threshold, so no post-treatment network effect is estimated.
+- The strict persistent-tie N1 gate fails: the t=-1 partner-persistence gap is nonzero and the design cannot detect the frozen 0.05 effect. No post-treatment network effect is estimated.
 - Ordinary Lee bounds are not reported because defensible monotonicity/exchangeability and bounded-support conditions are not established.
 - The retained-inventor decomposition is an exact Shapley accounting identity; its intensive component conditions descriptively on post-treatment activity.
 

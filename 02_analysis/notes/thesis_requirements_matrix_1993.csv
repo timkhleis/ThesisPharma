@@ -19,6 +19,6 @@
 "T_NO_POST_5Y management-transition diagnostic","built; management-transition interpretation not supported","Classification caveat: evidence points away from senior management exit.","02_analysis/R/54_run_lmv2_mechanism_selection.R"
 "DealSim tercile, quadratic, and spline patterns","built as exploratory only after failed power gate","Appendix/descriptive figure; no confirmatory inverted-U claim.","02_analysis/R/55_run_dealsim_exploratory.R"
 "DealSim by deal-size regime","not estimated after failed DealSim power gate","List as power-gated future work, not a missing regression to fill post hoc.","02_analysis/R/55_run_dealsim_exploratory.R"
-"Persistent-team-tie post-acquisition effect","not estimated after failed persistent-tie support gate","List as support-gated future work.","02_analysis/R/56_run_lmv2_network_census.R"
+"Persistent-team-tie post-acquisition effect","not estimated after failed held-out validation and precision gate","Report the N1 gate result: the t=-1 gap is nonzero and precision is below the frozen threshold; no post-treatment effect is opened.","02_analysis/R/61_run_lmv2_network_n1.R"
 "Inventor productivity and team heterogeneity","built for feasible cells; failed prospective cells remain appendix-only","Report only pre-specified feasible cells and omnibus qualification.","02_analysis/R/31c_estimate_lmv2_inventor_heterogeneity.R"
 "VR and retained-inventor heterogeneity","built for cells passing prospective power/balance gates","Report gate outcomes and feasible contrasts.","02_analysis/R/32_run_lmv2_vr_heterogeneity.R"

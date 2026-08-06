@@ -107,4 +107,28 @@ writeLines(c(
   "\\end{minipage}", "\\end{table}"),
   file.path(table_dir, "table_margin_decomposition_1993.tex"), useBytes = TRUE)
 
+network <- registry[
+  registry$section == "Team disruption" &
+    !is.na(registry$outcome) &
+    registry$outcome == "partner_focal_persistence_share", ]
+network_event <- as.numeric(sub(".*t=", "", network$result))
+network <- network[order(network_event), ]
+network_lines <- vapply(seq_len(nrow(network)), function(i) sprintf(
+  "%s & %s & [%s, %s] & %s \\\\",
+  sub("Partner focal-organization persistence, ", "", network$result[i]),
+  fmt(network$estimate[i]), fmt(network$ci_low[i]),
+  fmt(network$ci_high[i]), fmt(network$p_value[i])), character(1))
+writeLines(c(
+  "\\begin{table}[!htbp]", "\\centering",
+  "\\caption{Held-out validation of the collaboration-network design}",
+  "\\label{tab:network-validation-1993}",
+  "\\begin{tabular}{lrrr}", "\\toprule",
+  "Event time & Treated-control gap & 95\\% CI & $p$-value \\\\",
+  "\\midrule", network_lines, "\\bottomrule", "\\end{tabular}",
+  "\\begin{minipage}{0.94\\linewidth}\\footnotesize",
+  "\\textit{Notes:} The outcome is the share of strict persistent baseline collaborators who remain patent-active in the focal organization while observable and at risk. The governing interval is the wider of deal-wild and two-way deal/inventor inference. The $t=-1$ gap and the precision gate select Path F, so no post-treatment network effect is estimated. No Holm-adjusted $p$-value is reported because the design has one governing outcome.",
+  "\\end{minipage}", "\\end{table}"),
+  file.path(table_dir, "table_network_validation_1993.tex"),
+  useBytes = TRUE)
+
 message("Final 1993 LaTeX tables written to: ", table_dir)

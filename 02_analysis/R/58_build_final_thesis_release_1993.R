@@ -343,9 +343,51 @@ for (i in seq_len(nrow(deal))) {
 network_path <- path_a("NETWORK_N0_CENSUS", "network_n0_path_decision.csv")
 add(
   "Team disruption", "Persistent pre-deal tie support census",
-  "Treated and control focal inventors", status = "support gate failed",
-  thesis_use = "Path Q closes after N0: post-treatment network effects are not estimated.",
+  "Treated and control focal inventors", status = "original support gate failed",
+  thesis_use = "Preserve the original Path-Q rule and its strict-tie census.",
   result_file = network_path, code_file = path_r("56_run_lmv2_network_census.R"))
+network_n1_path <- path_a(
+  "NETWORK_N1_VALIDATION", "network_n1_path_decision.csv")
+network_leads_path <- path_a(
+  "NETWORK_N1_VALIDATION", "network_validation_leads.csv")
+network_n1 <- utils::read.csv(
+  network_n1_path, check.names = FALSE, stringsAsFactors = FALSE,
+  colClasses = "character")
+network_leads <- read_csv(network_leads_path)
+for (i in seq_len(nrow(network_leads))) {
+  add(
+    "Team disruption",
+    paste0("Partner focal-organization persistence, t=",
+           network_leads$event_time[i]),
+    "Strict-tie full pre-deal target-inventor cohort",
+    "partner_focal_persistence_share",
+    network_leads$estimate[i], network_leads$ci95_low[i],
+    network_leads$ci95_high[i], network_leads$governing_p[i],
+    "validation gate failed",
+    "Held-out pre-period diagnostic only; no post-treatment network effect is estimated.",
+    network_leads_path, path_r("61_run_lmv2_network_n1.R"))
+}
+add(
+  "Team disruption", "Network N1 release decision",
+  "Strict-tie full pre-deal target-inventor cohort",
+  status = "failed validation and precision gate",
+  thesis_use = paste0(
+    "Path ", network_n1$selected_path[[1L]],
+    " closes N2; positive-event network outcomes remain unopened."),
+  result_file = network_n1_path,
+  code_file = path_r("61_run_lmv2_network_n1.R"))
+retained_network_path <- path_a(
+  "NETWORK_N3_RETAINED_SUPPORT", "retained_network_release_decision.csv")
+retained_network <- utils::read.csv(
+  retained_network_path, check.names = FALSE, stringsAsFactors = FALSE,
+  colClasses = "character")
+add(
+  "Team disruption", "Initially retained strict-tie support census",
+  "Initially retained inventors and symmetric controls",
+  status = "blocked after failed full-cohort N1 gate",
+  thesis_use = "Report support only; do not estimate a selected-group post-treatment network effect.",
+  result_file = retained_network_path,
+  code_file = path_r("63_census_lmv2_retained_network_support.R"))
 bounds_path <- path_a("SELECTION_BOUNDS_DECISION", "selection_bounds_decision.csv")
 add(
   "Selection", "Lee-bounds identification decision",
@@ -427,7 +469,7 @@ requirements <- data.frame(
     "built; management-transition interpretation not supported",
     "built as exploratory only after failed power gate",
     "not estimated after failed DealSim power gate",
-    "not estimated after failed persistent-tie support gate",
+    "not estimated after failed held-out validation and precision gate",
     "built for feasible cells; failed prospective cells remain appendix-only",
     "built for cells passing prospective power/balance gates"),
   thesis_action = c(
@@ -451,7 +493,7 @@ requirements <- data.frame(
     "Classification caveat: evidence points away from senior management exit.",
     "Appendix/descriptive figure; no confirmatory inverted-U claim.",
     "List as power-gated future work, not a missing regression to fill post hoc.",
-    "List as support-gated future work.",
+    "Report the N1 gate result: the t=-1 gap is nonzero and precision is below the frozen threshold; no post-treatment effect is opened.",
     "Report only pre-specified feasible cells and omnibus qualification.",
     "Report gate outcomes and feasible contrasts."),
   code_file = c(
@@ -466,7 +508,7 @@ requirements <- data.frame(
     "29a_lmv2_p5b_selection_diagnostics.R", "57_certify_selection_bounds_decision.R",
     "54_run_lmv2_mechanism_selection.R", "54_run_lmv2_mechanism_selection.R",
     "55_run_dealsim_exploratory.R", "55_run_dealsim_exploratory.R",
-    "56_run_lmv2_network_census.R", "31c_estimate_lmv2_inventor_heterogeneity.R",
+    "61_run_lmv2_network_n1.R", "31c_estimate_lmv2_inventor_heterogeneity.R",
     "32_run_lmv2_vr_heterogeneity.R"),
   stringsAsFactors = FALSE)
 requirements$code_file <- file.path("02_analysis", "R", requirements$code_file)
@@ -508,7 +550,7 @@ cert <- data.frame(
     paste(length(required_code), "code files"),
     paste(length(required_results), "result files"),
     "No clean causal TechDrift claim", "Prospective Path U gate retained",
-    "N0 support gate retained", "No unsupported Lee bounds",
+    "Original N0 result plus amended N1 Path-F decision retained", "No unsupported Lee bounds",
     format(abs(sum(full_decomp$estimate[1:2]) - full_decomp$estimate[3]), scientific = TRUE),
     format(abs(sum(retained_decomp$estimate[1:2]) - retained_decomp$estimate[3]), scientific = TRUE)),
   stringsAsFactors = FALSE)
@@ -554,6 +596,11 @@ requirement_lines <- vapply(seq_len(nrow(requirements)), function(i) sprintf(
   requirements$requirement[i], requirements$status[i],
   requirements$thesis_action[i], basename(requirements$code_file[i]),
   basename(requirements$code_file[i])), character(1))
+network_result_lines <- vapply(seq_len(nrow(network_leads)), function(i) sprintf(
+  "| %d | %s | [%s, %s] | %s |",
+  network_leads$event_time[i], fmt(network_leads$estimate[i]),
+  fmt(network_leads$ci95_low[i]), fmt(network_leads$ci95_high[i]),
+  fmt(network_leads$governing_p[i])), character(1))
 note <- c(
   "# Final thesis results inventory: 1993--2010 cohort release",
   "", "This is the authoritative map from thesis claims to result artifacts and code.",
@@ -566,6 +613,22 @@ note <- c(
   "", "## Key newly built robustness results", "",
   "| Specification | Outcome | ATT | 95% CI | p | Code |",
   "|---|---|---:|---:|---:|---|", key_robust_lines,
+  "", "## Collaboration-network gate", "",
+  "The strict persistent-tie design uses one governing outcome: the share of baseline collaborators who remain patent-active in the focal organization while observable and at risk.",
+  "", "| Held-out event time | Treated-control gap | 95% CI | p |",
+  "|---:|---:|---:|---:|", network_result_lines,
+  "", sprintf(
+    "The joint held-out test has p=%s and the largest 80%% MDE is %s, versus the frozen 0.05 threshold. N1 therefore selects Path %s and no positive-event network outcome is opened.",
+    fmt(as.numeric(network_n1$joint_governing_p)),
+    fmt(as.numeric(network_n1$maximum_mde_80)),
+    network_n1$selected_path),
+  sprintf(
+    "The strict retained companion contains %s inventors across %s deals (%s effective deals) and remains blocked by the full-cohort gate.",
+    retained_network$retained_treated_inventors,
+    retained_network$retained_nominal_deals,
+    fmt(as.numeric(retained_network$retained_effective_deals))),
+  "No Holm-adjusted p-value is reported because the amended design has one governing network outcome.",
+  "A provisional endpoint-conditioned denominator was superseded before any positive event time was opened; partner patenting cessation is treated as an observed zero, not denominator attrition.",
   "", "## Extensive/intensive decomposition", "",
   "| Population | Component | Contribution | Interpretation | Code |",
   "|---|---|---:|---|---|", decomp_note_lines,
@@ -578,7 +641,7 @@ note <- c(
   "- TechDrift rejects its Local Match joint pretrend test and is not a clean causal result.",
   "- CS(2021) is a co-equal not-yet-treated companion, but each outcome must be read with its own pretrend result.",
   "- DealSim estimates are exploratory because the prospective power gate selected Path U; they do not confirm the inverted-U hypothesis.",
-  "- The persistent-team-tie census fails its frozen support threshold, so no post-treatment network effect is estimated.",
+  "- The strict persistent-tie N1 gate fails: the t=-1 partner-persistence gap is nonzero and the design cannot detect the frozen 0.05 effect. No post-treatment network effect is estimated.",
   "- Ordinary Lee bounds are not reported because defensible monotonicity/exchangeability and bounded-support conditions are not established.",
   "- The retained-inventor decomposition is an exact Shapley accounting identity; its intensive component conditions descriptively on post-treatment activity.",
   "", "## One-command refresh", "",
