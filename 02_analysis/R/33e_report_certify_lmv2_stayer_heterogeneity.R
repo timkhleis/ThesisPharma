@@ -312,6 +312,75 @@ utils::write.csv(
   file.path(result_dir, "table_stayer_aggregate_reconstruction.csv"),
   row.names = FALSE
 )
+standard_did <- heterogeneity[
+  heterogeneity$result_type == "focal_contrast" &
+    heterogeneity$sample == "full_1994_2010" &
+    heterogeneity$window == "five_post_minus_five_pre" &
+    heterogeneity$model_type == "five_by_five_companion" &
+    heterogeneity$techfit_variant %in% c("not_applicable", "full"),
+  c("moderator", "outcome", "contrast", "estimate", "ci_low", "ci_high",
+    "governing_p", "treated_inventors", "nominal_deals"), drop = FALSE
+]
+if (nrow(standard_did) != 8L ||
+    anyDuplicated(paste(standard_did$moderator, standard_did$outcome))) {
+  stop("Conventional aggregate-DiD stayer companion is incomplete")
+}
+names(standard_did)[names(standard_did) == "governing_p"] <- "p_value"
+primary_comparison <- table_primary[, c(
+  "moderator", "outcome", "contrast", "estimate", "ci_low", "ci_high",
+  "p_value", "treated_inventors", "nominal_deals"
+)]
+names(primary_comparison)[4:7] <- c(
+  "collapsed_estimate", "collapsed_ci_low", "collapsed_ci_high",
+  "collapsed_p_value"
+)
+standard_comparison <- standard_did[, c(
+  "moderator", "outcome", "contrast", "estimate", "ci_low", "ci_high",
+  "p_value", "treated_inventors", "nominal_deals"
+)]
+names(standard_comparison)[4:7] <- c(
+  "conventional_estimate", "conventional_ci_low", "conventional_ci_high",
+  "conventional_p_value"
+)
+heterogeneity_aggregation_comparison <- merge(
+  primary_comparison, standard_comparison,
+  by = c("moderator", "outcome", "contrast", "treated_inventors", "nominal_deals"),
+  sort = FALSE
+)
+if (nrow(heterogeneity_aggregation_comparison) != 8L) {
+  stop("Stayer heterogeneity aggregation comparison lost a primary contrast")
+}
+utils::write.csv(
+  heterogeneity_aggregation_comparison,
+  file.path(result_dir, "table_stayer_heterogeneity_aggregation_comparison.csv"),
+  row.names = FALSE
+)
+one_sd <- heterogeneity[
+  heterogeneity$result_type == "one_sd_effect" &
+    heterogeneity$sample == "full_1994_2010" &
+    heterogeneity$window == "five_post_minus_five_pre" &
+    heterogeneity$model_type == "five_by_five_companion" &
+    heterogeneity$techfit_variant %in% c("not_applicable", "full"),
+  c("moderator", "outcome", "estimate", "ci_low", "ci_high", "governing_p"),
+  drop = FALSE
+]
+if (nrow(one_sd) != 6L) stop("One-SD stayer heterogeneity table is incomplete")
+one_sd$effect_scale <- "One-standard-deviation increase"
+team_binary <- standard_did[
+  standard_did$moderator == "team_persistence",
+  c("moderator", "outcome", "estimate", "ci_low", "ci_high", "p_value"),
+  drop = FALSE
+]
+names(team_binary)[names(team_binary) == "p_value"] <- "governing_p"
+team_binary$effect_scale <- "Persistent pre-deal team versus none"
+interpretable_effects <- rbind(one_sd, team_binary)
+names(interpretable_effects)[names(interpretable_effects) == "governing_p"] <-
+  "p_value"
+utils::write.csv(
+  interpretable_effects,
+  file.path(result_dir, "table_stayer_heterogeneity_interpretable_effects.csv"),
+  row.names = FALSE
+)
 decomposition_main <- decomposition[
   decomposition$component %in%
     c("symmetric_extensive", "symmetric_intensive", "total"),
@@ -500,6 +569,8 @@ artifact_paths <- c(
     "table_stayer_heterogeneity_complete.csv",
     "table_stayer_aggregate_effects.csv",
     "table_stayer_aggregate_reconstruction.csv",
+    "table_stayer_heterogeneity_aggregation_comparison.csv",
+    "table_stayer_heterogeneity_interpretable_effects.csv",
     "table_stayer_margin_decomposition.csv",
     "table_stayer_margin_decomposition_inference_appendix.csv",
     "table_stayer_power_gate.csv",

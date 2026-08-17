@@ -1,4 +1,4 @@
-source(file.path("02_analysis", "R", "00_utils.R"))
+source(file.path("analysis", "R", "00_utils.R"))
 
 load_packages()
 ensure_output_dirs()
@@ -187,8 +187,8 @@ write_parquet_and_table(con, merger_window_review_sample, "audit_merger_window_r
 write_parquet_and_table(con, inventor_compare, "audit_inventor_benchmark_compare", "audit")
 write_parquet_and_table(con, group_compare, "audit_group_benchmark_compare", "audit")
 
-write_csv(audit_summary, project_path("02_analysis", "output", "audit", "audit_summary.csv"))
-write_csv(benchmark_summary, project_path("02_analysis", "output", "audit", "benchmark_summary.csv"))
+write_csv(audit_summary, project_path("analysis", "output", "audit", "audit_summary.csv"))
+write_csv(benchmark_summary, project_path("analysis", "output", "audit", "benchmark_summary.csv"))
 
 summary_md <- c(
   "# Audit Summary",
@@ -213,6 +213,6 @@ summary_md <- c(
   )
 )
 
-writeLines(summary_md, project_path("02_analysis", "output", "audit", "audit_summary.md"))
+writeLines(summary_md, project_path("analysis", "output", "audit", "audit_summary.md"))
 
 message("Audit build complete.")

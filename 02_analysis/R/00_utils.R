@@ -34,15 +34,15 @@ load_packages <- function() {
 
 ensure_output_dirs <- function() {
   dirs <- c(
-    project_path("02_analysis", "output"),
-    project_path("02_analysis", "output", "parquet"),
-    project_path("02_analysis", "output", "parquet", "canonical"),
-    project_path("02_analysis", "output", "parquet", "helper"),
-    project_path("02_analysis", "output", "parquet", "enrichment"),
-    project_path("02_analysis", "output", "parquet", "derived"),
-    project_path("02_analysis", "output", "parquet", "audit"),
-    project_path("02_analysis", "output", "metadata"),
-    project_path("02_analysis", "output", "audit")
+    project_path("analysis", "output"),
+    project_path("analysis", "output", "parquet"),
+    project_path("analysis", "output", "parquet", "canonical"),
+    project_path("analysis", "output", "parquet", "helper"),
+    project_path("analysis", "output", "parquet", "enrichment"),
+    project_path("analysis", "output", "parquet", "derived"),
+    project_path("analysis", "output", "parquet", "audit"),
+    project_path("analysis", "output", "metadata"),
+    project_path("analysis", "output", "audit")
   )
   invisible(vapply(dirs, dir.create, logical(1), recursive = TRUE, showWarnings = FALSE))
 }
@@ -90,7 +90,7 @@ read_bvd_group_id <- function(path) {
 }
 
 duckdb_path <- function() {
-  project_path("02_analysis", "output", "thesis_foundation.duckdb")
+  project_path("analysis", "output", "thesis_foundation.duckdb")
 }
 
 connect_duckdb <- function(read_only = FALSE, memory_limit = "9GB", threads = 4) {
@@ -114,7 +114,7 @@ normalize_path_sql <- function(path) {
 }
 
 write_parquet_and_table <- function(con, df, table_name, parquet_subdir) {
-  parquet_path <- project_path("02_analysis", "output", "parquet", parquet_subdir, paste0(table_name, ".parquet"))
+  parquet_path <- project_path("analysis", "output", "parquet", parquet_subdir, paste0(table_name, ".parquet"))
   parquet_sql <- normalize_path_sql(parquet_path)
   quoted_table <- as.character(DBI::dbQuoteIdentifier(con, table_name))
   if (DBI::dbExistsTable(con, table_name)) {
@@ -126,7 +126,7 @@ write_parquet_and_table <- function(con, df, table_name, parquet_subdir) {
 }
 
 copy_db_table_to_parquet <- function(con, table_name, parquet_subdir) {
-  parquet_path <- project_path("02_analysis", "output", "parquet", parquet_subdir, paste0(table_name, ".parquet"))
+  parquet_path <- project_path("analysis", "output", "parquet", parquet_subdir, paste0(table_name, ".parquet"))
   parquet_sql <- normalize_path_sql(parquet_path)
   quoted_table <- as.character(DBI::dbQuoteIdentifier(con, table_name))
   DBI::dbExecute(con, sprintf("COPY %s TO '%s' (FORMAT PARQUET, COMPRESSION ZSTD)", quoted_table, parquet_sql))

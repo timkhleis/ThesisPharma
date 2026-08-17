@@ -1,4 +1,4 @@
-source(file.path("02_analysis", "R", "00_utils.R"))
+source(file.path("analysis", "R", "00_utils.R"))
 
 load_packages()
 ensure_output_dirs()
@@ -6,84 +6,84 @@ ensure_output_dirs()
 table_specs <- list(
   inventor = list(
     layer = "canonical",
-    source_path = project_path("01_Data", "inventor.dta"),
+    source_path = project_path("Data", "inventor.dta"),
     grain = "one row per published inventor identifier",
     primary_key = c("codinv"),
     role = "canonical baseline inventor identities"
   ),
   patent = list(
     layer = "canonical",
-    source_path = project_path("01_Data", "patent.dta"),
+    source_path = project_path("Data", "patent.dta"),
     grain = "one row per patent application and company-year link",
     primary_key = c("appln_id"),
     role = "canonical patent application table"
   ),
   patent_inventor = list(
     layer = "canonical",
-    source_path = project_path("01_Data", "patent_inventor.dta"),
+    source_path = project_path("Data", "patent_inventor.dta"),
     grain = "many-to-many bridge between patent applications and inventors",
     primary_key = c("appln_id", "codinv"),
     role = "canonical inventor-patent bridge"
   ),
   ipc = list(
     layer = "canonical",
-    source_path = project_path("01_Data", "ipc.dta"),
+    source_path = project_path("Data", "ipc.dta"),
     grain = "many-to-many bridge between patent applications and IPC codes",
     primary_key = c("appln_id", "clmn"),
     role = "canonical patent classification table"
   ),
   group = list(
     layer = "canonical",
-    source_path = project_path("01_Data", "group.dta"),
+    source_path = project_path("Data", "group.dta"),
     grain = "one row per group identifier",
     primary_key = c("id_group"),
     role = "canonical group dimension"
   ),
   firm = list(
     layer = "canonical",
-    source_path = project_path("01_Data", "firm.dta"),
+    source_path = project_path("Data", "firm.dta"),
     grain = "one row per company code",
     primary_key = c("compcod"),
     role = "canonical firm dimension"
   ),
   firm_group = list(
     layer = "canonical",
-    source_path = project_path("01_Data", "firm_group.dta"),
+    source_path = project_path("Data", "firm_group.dta"),
     grain = "one row per company-year group assignment",
     primary_key = c("compcod", "year", "id_group"),
     role = "canonical firm-group-year bridge"
   ),
   inventor_production = list(
     layer = "helper",
-    source_path = project_path("01_Data", "CassiOrnaghiPaperData", "inventor_production.csv"),
+    source_path = project_path("Data", "CassiOrnaghiPaperData", "inventor_production.csv"),
     grain = "one row per inventor-year helper observation",
     primary_key = c("codinv", "year"),
     role = "validation benchmark only"
   ),
   group_production = list(
     layer = "helper",
-    source_path = project_path("01_Data", "CassiOrnaghiPaperData", "group_production.csv"),
+    source_path = project_path("Data", "CassiOrnaghiPaperData", "group_production.csv"),
     grain = "one row per group-year helper observation",
     primary_key = c("id_group", "year"),
     role = "validation benchmark only"
   ),
   merger_list = list(
     layer = "helper",
-    source_path = project_path("01_Data", "CassiOrnaghiPaperData", "merger_list.csv"),
+    source_path = project_path("Data", "CassiOrnaghiPaperData", "merger_list.csv"),
     grain = "summary rows by merger year and value bucket",
     primary_key = c("target_year", "target_value", "big"),
     role = "year-level merger summary helper"
   ),
   bvd_group_id = list(
     layer = "helper",
-    source_path = project_path("01_Data", "CassiOrnaghiPaperData", "BvD_group_id.csv"),
+    source_path = project_path("Data", "CassiOrnaghiPaperData", "BvD_group_id.csv"),
     grain = "one row per group to BvD identifier mapping",
     primary_key = c("id_group"),
     role = "linkage helper"
   ),
   oecd_quality = list(
     layer = "enrichment",
-    source_path = project_path("01_Data", "OECD_QualitaData", "OECD_Quality_data.txt"),
+    source_path = project_path("Data", "OECD_QualitaData", "OECD_Quality_data.txt"),
     grain = "one row per patent application quality record",
     primary_key = c("appln_id"),
     role = "patent quality enrichment"
@@ -145,12 +145,12 @@ inventory <- create_table_inventory(table_specs) |>
     })
   )
 
-write_csv(inventory, project_path("02_analysis", "output", "metadata", "table_inventory.csv"))
+write_csv(inventory, project_path("analysis", "output", "metadata", "table_inventory.csv"))
 
 key_checks <- inventory |>
   dplyr::select("table_name", "layer", "primary_key", "duplicate_key_rows")
 
-write_csv(key_checks, project_path("02_analysis", "output", "metadata", "key_checks.csv"))
+write_csv(key_checks, project_path("analysis", "output", "metadata", "key_checks.csv"))
 
 message("Writing canonical, helper, and enrichment outputs to DuckDB and Parquet...")
 con <- connect_duckdb()
@@ -162,6 +162,6 @@ for (name in names(table_specs)) {
 }
 
 db_tables <- DBI::dbGetQuery(con, "SHOW TABLES")
-write_csv(db_tables, project_path("02_analysis", "output", "metadata", "duckdb_tables.csv"))
+write_csv(db_tables, project_path("analysis", "output", "metadata", "duckdb_tables.csv"))
 
 message("Data foundation build complete.")

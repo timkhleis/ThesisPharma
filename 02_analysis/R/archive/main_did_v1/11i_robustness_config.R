@@ -26,6 +26,36 @@ P3_DIAGNOSTIC_WEIGHTS_PARQUET <- file.path(DERIVED_PAR, "main_did_v1_g7_reduced4
 P4_WEIGHTS_PARQUET <- file.path(DERIVED_PAR, "main_did_v1_g7_deal_weighted_weights.parquet")
 P5_WEIGHTS_PARQUET <- file.path(DERIVED_PAR, "main_did_v1_never_target_h5_deal_weighted_weights.parquet")
 
+# --- Expanded never-target horizon (nt2010): versioned build targets ---------
+# The P0H5/P5 main design is extended to STACK_HI_NEVER_TARGET (2010). Every path
+# below is NEW and never overwrites the frozen 1994-2008 artifacts above. P3/P4
+# keep their existing g+7 paths (STACK_HI_G7 = 2008). Populated in Packages 2-5.
+NT2010_STACK_LO <- STACK_LO                 # 1994
+NT2010_STACK_HI <- STACK_HI_NEVER_TARGET    # 2010  (P0H5/P5 expanded horizon)
+CC_STACK_HI     <- STACK_HI_G7              # 2008  (common-cohort comparison ceiling)
+
+# Combined analysis roster: treated + never-target control units (NOT control-only,
+# so it must not reuse the `never_target_units` naming).
+NT2010_ANALYSIS_UNITS_PARQUET <- file.path(DERIVED_PAR, "main_did_v1_nt2010_analysis_units.parquet")
+P0H5_NT2010_WEIGHTS_PARQUET <- file.path(DERIVED_PAR, "main_did_v1_nt2010_p0h5_weights.parquet")
+P5_NT2010_WEIGHTS_PARQUET   <- file.path(DERIVED_PAR, "main_did_v1_nt2010_p5_weights.parquet")
+NT2010_PANEL_PARQUET        <- file.path(DERIVED_PAR, "main_did_v1_nt2010_panel_never_target_h5.parquet")
+
+# common-cohort (1994-2008) re-weighted twins of the expanded design (Package 5)
+P0H5_CC9408_WEIGHTS_PARQUET <- file.path(DERIVED_PAR, "main_did_v1_nt2010_p0h5_cc9408_weights.parquet")
+P5_CC9408_WEIGHTS_PARQUET   <- file.path(DERIVED_PAR, "main_did_v1_nt2010_p5_cc9408_weights.parquet")
+
+# Package 2B.1: cohort-specific P0H5 (production candidate). Assembled from per-cohort
+# shards; the cc9408 file is an exact 1994-2008 subset of the 1994-2010 shards.
+P0H5_COHORT_EBAL_WEIGHTS_PARQUET        <- file.path(DERIVED_PAR, "main_did_v1_nt2010_p0h5_cohort_ebal_weights.parquet")
+P0H5_COHORT_EBAL_CC9408_WEIGHTS_PARQUET <- file.path(DERIVED_PAR, "main_did_v1_nt2010_p0h5_cohort_ebal_cc9408_weights.parquet")
+P0H5_COHORT_EBAL_SHARD_DIR              <- file.path(DERIVED_PAR, "nt2010_p0h5_cohort_ebal_shards")
+
+# results / figures / audit name prefixes for the nt2010 bundle (compose <prefix>_<name>)
+NT2010_RESULTS_PREFIX <- file.path(RESULTS_DIR, "main_did_v1_nt2010")
+NT2010_FIGS_PREFIX    <- file.path(FIGS_DIR,    "main_did_v1_nt2010")
+NT2010_AUDIT_PREFIX   <- file.path(AUDIT_DIR,   "main_did_v1_nt2010")
+
 FIRM_COVARS_REDUCED <- c(
   "log_firm_inventor_count",
   "log_patents_recent",

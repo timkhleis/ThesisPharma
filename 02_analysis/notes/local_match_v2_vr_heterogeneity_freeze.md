@@ -23,7 +23,13 @@ controls. It replaces Verginer and Riccaboni's `Left` status because leaving is
 post-treatment and would mix the full-cohort ATT with stayer selection. The
 computational implementation uses the algebraically equivalent roster-level
 change from \(t=-1\) to mean \(t=+1,\ldots,+5\), with cohort-standardized P5c
-weights. A five-pre versus five-post change is an appendix companion.
+weights. This is the primary \emph{collapsed event-study contrast}. For the
+heterogeneity checks, the companion outcome is the conventional aggregate DiD:
+average post outcome minus average pre outcome, using
+\(t=+1,\ldots,+5\) and \(t=-5,\ldots,-1\). Its sign is therefore post minus
+pre, not pre minus post. The companion changes the baseline and may change
+precision; it does not replace the reference-year heterogeneity estimand or
+mechanically improve precision.
 
 Patent count is the primary outcome. Active patenting is the co-reported
 extensive-margin outcome. No log-patent or citation outcome enters this
@@ -55,6 +61,11 @@ Accordingly, the package reports both the level contrast and the effect relative
 to the matched counterfactual output of each productivity profile. It does not
 label a larger level loss as greater vulnerability unless the proportional
 effect also differs.
+
+For interpretation, the output table also reports the estimated treatment
+gradient from a one-standard-deviation increase in each continuous moderator.
+Persistent team membership is binary, so its reported scale remains the
+substantive comparison of a persistent pre-deal team with no such team.
 
 Career-age evidence is not independent of prior diagnostics. The previously
 estimated established-inventor design, which requires focal patent evidence at
