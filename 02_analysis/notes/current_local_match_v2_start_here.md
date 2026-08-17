@@ -107,6 +107,56 @@ lifecycle, recruitment, or simple observed mean-reversion explanation,
 although residual violations of conditional parallel trends prevent an
 unqualified causal interpretation.
 
+## D1: retained-status descriptive completion
+
+Run:
+
+```powershell
+& 'C:\Program Files\R\R-4.5.1\bin\Rscript.exe' 02_analysis\R\42_run_lmv2_stayer_descriptives.R
+```
+
+The certified D1 package reports predetermined status distributions, annual
++1 through +5 patent-location paths, focal-affiliation persistence, symmetric
+group-existence diagnostics, descriptive +6 continuation, and the
+completion-year-inclusive timing results. Read
+`local_match_v2_stayer_descriptive_results.md` for the substantive summary.
+All location measures refer to patent affiliation, not employment.
+
+## N0: outcome-blind network census
+
+Run:
+
+```powershell
+& 'C:\Program Files\R\R-4.5.1\bin\Rscript.exe' 02_analysis\R\43_run_lmv2_network_census.R
+```
+
+N0 uses only event times -5 through -1. The frozen -5 through -3 persistent
+tie definition covers only 8.2% of the weighted treated cohort, so it defines
+a narrow network-active subpopulation rather than evidence capable of
+corroborating the full-cohort headline. Conditional composition is defined for
+745 treated rows at -2 and 557 at -1, below the frozen 1,000-row requirement.
+The anchor also retains 2,230 treated focal inventors, below the frozen 3,000.
+The package therefore selects Path Q. N1 and post-acquisition causal network
+effects remain closed. Read `local_match_v2_network_census_results.md` and the
+hashed pre-analysis freeze for the exact denominator definitions and gate
+failures.
+
+## N4: exploratory retained-inventor team recomposition
+
+Run:
+
+```powershell
+& 'C:\Program Files\R\R-4.5.1\bin\Rscript.exe' 02_analysis\R\47_run_lmv2_n4_team_recomposition.R
+```
+
+N4 is a treated-only descriptive appendix and does not reopen Path Q. It uses
+all 2,663 matched initially retained inventors for team composition and
+reports strict and exploratory weak baseline ties side by side. The package
+is frozen before positive event times are constructed and passes 20/20
+certification checks. Read
+`local_match_v2_n4_team_recomposition_results.md` for the exact magnitudes and
+denominators.
+
 ## Archive
 
 `99_Archive/` preserves completed Main-DiD-v1 and scratch exploration. It is

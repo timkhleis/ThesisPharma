@@ -4,9 +4,9 @@ Status: implementation plan frozen for sequencing, but not yet a
 network-outcome pre-analysis freeze. No new network post-treatment outcome has
 been opened.
 
-C1 is complete. C2's verifier, clean-session smoke test, legacy-runner guard,
-and compact staging handoff pass. Final C2 promotion is pending reviewed git
-integration because the release worktree and main root are not clean.
+C1 and C2 are complete. C2 was committed, integrated into `main-did-v1`,
+production-certified from a clean worktree, and pushed to GitHub at commit
+`356c159`. Package D1 is the active next package.
 
 Date: 2026-07-29
 
@@ -125,6 +125,9 @@ Outputs:
 Purpose: ensure that the current results do not depend on knowing which
 worktree contains the authoritative implementation.
 
+Status: completed and production-certified on 2026-07-30 at commit
+`356c159`.
+
 Tasks:
 
 1. inventory the authoritative P0--P8 scripts and frozen inputs;
@@ -158,6 +161,9 @@ Outputs:
 Purpose: finish the descriptive facts required to interpret "initially
 retained" without claiming a new causal estimand.
 
+Status: completed and certified on 2026-07-30. Governing gate:
+`D1_STAYER_DESCRIPTIVES/d1_stayer_descriptives_certification.csv`.
+
 Tasks:
 
 1. produce full career-age and pre-deal patent-stock distributions by
@@ -178,7 +184,9 @@ Tasks:
    Report it separately from the +1 to +5 full-year average and include it in
    a completion-through-+5 cumulative effect. State that deal timing is
    observed only by year, so pre- and post-completion months within t=0 cannot
-   be separated.
+   be separated;
+8. add a post-certification rider applying the same annual states and
+   persistence horizons to the weighted P5b retained-control arm.
 
 Interpretation:
 
@@ -192,12 +200,16 @@ Gate:
 - all states reconcile to the certified S0--S2 first-post partition;
 - right-censoring labels are explicit;
 - no event-year patent defines retention.
+- all reportable completion-year outputs resolve to distinct master-inventory
+  rows, while the frozen +1 through +5 result remains primary;
+- matched treated and control state shares each sum to one.
 
 Outputs:
 
 - career-age and productivity distribution table;
 - status-transition table;
 - persistent-inside path figure;
+- symmetric matched-control persistence comparison;
 - endpoint-existence audit;
 - certification and manifest.
 
@@ -205,6 +217,12 @@ Outputs:
 
 Purpose: define the network estimands, support, and decision rules before
 opening post-acquisition network effects.
+
+Status: completed and certified on 2026-07-30. The frozen -5 through -3
+anchor yields 2,230 treated focal inventors across 173 nominal and 33.3
+effective deals. Conditional composition is observed for 745 treated rows at
+-2 and 557 at -1. These values fail the frozen support thresholds, so N0
+selects Path Q and does not release N1 or post-treatment network effects.
 
 Primary population:
 
@@ -421,12 +439,14 @@ available in the multiplicity appendix.
 1. C1 documentation and inventory synchronization.
 2. C2 reproducible root runner and frozen handoff.
 3. D1 descriptive retained-status completion.
-4. N0 network freeze and census.
-5. N1 network validation/power gate.
-6. N2 only if Path N.
-7. N3 only after N2 and its own power gate.
-8. N4 only if time remains.
-9. W1 final thesis integration.
+4. N0 network freeze and census: completed, Path Q. Its governing reason is
+   8.2% weighted treated-cohort coverage, followed by only 745 and 557
+   composition rows against the frozen 1,000-row requirement, and then 2,230
+   treated focal inventors against the frozen 3,000.
+5. N1--N3: not released under Path Q.
+6. Optional descriptive N4 appendix: completed and certified.
+7. W1 is a bullet-point writing structure only; the author will draft the
+   thesis prose.
 
 Packages C1, C2, and D1 are thesis-completion work. Packages N0 and N1 are
 disciplined feasibility work. N2 is a contribution upgrade conditional on

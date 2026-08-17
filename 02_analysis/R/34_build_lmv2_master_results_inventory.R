@@ -159,6 +159,22 @@ paths <- c(
   ),
   dealsim_gate = file.path(
     audit, "P7_DEALSIM_POWER_GATE", "dealsim_power_gate.csv"
+  ),
+  n4_cert = file.path(
+    audit, "N4_TEAM_RECOMPOSITION",
+    "n4_team_recomposition_certification.csv"
+  ),
+  n4_composition_annual = file.path(
+    results, "N4_TEAM_RECOMPOSITION", "composition_annual.csv"
+  ),
+  n4_composition_pooled = file.path(
+    results, "N4_TEAM_RECOMPOSITION", "composition_pooled.csv"
+  ),
+  n4_tie_coverage = file.path(
+    results, "N4_TEAM_RECOMPOSITION", "tie_coverage.csv"
+  ),
+  n4_tie_recurrence = file.path(
+    results, "N4_TEAM_RECOMPOSITION", "tie_recurrence.csv"
   )
 )
 missing <- paths[!file.exists(paths)]
@@ -557,6 +573,86 @@ inventory[[length(inventory) + 1L]] <- record(
   main_text_eligible = FALSE
 )
 
+n4_pooled <- read_csv(paths[["n4_composition_pooled"]])
+for (i in seq_len(nrow(n4_pooled))) {
+  z <- n4_pooled[i, ]
+  inventory[[length(inventory) + 1L]] <- record(
+    "network descriptive", "initially retained inventors",
+    z$category, "pooled focal-normalized collaborator share",
+    "full_1994_2010_t1_t5", z$weighted_share,
+    reporting_tier = "appendix",
+    interpretation = paste(
+      "Exploratory treated-only team composition; no control comparison",
+      "or causal interpretation."
+    ),
+    source_path = paths[["n4_composition_pooled"]],
+    status = "descriptive",
+    governing_inference = "none_descriptive",
+    selection_basis = "post-treatment initially retained inventors",
+    main_text_eligible = FALSE
+  )
+}
+n4_annual <- read_csv(paths[["n4_composition_annual"]])
+for (i in seq_len(nrow(n4_annual))) {
+  z <- n4_annual[i, ]
+  inventory[[length(inventory) + 1L]] <- record(
+    "network descriptive", "initially retained inventors",
+    z$category,
+    paste0("focal-normalized collaborator share at t=", z$event_time),
+    "full_1994_2010", z$weighted_share,
+    reporting_tier = "appendix",
+    interpretation = paste(
+      "Exploratory treated-only annual team composition; denominator is",
+      "composition-defined focal-inventor-years."
+    ),
+    source_path = paths[["n4_composition_annual"]],
+    status = "descriptive",
+    governing_inference = "none_descriptive",
+    selection_basis = "post-treatment initially retained inventors",
+    main_text_eligible = FALSE
+  )
+}
+n4_coverage <- read_csv(paths[["n4_tie_coverage"]])
+for (i in seq_len(nrow(n4_coverage))) {
+  z <- n4_coverage[i, ]
+  inventory[[length(inventory) + 1L]] <- record(
+    "network descriptive", "initially retained inventors",
+    z$tie_definition, "baseline-tie focal-inventor coverage",
+    "anchor_tminus5_tminus3", z$weighted_coverage,
+    reporting_tier = "appendix",
+    interpretation = paste0(
+      "Exploratory treated-only anchor coverage; ",
+      z$focal_inventors, " focal inventors across ",
+      z$nominal_deals, " deals."
+    ),
+    source_path = paths[["n4_tie_coverage"]],
+    status = "descriptive",
+    governing_inference = "none_descriptive",
+    selection_basis = "post-treatment initially retained inventors",
+    main_text_eligible = FALSE
+  )
+}
+n4_recurrence <- read_csv(paths[["n4_tie_recurrence"]])
+for (i in seq_len(nrow(n4_recurrence))) {
+  z <- n4_recurrence[i, ]
+  inventory[[length(inventory) + 1L]] <- record(
+    "network descriptive", "initially retained inventors",
+    z$tie_definition,
+    paste0("baseline-tie recurrence through +", z$horizon),
+    "full_1994_2010", z$weighted_recurrence_share,
+    reporting_tier = "appendix",
+    interpretation = paste(
+      "Exploratory treated-only cumulative recurrence, normalized within",
+      "focal inventor before aggregation."
+    ),
+    source_path = paths[["n4_tie_recurrence"]],
+    status = "descriptive",
+    governing_inference = "none_descriptive",
+    selection_basis = "post-treatment initially retained inventors",
+    main_text_eligible = FALSE
+  )
+}
+
 endpoint_diag <- read_csv(paths[["control_endpoint_comparison"]])
 endpoint_diag <- endpoint_diag[
   endpoint_diag$role == "diagnostic", , drop = FALSE
@@ -898,7 +994,7 @@ cert_paths <- paths[c(
   "p6_cert", "vr_cert", "s3_cert", "s4_cert", "s5_cert",
   "stayer_secondary_cert", "stayer_het_cert", "dealsim_cert",
   "p8_cert", "recurrent_cert", "control_endpoint_cert",
-  "completion_year_cert"
+  "completion_year_cert", "n4_cert"
 )]
 s3_manifest <- read_csv(paths[["s3_manifest"]])
 s3_weight_row <- s3_manifest[
@@ -942,6 +1038,7 @@ checks <- data.frame(
     "placebo_2000draw_is_recorded",
     "failed_landmark_is_recorded",
     "dealsim_gate_is_recorded",
+    "n4_team_recomposition_is_complete_and_descriptive",
     "inventory_has_no_missing_source_paths",
     "inventory_result_ids_are_unique",
     "inventory_status_values_are_valid"
@@ -1035,6 +1132,13 @@ checks <- data.frame(
     sum(inventory$status == "failed_gate" &
           inventory$population == "initially retained at +1") == 1L,
     sum(inventory$domain == "feasibility") == 1L,
+    sum(inventory$domain == "network descriptive") == 36L &&
+      all(inventory$status[
+        inventory$domain == "network descriptive"
+      ] == "descriptive") &&
+      all(!inventory$main_text_eligible[
+        inventory$domain == "network descriptive"
+      ]),
     all(file.exists(inventory$source_path)),
     !anyDuplicated(inventory$result_id),
     all(inventory$status %in% c(

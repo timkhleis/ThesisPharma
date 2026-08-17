@@ -18,7 +18,10 @@ Available modes:
 - `--production` requires a clean worktree with every declared release source
   tracked in Git. It then re-certifies the completion-year window, rebuilds the
   endpoint diagnostic and master inventory, runs the reported-value gate and
-  deterministic smoke test, and replaces the hash-certified staging handoff.
+  deterministic smoke test, rebuilds the certified D1 retained-status
+  descriptives, rebuilds the outcome-blind N0 network census, and replaces the
+  hash-certified staging handoff. The compact handoff includes the 4.9 MB
+  immutable P5c roster required by N0 but still excludes the 2.6 GB database.
 
 Add `--hash-database` to `--verify` or `--smoke` when a fresh SHA-256 of the
 large DuckDB file is required. The default records its exact size and modified
@@ -29,6 +32,10 @@ rejects Local Match v2 mode aliases and directs the caller to the C2 runner, so
 the foundation pipeline cannot silently masquerade as the analysis release.
 
 ## Integration state
+
+C2 was integrated into `main-did-v1` and pushed to GitHub at `356c159`.
+Subsequent packages enter the release only after their own certification and
+reviewed Git commit.
 
 `release_integration_preflight.csv` records technical verification separately
 from Git integration readiness. Production remains locked whenever the release

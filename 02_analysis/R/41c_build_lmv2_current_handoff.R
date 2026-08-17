@@ -61,6 +61,36 @@ lmv2_handoff_file_map <- function(root, release_out) {
       "completion_year_sensitivity"
     ),
     add_tree(
+      file.path(audit, "D1_STAYER_DESCRIPTIVES"),
+      file.path("04_Results", "D1_stayer_descriptives", "audit"),
+      "D1_stayer_descriptives"
+    ),
+    add_tree(
+      file.path(results, "D1_STAYER_DESCRIPTIVES"),
+      file.path("04_Results", "D1_stayer_descriptives", "results"),
+      "D1_stayer_descriptives"
+    ),
+    add_tree(
+      file.path(audit, "N0_NETWORK_CENSUS"),
+      file.path("04_Results", "N0_network_census", "audit"),
+      "N0_network_census"
+    ),
+    add_tree(
+      file.path(results, "N0_NETWORK_CENSUS"),
+      file.path("04_Results", "N0_network_census", "results"),
+      "N0_network_census"
+    ),
+    add_tree(
+      file.path(audit, "N4_TEAM_RECOMPOSITION"),
+      file.path("04_Results", "N4_team_recomposition", "audit"),
+      "N4_team_recomposition"
+    ),
+    add_tree(
+      file.path(results, "N4_TEAM_RECOMPOSITION"),
+      file.path("04_Results", "N4_team_recomposition", "results"),
+      "N4_team_recomposition"
+    ),
+    add_tree(
       file.path(audit, "P8_EXIT_DECOMPOSITION"),
       file.path("04_Results", "P8_exit_decomposition"),
       "P8_decomposition"
@@ -84,6 +114,13 @@ lmv2_handoff_file_map <- function(root, release_out) {
       "local_match_v2_control_endpoint_diagnostic_results.md",
       "local_match_v2_remaining_stayer_packages_plan.md",
       "local_match_v2_stayer_network_implementation_plan.md",
+      "local_match_v2_stayer_descriptive_freeze.md",
+      "local_match_v2_stayer_descriptive_results.md",
+      "local_match_v2_network_preanalysis_freeze.md",
+      "local_match_v2_network_census_results.md",
+      "local_match_v2_n4_team_recomposition_freeze.md",
+      "local_match_v2_n4_team_recomposition_results.md",
+      "local_match_v2_stayer_section_bullet_structure.md",
       "local_match_v2_current_release_implementation.md"
     )
   )
@@ -91,6 +128,17 @@ lmv2_handoff_file_map <- function(root, release_out) {
     source = notes,
     destination = file.path("03_Current_notes", basename(notes)),
     category = "current_note",
+    stringsAsFactors = FALSE
+  )
+  p5c_roster <- unname(
+    lmv2_release_immutable_inputs(root)[["p5c_roster"]]
+  )
+  maps[[length(maps) + 1L]] <- data.frame(
+    source = p5c_roster,
+    destination = file.path(
+      "01_Inputs", "p5c_p6_primary_weighted_roster.parquet"
+    ),
+    category = "immutable_P5c_roster",
     stringsAsFactors = FALSE
   )
 
