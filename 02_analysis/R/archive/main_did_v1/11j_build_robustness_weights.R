@@ -410,11 +410,12 @@ gate_inventor <- function(metrics, conc, treated_ok, full_gate = FALSE) {
 run_inventor_weighted <- function(spec, units, firm_key_cols, firm_covars, inv_covars,
                                   constrained_covars, out_parquet, full_gate = FALSE,
                                   save_on_feasible = TRUE, diagnostic_path = NULL,
-                                  collect_zero_diagnostics = FALSE) {
+                                  collect_zero_diagnostics = FALSE,
+                                  maxit = 30000L, reltol = 1e-10) {
   section(paste(spec, "two-stage inventor-weighted ebal"))
   fit <- tryCatch(two_stage_ebal(units, firm_key_cols, firm_covars, inv_covars,
                                  INV_FACTOR_COVARS, cont_covars = FULL_CONT_COVARS,
-                                 maxit = 30000),
+                                 maxit = maxit, reltol = reltol),
                   error = function(e) e)
   if (inherits(fit, "error")) {
     row <- data.frame(spec = spec, firm_converged = FALSE, inv_converged = FALSE,
@@ -855,6 +856,14 @@ write_checkpoint_note <- function() {
   writeLines(lines, ROBUSTNESS_NOTE, useBytes = TRUE)
 }
 
+# Behavior-preserving guard: the nt2010 build sources this file for its weighting
+# helpers only (option set), without re-running the frozen P0-P5 build or touching
+# any frozen output. Default (option unset) = full execution, unchanged.
+if (isTRUE(getOption("main_did_v1.source_functions_only", FALSE))) {
+  message("11j sourced functions-only (main_did_v1.source_functions_only=TRUE); ",
+          "skipping frozen P0-P5 execution.")
+} else {
+
 con <- dbConnect(duckdb::duckdb(), DUCKDB, read_only = TRUE)
 on.exit(dbDisconnect(con, shutdown = TRUE), add = TRUE)
 dbExecute(con, "PRAGMA memory_limit='10GB'")
@@ -1051,3 +1060,5 @@ write_checkpoint_note()
 options(width = 220)
 print(feasibility[, c("spec", "status", "reason")])
 banner("11j Phase 1C DONE -- stop before outcome estimation")
+
+}  # end behavior-preserving execution guard (functions-only sourcing skips the above)

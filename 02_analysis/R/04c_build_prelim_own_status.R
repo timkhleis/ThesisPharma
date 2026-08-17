@@ -360,22 +360,6 @@ WITH candidate_counts AS (
     CASE WHEN r.match_source LIKE 'TARGET_EVENT%'
          THEN er.acquirer_group_source ELSE 'MERGE_COMPCOD_HISTORY' END
       AS acquirer_group_source,
-    CASE
-      WHEN r.match_source LIKE 'TARGET_EVENT%' THEN TRUE
-      WHEN COALESCE(mg.acquirer_group_at_deal,
-                    mg.acquirer_group_pre,
-                    mg.acquirer_group_post) IS NULL THEN FALSE
-      WHEN mg.acquirer_group_at_deal IS NOT NULL
-       AND mg.acquirer_group_pre IS NOT NULL
-       AND mg.acquirer_group_at_deal <> mg.acquirer_group_pre THEN FALSE
-      WHEN mg.acquirer_group_at_deal IS NOT NULL
-       AND mg.acquirer_group_post IS NOT NULL
-       AND mg.acquirer_group_at_deal <> mg.acquirer_group_post THEN FALSE
-      WHEN mg.acquirer_group_pre IS NOT NULL
-       AND mg.acquirer_group_post IS NOT NULL
-       AND mg.acquirer_group_pre <> mg.acquirer_group_post THEN FALSE
-      ELSE TRUE
-    END AS acquirer_group_history_consistent,
     CASE WHEN r.match_source LIKE 'TARGET_EVENT%'
          THEN er.n_target_companies
          ELSE CASE WHEN mg.target_compcod IS NULL THEN 0 ELSE 1 END END
@@ -412,16 +396,7 @@ SELECT
   CASE
     WHEN match_source LIKE 'TARGET_EVENT%'
      AND n_target_groups = 1 AND target_group IS NOT NULL
-     AND NOT todrop_tar AND NOT divest THEN TRUE
-    WHEN match_source = 'MERGE_ID_SUPPLEMENT'
-     AND n_target_nmb = 1
-     AND matched_year = target_year
-     AND matched_value = target_value
-     AND n_target_groups = 1 AND target_group IS NOT NULL
-     AND n_acquirer_groups = 1 AND acquirer_group IS NOT NULL
-     AND acquirer_group_history_consistent
-     AND NOT todrop_tar AND NOT todrop_acq AND NOT divest THEN TRUE
-    ELSE FALSE END
+     AND NOT todrop_tar AND NOT divest THEN TRUE ELSE FALSE END
     AS strict_eligible,
   CASE
     WHEN match_source IN ('TARGET_EVENT_ID', 'TARGET_EVENT_EXACT',
@@ -453,18 +428,7 @@ FROM deal_assignment da
 JOIN cassi_deal_spine cds
   ON da.matched_dealnumber = cds.dealnumber
 WHERE da.strict_eligible
-  AND da.match_source LIKE 'TARGET_EVENT%'
   AND cds.target_compcod IS NOT NULL
-UNION
-SELECT DISTINCT
-  da.deal_id,
-  CAST(cm.compcod_target AS BIGINT) AS target_compcod
-FROM deal_assignment da
-JOIN cassi_merge cm
-  ON da.matched_dealnumber = CAST(cm.dealnumber AS VARCHAR)
-WHERE da.strict_eligible
-  AND da.match_source = 'MERGE_ID_SUPPLEMENT'
-  AND cm.compcod_target IS NOT NULL
 ")
 
 DBI::dbExecute(con, "

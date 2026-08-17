@@ -63,12 +63,12 @@ q0 <- dbGetQuery(con, qualify_sql(0L))
 q0$codinv <- as.numeric(q0$codinv); q0$deal_id <- as.integer(q0$deal_id)
 q0$deal_year <- as.integer(q0$deal_year); q0$ref_year <- as.integer(q0$ref_year)
 cert_full <- keep_first_exposure(q0, "deal_year")
-treated <- cert_full[cert_full$deal_year >= STACK_LO & cert_full$deal_year <= STACK_HI, ]
+treated <- cert_full[cert_full$deal_year >= STACK_LO & cert_full$deal_year <= STACK_HI_G7, ]
 treated$analysis_target_group_id <- as.numeric(treated$target_group)
 
 cs_mem <- dbGetQuery(con, sprintf("
   SELECT DISTINCT CAST(codinv AS DOUBLE) codinv, CAST(deal_id AS INTEGER) deal_id
-  FROM cs2021_estimation_panel WHERE deal_year BETWEEN %d AND %d", STACK_LO, STACK_HI))
+  FROM cs2021_estimation_panel WHERE deal_year BETWEEN %d AND %d", STACK_LO, STACK_HI_G7))
 key_new <- paste(treated$codinv, treated$deal_id)
 key_cs  <- paste(cs_mem$codinv, cs_mem$deal_id)
 only_new <- setdiff(key_new, key_cs); only_cs <- setdiff(key_cs, key_new)
@@ -88,7 +88,7 @@ cs_cov <- dbGetQuery(con, sprintf("
     CAST(career_age_at_deal AS DOUBLE) career_age_at_deal,
     CAST(log_predeal_patent_stock AS DOUBLE) log_predeal_patent_stock,
     CAST(log_group_size AS DOUBLE) log_group_size, ipc_primary_field
-  FROM cs2021_estimation_panel WHERE deal_year BETWEEN %d AND %d", STACK_LO, STACK_HI))
+  FROM cs2021_estimation_panel WHERE deal_year BETWEEN %d AND %d", STACK_LO, STACK_HI_G7))
 leg$codinv <- as.numeric(leg$codinv); leg$deal_id <- as.integer(leg$deal_id)
 cmp <- merge(leg, cs_cov, by = c("codinv", "deal_id"), suffixes = c("_new", "_cs"))
 d_age <- max(abs(cmp$career_age_at_deal_new - cmp$career_age_at_deal_cs), na.rm = TRUE)

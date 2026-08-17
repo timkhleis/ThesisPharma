@@ -22,9 +22,15 @@ EVENT_HI         <-  5L
 CONTROL_LAG <- 7L                 # primary future-treated control lag (G_c = g + 7)
 CENSUS_LAGS <- c(7L, 9L)          # control-lag feasibility census; only 7 is estimated
 
-# Treated stacks: g-6 >= 1988 (earliest patent year) and g+CONTROL_LAG <= 2015.
+# Shared lower bound: g-6 >= 1988.
+# Never-target upper bound: g+EVENT_HI <= 2015.
+# g+7 upper bound: g+CONTROL_LAG <= 2015.
 STACK_LO <- 1994L
-STACK_HI <- 2008L                 # for L=7; the census uses STACK_HI = 2015 - L per lag
+# Horizon ceilings are design-family specific; the old global `STACK_HI` is retired.
+#   * never-target (P0H5/P5) main design extends to 2010 (adds treated cohorts).
+#   * g+7 (P3/P4) robustness is capped at 2008: the g+7 control-year must be <= 2015.
+STACK_HI_NEVER_TARGET <- 2010L    # P0H5/P5 expanded main horizon
+STACK_HI_G7           <- 2008L    # g+7 robustness; = 2015 - CONTROL_LAG (census uses 2015 - L per lag)
 
 # --- Anticipation conventions ----------------------------------------------
 ANTICIPATION_GRID <- c(0L, 1L)    # delta=0 ref t=-1; delta=1 ref t=-2 (t=-1 = anticipation)
@@ -47,7 +53,19 @@ SMD_DESIRED          <- 0.05      # desired |SMD|
 SMD_ACCEPTABLE       <- 0.10      # acceptable |SMD| (reported, not an auto-stop under EB)
 
 # --- Broad calendar eras for era-level balance diagnostics ------------------
-BALANCE_ERAS <- list(c(1994L, 1999L), c(2000L, 2004L), c(2005L, 2008L))
+# Disjoint eras, design-family specific. never-target adds a 2009-2010 diagnostic
+# bin for the expanded cohorts; g+7 stays through 2008.
+BALANCE_ERAS_NEVER_TARGET <- list(
+  c(1994L, 1999L),
+  c(2000L, 2004L),
+  c(2005L, 2008L),
+  c(2009L, 2010L)
+)
+BALANCE_ERAS_G7 <- list(
+  c(1994L, 1999L),
+  c(2000L, 2004L),
+  c(2005L, 2008L)
+)
 
 # --- Technology families (broad_pharma_v1) ----------------------------------
 # Predicates operate on the FULL zero-padded ipc_code string (main group padded

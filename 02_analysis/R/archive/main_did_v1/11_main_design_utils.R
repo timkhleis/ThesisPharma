@@ -23,14 +23,23 @@ write_result <- function(df, name) {
 }
 
 # ============================================================================
-# Parameterized qualification (faithful port of 08t qualify_sql, generalized)
+# Parameterized qualification using deal-specific target-company patent links.
 #   shift  : ref_year = deal_year - shift  (0 = treated; CONTROL_LAG = control)
 #   spine  : table/view with deal_id, cassi_deal_group_id, deal_year,
 #            target_group, acquirer_group, todrop_acq
-#   Adds qualification_route in {target_resolved, target_candidate,
-#   acquirer_transition}. One row per (codinv, deal_id).
+#   company_table: deal_id x target_compcod bridge matching the selected spine.
+#   One row per (codinv, deal_id); corporate-group affiliation is not sufficient
+#   for cohort membership.
 # ============================================================================
-qualify_sql <- function(shift, spine = "cassi_deal_group_spine") {
+qualify_sql <- function(
+  shift,
+  spine = "cassi_deal_group_spine",
+  company_table = if (identical(spine, "cassi_deal_group_spine_expanded")) {
+    "deal_target_company_expanded"
+  } else {
+    "deal_target_company_strict"
+  }
+) {
   sprintf("
 WITH usable_deals AS (
   SELECT
@@ -45,75 +54,33 @@ WITH usable_deals AS (
          THEN TRUE ELSE FALSE END        AS status_eligible
   FROM %2$s
 ),
-target_candidate_pairs AS (
-  SELECT DISTINCT
+target_company_pairs AS (
+  SELECT
     ud.deal_id, ud.cassi_deal_group_id, ud.deal_year, ud.ref_year,
     ud.target_group, ud.acquirer_group, ud.status_eligible,
-    CAST(ia.codinv AS BIGINT) AS codinv
+    CAST(pi.codinv AS BIGINT) AS codinv,
+    MAX(CAST(pcl.year AS INTEGER)) AS last_pre_affiliation_year
   FROM usable_deals ud
-  JOIN inventor_affiliation_own ia
-    ON ia.year BETWEEN ud.ref_year - 5 AND ud.ref_year - 1
-  WHERE COALESCE(ia.resolved_group = ud.target_group, FALSE)
-     OR COALESCE(list_contains(string_split(ia.candidate_group_list, ';'),
-                 CAST(CAST(ud.target_group AS BIGINT) AS VARCHAR)), FALSE)
-     OR COALESCE(ia.resolved_group = ud.acquirer_group, FALSE)
-),
-pts AS (
-  SELECT
-    tcp.deal_id, tcp.cassi_deal_group_id, tcp.deal_year, tcp.ref_year,
-    tcp.target_group, tcp.acquirer_group, tcp.status_eligible, tcp.codinv,
-    ia.year,
-    COALESCE(ia.resolved_group = tcp.target_group, FALSE) AS target_resolved,
-    COALESCE(list_contains(string_split(ia.candidate_group_list, ';'),
-             CAST(CAST(tcp.target_group AS BIGINT) AS VARCHAR)), FALSE) AS target_candidate,
-    COALESCE(ia.resolved_group = tcp.acquirer_group, FALSE) AS acquirer_resolved
-  FROM target_candidate_pairs tcp
-  JOIN inventor_affiliation_own ia
-    ON CAST(ia.codinv AS BIGINT) = tcp.codinv
-   AND ia.year BETWEEN tcp.ref_year - 5 AND tcp.ref_year - 1
-),
-summ AS (
-  SELECT codinv, deal_id,
-    MAX(CASE WHEN target_resolved OR target_candidate THEN year END) AS last_target_evidence_pre_year,
-    MIN(CASE WHEN acquirer_resolved THEN year END)                    AS first_acquirer_resolved_pre_year
-  FROM pts GROUP BY codinv, deal_id
-),
-last_year AS (
-  SELECT codinv, deal_id, MAX(year) AS last_pre_affiliation_year
-  FROM pts GROUP BY codinv, deal_id
-),
-latest AS (
-  SELECT p.*
-  FROM pts p
-  JOIN last_year ly
-    ON p.codinv = ly.codinv AND p.deal_id = ly.deal_id
-   AND p.year   = ly.last_pre_affiliation_year
+  JOIN %3$s dtc
+    ON ud.deal_id = dtc.deal_id
+  JOIN patent_company_link pcl
+    ON CAST(pcl.compcod AS BIGINT) = CAST(dtc.target_compcod AS BIGINT)
+   AND CAST(pcl.year AS INTEGER) BETWEEN ud.ref_year - 5 AND ud.ref_year - 1
+  JOIN patent_inventor pi
+    ON pcl.appln_id = pi.appln_id
+  WHERE pi.codinv IS NOT NULL
+  GROUP BY
+    ud.deal_id, ud.cassi_deal_group_id, ud.deal_year, ud.ref_year,
+    ud.target_group, ud.acquirer_group, ud.status_eligible, pi.codinv
 )
 SELECT
-  l.codinv, l.deal_id, l.cassi_deal_group_id,
-  l.deal_year, l.ref_year, l.target_group, l.acquirer_group, l.status_eligible,
-  l.year AS last_pre_affiliation_year,
-  (l.ref_year - l.year) AS qualifying_gap,
-  CASE
-    WHEN l.target_resolved  THEN 'target_resolved'
-    WHEN l.target_candidate THEN 'target_candidate'
-    ELSE 'acquirer_transition'
-  END AS qualification_route
-FROM latest l
-JOIN summ s ON l.codinv = s.codinv AND l.deal_id = s.deal_id
-WHERE (
-  l.target_resolved
-  OR l.target_candidate
-  OR (
-    l.acquirer_resolved
-    AND l.year = l.ref_year - 1
-    AND s.first_acquirer_resolved_pre_year = l.ref_year - 1
-    AND s.last_target_evidence_pre_year IS NOT NULL
-    AND s.last_target_evidence_pre_year < s.first_acquirer_resolved_pre_year
-    AND l.ref_year - 1 - s.last_target_evidence_pre_year <= 2
-  )
-)
-", shift, spine)
+  codinv, deal_id, cassi_deal_group_id,
+  deal_year, ref_year, target_group, acquirer_group, status_eligible,
+  last_pre_affiliation_year,
+  (ref_year - last_pre_affiliation_year) AS qualifying_gap,
+  'target_company_patent' AS qualification_route
+FROM target_company_pairs
+", shift, spine, company_table)
 }
 
 # exposure_rank == 1 per inventor (04c rule), ordered by (order_year, deal_id).
@@ -168,7 +135,10 @@ weight_quantile_diag <- function(w) {
 # Two-stage hierarchical entropy balancing [R1/A1] -- firm size enters exactly once
 # (base.weights = firm multiplier). Shared by 11c (g+7) and 11h (never-target).
 two_stage_ebal <- function(units, firm_key_cols, firm_covars, inv_covars, inv_factors,
-                           cont_covars, n_weight_col = "n_qualifying_inventors", maxit = 20000) {
+                           cont_covars, n_weight_col = "n_qualifying_inventors", maxit = 20000,
+                           reltol = 1e-10) {
+  # reltol defaults to WeightIt's own ebal default (1e-10); threading it lets the
+  # larger nt2010 problem be solved to a tighter optimum without changing any gate.
   zc <- intersect(cont_covars, c(firm_covars, inv_covars))
   for (v in zc) units[[v]] <- standardize_continuous(units[[v]])
   units$.fk <- do.call(paste, c(units[firm_key_cols], sep = "|"))
@@ -176,14 +146,14 @@ two_stage_ebal <- function(units, firm_key_cols, firm_covars, inv_covars, inv_fa
   stopifnot(!anyDuplicated(firm_data$.fk))
   firm_form <- stats::reformulate(c(firm_covars, "factor(stack)"), response = "treated")
   W_firm <- WeightIt::weightit(firm_form, data = firm_data, method = "ebal", estimand = "ATT",
-                               s.weights = firm_data[[n_weight_col]], maxit = maxit)
+                               s.weights = firm_data[[n_weight_col]], maxit = maxit, reltol = reltol)
   firm_data$firm_multiplier <- as.numeric(W_firm$weights)
   units$firm_multiplier      <- firm_data$firm_multiplier[match(units$.fk, firm_data$.fk)]
   units$inventor_base_weight <- units$firm_multiplier            # [A1] multiplier, NOT mass
   inv_form <- stats::reformulate(c(firm_covars, inv_covars, inv_factors, "factor(stack)"),
                                  response = "treated")
   W_inv <- WeightIt::weightit(inv_form, data = units, method = "ebal", estimand = "ATT",
-                              base.weights = units$inventor_base_weight, maxit = maxit)
+                              base.weights = units$inventor_base_weight, maxit = maxit, reltol = reltol)
   units$final_weight <- as.numeric(W_inv$weights)               # already final; do NOT re-multiply
   list(units = units, firm_data = firm_data, W_firm = W_firm, W_inv = W_inv,
        firm_form = firm_form, inv_form = inv_form)
@@ -536,7 +506,10 @@ compute_inventor_covariates <- function(con, inv_keys) {
 #   Cleanliness [C3]: drop (codinv,stack) with any prior (deal_year<g) or competing
 #   ([g,g+CONTROL_CLEAN_HI]) real target acquisition.
 # ============================================================================
-build_never_target_arm <- function(con, stacks = STACK_LO:STACK_HI) {
+# `stacks` is required (no default) so a never-target call can never silently
+# inherit the g+7 ceiling: the legacy caller passes STACK_LO:STACK_HI_G7, the
+# nt2010 expanded builder passes STACK_LO:STACK_HI_NEVER_TARGET.
+build_never_target_arm <- function(con, stacks) {
   fam_case <- ipc_family_case_sql("ipc.ipc_code")
   # --- universe: never-observed-target, pharma-relevant groups ---
   # ever_target (target-side only; +/-2y compcod->group window = conservative [C4])

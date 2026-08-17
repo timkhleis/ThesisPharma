@@ -275,30 +275,17 @@ target_patent_history AS (
   SELECT
     c.codinv,
     c.deal_id,
-    MIN(ia.year) FILTER (
-      WHERE ia.resolved_group = c.target_group
-         OR COALESCE(
-              list_contains(
-                string_split(ia.candidate_group_list, ';'),
-                CAST(CAST(c.target_group AS BIGINT) AS VARCHAR)
-              ),
-              FALSE
-            )
-    ) AS first_target_patent_year,
-    COUNT(DISTINCT ia.year) FILTER (
-      WHERE ia.resolved_group = c.target_group
-         OR COALESCE(
-              list_contains(
-                string_split(ia.candidate_group_list, ';'),
-                CAST(CAST(c.target_group AS BIGINT) AS VARCHAR)
-              ),
-              FALSE
-            )
-    ) AS target_patenting_years_predeal
+    MIN(CAST(pcl.year AS INTEGER)) AS first_target_patent_year,
+    COUNT(DISTINCT CAST(pcl.year AS INTEGER)) AS target_patenting_years_predeal
   FROM cohort c
-  LEFT JOIN inventor_affiliation_own ia
-    ON CAST(ia.codinv AS BIGINT) = c.codinv
-   AND ia.year < c.deal_year
+  JOIN deal_target_company_strict dtc
+    ON c.deal_id = dtc.deal_id
+  JOIN patent_company_link pcl
+    ON CAST(pcl.compcod AS BIGINT) = dtc.target_compcod
+   AND CAST(pcl.year AS INTEGER) < CAST(c.deal_year AS INTEGER)
+  JOIN patent_inventor pi
+    ON pcl.appln_id = pi.appln_id
+   AND CAST(pi.codinv AS BIGINT) = c.codinv
   GROUP BY c.codinv, c.deal_id
 ),
 merged_entity_history AS (

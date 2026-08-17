@@ -162,7 +162,7 @@ write_audit(mass_stack, "weighted_mass_by_stack.csv")
 cont_covars <- c("log_firm_patent_stock","log_firm_inventor_count","observed_firm_patent_age",
                  "log_patents_early","log_patents_recent","observed_inventor_career_age",
                  "observed_target_patent_tenure","log_inventor_patent_stock","target_exclusivity")
-era_smd <- do.call(rbind, lapply(BALANCE_ERAS, function(er) {
+era_smd <- do.call(rbind, lapply(BALANCE_ERAS_G7, function(er) {
   idx <- units$stack >= er[1] & units$stack <= er[2]
   if (sum(units$treated[idx]==1)==0 || sum(units$treated[idx]==0)==0) return(NULL)
   s <- sapply(cont_covars, function(v) abs(smd_weighted(units[[v]][idx], units$treated[idx], fw[idx])))

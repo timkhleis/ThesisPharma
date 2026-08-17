@@ -56,11 +56,10 @@ DBI::dbExecute(con, sprintf("PRAGMA temp_directory='%s'", gsub("\\\\", "/", tmp_
 banner("FN STACKED PANEL BUILD (Delta = 7)")
 
 # ---------------------------------------------------------------------------
-# Parameterized qualification: faithful port of 04c pre_target_side ->
-# latest_pre_affiliation -> pre_target_side_current WHERE-clause, with the
-# reference year shifted by `shift` (ref_year = deal_year - shift). For shift=0
-# this reproduces target_cohort_own's qualification exactly (before exposure
-# ranking, which is applied in R below). Returns one row per (codinv, deal_id).
+# Parameterized qualification from deal-specific target-company patent links,
+# with the reference year shifted by `shift` (ref_year = deal_year - shift).
+# For shift=0 this reproduces target_cohort_own's primary qualification before
+# exposure ranking. Returns one row per (codinv, deal_id).
 # ---------------------------------------------------------------------------
 qualify_sql <- function(shift) {
   sprintf("
@@ -79,72 +78,31 @@ WITH usable_deals AS (
          THEN TRUE ELSE FALSE END        AS status_eligible
   FROM cassi_deal_group_spine
 ),
--- Stage 1: (inventor, deal) pairs with >= 1 matching affiliation in the window.
-target_candidate_pairs AS (
-  SELECT DISTINCT
+target_company_pairs AS (
+  SELECT
     ud.deal_id, ud.cassi_deal_group_id, ud.deal_year, ud.ref_year,
     ud.target_group, ud.acquirer_group, ud.status_eligible,
-    CAST(ia.codinv AS BIGINT) AS codinv
+    CAST(pi.codinv AS BIGINT) AS codinv,
+    MAX(CAST(pcl.year AS INTEGER)) AS last_pre_affiliation_year
   FROM usable_deals ud
-  JOIN inventor_affiliation_own ia
-    ON ia.year BETWEEN ud.ref_year - 5 AND ud.ref_year - 1
-  WHERE COALESCE(ia.resolved_group = ud.target_group, FALSE)
-     OR COALESCE(list_contains(string_split(ia.candidate_group_list, ';'),
-                 CAST(CAST(ud.target_group AS BIGINT) AS VARCHAR)), FALSE)
-     OR COALESCE(ia.resolved_group = ud.acquirer_group, FALSE)
-),
--- Stage 2: re-join ALL of the inventor's window rows (matching or not), so the
--- 'latest' row below is the genuinely most-recent affiliation (04c's rule).
-pts AS (
-  SELECT
-    tcp.deal_id, tcp.cassi_deal_group_id, tcp.deal_year, tcp.ref_year,
-    tcp.target_group, tcp.acquirer_group, tcp.status_eligible, tcp.codinv,
-    ia.year,
-    COALESCE(ia.resolved_group = tcp.target_group, FALSE) AS target_resolved,
-    COALESCE(list_contains(string_split(ia.candidate_group_list, ';'),
-             CAST(CAST(tcp.target_group AS BIGINT) AS VARCHAR)), FALSE) AS target_candidate,
-    COALESCE(ia.resolved_group = tcp.acquirer_group, FALSE) AS acquirer_resolved
-  FROM target_candidate_pairs tcp
-  JOIN inventor_affiliation_own ia
-    ON CAST(ia.codinv AS BIGINT) = tcp.codinv
-   AND ia.year BETWEEN tcp.ref_year - 5 AND tcp.ref_year - 1
-),
-summ AS (
-  SELECT codinv, deal_id,
-    MAX(CASE WHEN target_resolved OR target_candidate THEN year END) AS last_target_evidence_pre_year,
-    MIN(CASE WHEN acquirer_resolved THEN year END)                    AS first_acquirer_resolved_pre_year
-  FROM pts GROUP BY codinv, deal_id
-),
-last_year AS (
-  SELECT codinv, deal_id, MAX(year) AS last_pre_affiliation_year
-  FROM pts GROUP BY codinv, deal_id
-),
-latest AS (
-  SELECT p.*
-  FROM pts p
-  JOIN last_year ly
-    ON p.codinv = ly.codinv AND p.deal_id = ly.deal_id
-   AND p.year   = ly.last_pre_affiliation_year
+  JOIN deal_target_company_strict dtc
+    ON ud.deal_id = dtc.deal_id
+  JOIN patent_company_link pcl
+    ON CAST(pcl.compcod AS BIGINT) = CAST(dtc.target_compcod AS BIGINT)
+   AND CAST(pcl.year AS INTEGER) BETWEEN ud.ref_year - 5 AND ud.ref_year - 1
+  JOIN patent_inventor pi
+    ON pcl.appln_id = pi.appln_id
+  WHERE pi.codinv IS NOT NULL
+  GROUP BY
+    ud.deal_id, ud.cassi_deal_group_id, ud.deal_year, ud.ref_year,
+    ud.target_group, ud.acquirer_group, ud.status_eligible, pi.codinv
 )
 SELECT
-  l.codinv, l.deal_id, l.cassi_deal_group_id,
-  l.deal_year, l.ref_year, l.target_group, l.acquirer_group, l.status_eligible,
-  l.year AS last_pre_affiliation_year,
-  (l.ref_year - l.year) AS qualifying_gap   -- placebo/real-relative: event-time of last affiliation = -gap in BOTH arms
-FROM latest l
-JOIN summ s ON l.codinv = s.codinv AND l.deal_id = s.deal_id
-WHERE (
-  l.target_resolved
-  OR l.target_candidate
-  OR (
-    l.acquirer_resolved
-    AND l.year = l.ref_year - 1
-    AND s.first_acquirer_resolved_pre_year = l.ref_year - 1
-    AND s.last_target_evidence_pre_year IS NOT NULL
-    AND s.last_target_evidence_pre_year < s.first_acquirer_resolved_pre_year
-    AND l.ref_year - 1 - s.last_target_evidence_pre_year <= 2
-  )
-)
+  codinv, deal_id, cassi_deal_group_id,
+  deal_year, ref_year, target_group, acquirer_group, status_eligible,
+  last_pre_affiliation_year,
+  (ref_year - last_pre_affiliation_year) AS qualifying_gap
+FROM target_company_pairs
 ", shift)
 }
 

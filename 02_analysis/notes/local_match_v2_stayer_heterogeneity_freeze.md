@@ -12,7 +12,13 @@ a post-treatment outcome. Later movement does not change baseline status.
 The primary specification is the certified P5b
 `primary_count_active_scale` / `primary_resolved_t1` design. Outcomes are
 patent count and the probability of patenting. For each outcome, the dependent
-variable is the mean over event times +1 through +5 minus event time -1.
+variable is the mean over event times +1 through +5 minus event time -1. This
+is the primary \emph{collapsed event-study contrast}. For the heterogeneity
+checks, a companion uses the conventional aggregate DiD: the mean over +1
+through +5 minus the mean over -5 through -1. Its sign is post minus pre, not
+pre minus post. It may change both the estimate and its precision because it
+changes the pre-treatment baseline; it does not replace the reference-year
+heterogeneity estimand.
 The censoring companion restricts cohorts to 1994--2008.
 
 Four predetermined moderators form the primary eight-test family:
@@ -28,6 +34,11 @@ acquirer histories strictly before treatment; a fixed five-year version is an
 appendix robustness check. Focal-group tenure, measured at event time -1, is
 an appendix-only alternative to career age and is excluded from the primary
 multiplicity family.
+
+For interpretation, the output table also reports the estimated treatment
+gradient from a one-standard-deviation increase in each continuous moderator.
+Persistent team membership is binary, so its reported scale remains the
+substantive comparison of a persistent pre-deal team with no such team.
 
 Inference reports both deal-level Webb wild-bootstrap and two-way
 deal/inventor clustered uncertainty, using the more conservative p-value and

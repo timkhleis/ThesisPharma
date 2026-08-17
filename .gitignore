@@ -11,3 +11,15 @@ Data/
 analysis/output/
 02_analysis/output/*
 !02_analysis/output/.gitkeep
+
+# LaTeX build files for the thesis template (keep the compiled PDF)
+thesis_template/*.aux
+thesis_template/*.bbl
+thesis_template/*.blg
+thesis_template/*.lof
+thesis_template/*.log
+thesis_template/*.lot
+thesis_template/*.out
+thesis_template/*.toc
+thesis_template/chapters/*.aux
+thesis_template/appendices/*.aux

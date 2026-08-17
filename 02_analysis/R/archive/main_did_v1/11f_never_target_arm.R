@@ -24,7 +24,7 @@ dbExecute(con, sprintf("PRAGMA temp_directory='%s'", gsub("\\\\", "/", DUCKDB_TM
 
 banner("NEVER-OBSERVED-TARGET CONTROL ARM")
 
-res <- build_never_target_arm(con)
+res <- build_never_target_arm(con, stacks = STACK_LO:STACK_HI_G7)
 units <- res$units
 message("Never-target universe: pharma=", res$n_pharma_groups, " ever_target=", res$n_ever_target,
         " never_target=", res$n_never_target)

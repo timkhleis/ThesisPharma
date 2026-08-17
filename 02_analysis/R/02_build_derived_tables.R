@@ -1,4 +1,4 @@
-source(file.path("02_analysis", "R", "00_utils.R"))
+source(file.path("analysis", "R", "00_utils.R"))
 
 load_packages()
 ensure_output_dirs()
@@ -8,20 +8,6 @@ con <- connect_duckdb()
 on.exit(disconnect_duckdb(con), add = TRUE)
 
 sql_statements <- c(
-  inventor_lookup = "
-    CREATE OR REPLACE TABLE inventor_lookup AS
-    SELECT
-      codinv,
-      MIN(codinv2) FILTER (WHERE codinv2 IS NOT NULL) AS codinv2,
-      MIN(inname) FILTER (WHERE inname IS NOT NULL) AS inventor_name,
-      MIN(incy) FILTER (WHERE incy IS NOT NULL) AS inventor_country,
-      COUNT(*) AS source_row_count,
-      COUNT(DISTINCT codinv2) AS codinv2_value_count,
-      COUNT(DISTINCT inname) AS inventor_name_value_count,
-      COUNT(DISTINCT incy) AS inventor_country_value_count
-    FROM inventor
-    GROUP BY codinv
-  ",
   patent_application = "
     CREATE OR REPLACE TABLE patent_application AS
     SELECT
@@ -137,10 +123,6 @@ sql_statements <- c(
   ",
   patent_inventor_enriched = "
     CREATE OR REPLACE TABLE patent_inventor_enriched AS
-    WITH inventor_application AS (
-      SELECT DISTINCT appln_id, codinv
-      FROM patent_inventor
-    )
     SELECT
       pi.appln_id,
       pi.codinv,
@@ -152,20 +134,16 @@ sql_statements <- c(
       pe.id_group_list,
       pe.merger_status_values,
       i.codinv2,
-      i.inventor_name AS inname,
-      i.inventor_country AS incy
-    FROM inventor_application AS pi
+      i.inname,
+      i.incy
+    FROM patent_inventor AS pi
     LEFT JOIN patent_enriched AS pe
       ON pi.appln_id = pe.appln_id
-    LEFT JOIN inventor_lookup AS i
+    LEFT JOIN inventor AS i
       ON pi.codinv = i.codinv
   ",
   inventor_group_year = "
     CREATE OR REPLACE TABLE inventor_group_year AS
-    WITH inventor_application AS (
-      SELECT DISTINCT appln_id, codinv
-      FROM patent_inventor
-    )
     SELECT
       pi.codinv,
       pa.patent_year AS year,
@@ -173,7 +151,7 @@ sql_statements <- c(
       COUNT(DISTINCT pcl.compcod) AS firm_count,
       string_agg(DISTINCT CAST(pcl.id_group AS VARCHAR), ';' ORDER BY CAST(pcl.id_group AS VARCHAR)) FILTER (WHERE pcl.id_group IS NOT NULL) AS group_list,
       string_agg(DISTINCT pcl.merger_status, ';' ORDER BY pcl.merger_status) FILTER (WHERE pcl.merger_status IS NOT NULL) AS merger_status_values
-    FROM inventor_application AS pi
+    FROM patent_inventor AS pi
     INNER JOIN patent_application AS pa
       ON pi.appln_id = pa.appln_id
     LEFT JOIN patent_company_link AS pcl
@@ -182,13 +160,9 @@ sql_statements <- c(
   ",
   inventor_year = "
     CREATE OR REPLACE TABLE inventor_year AS
-    WITH inventor_application AS (
-      SELECT DISTINCT appln_id, codinv
-      FROM patent_inventor
-    ),
-    inventor_patent_counts AS (
+    WITH inventor_patent_counts AS (
       SELECT appln_id, COUNT(DISTINCT codinv) AS inventor_count
-      FROM inventor_application
+      FROM patent_inventor
       GROUP BY appln_id
     ),
     inventor_year_base AS (
@@ -196,11 +170,8 @@ sql_statements <- c(
         pi.codinv,
         pa.patent_year AS year,
         COUNT(DISTINCT pi.appln_id) AS patent_count,
-        CAST(
-          SUM(CAST(1.0 / ipc.inventor_count AS DECIMAL(38, 18)))
-          AS DOUBLE
-        ) AS fractional_patent_count
-      FROM inventor_application AS pi
+        SUM(1.0 / ipc.inventor_count) AS fractional_patent_count
+      FROM patent_inventor AS pi
       INNER JOIN patent_application AS pa
         ON pi.appln_id = pa.appln_id
       INNER JOIN inventor_patent_counts AS ipc
@@ -216,25 +187,21 @@ sql_statements <- c(
       igy.group_count AS distinct_group_count,
       MIN(iyb.year) OVER (PARTITION BY iyb.codinv) AS career_first_year,
       MAX(iyb.year) OVER (PARTITION BY iyb.codinv) AS career_last_year,
-      iyb.year - MIN(iyb.year) OVER (PARTITION BY iyb.codinv) + 1 AS career_year_index
+      iyb.year - MIN(iyb.year) OVER (PARTITION BY iyb.codinv) + 1 AS career_year_index,
+      i.inname AS inventor_name,
+      i.incy AS inventor_country
     FROM inventor_year_base AS iyb
     LEFT JOIN inventor_group_year AS igy
       ON iyb.codinv = igy.codinv
      AND iyb.year = igy.year
+    LEFT JOIN inventor AS i
+      ON iyb.codinv = i.codinv
   ",
   inventor_ipc_year = "
     CREATE OR REPLACE TABLE inventor_ipc_year AS
-    WITH inventor_application AS (
-      SELECT DISTINCT appln_id, codinv
-      FROM patent_inventor
-    ),
-    ipc_application AS (
-      SELECT DISTINCT appln_id, ipc_code
-      FROM ipc
-    ),
-    inventor_patent_counts AS (
+    WITH inventor_patent_counts AS (
       SELECT appln_id, COUNT(DISTINCT codinv) AS inventor_count
-      FROM inventor_application
+      FROM patent_inventor
       GROUP BY appln_id
     )
     SELECT
@@ -242,16 +209,13 @@ sql_statements <- c(
       pa.patent_year AS year,
       ipc.ipc_code,
       COUNT(DISTINCT pi.appln_id) AS patent_count,
-      CAST(
-        SUM(CAST(1.0 / ic.inventor_count AS DECIMAL(38, 18)))
-        AS DOUBLE
-      ) AS fractional_patent_count
-    FROM inventor_application AS pi
+      SUM(1.0 / ic.inventor_count) AS fractional_patent_count
+    FROM patent_inventor AS pi
     INNER JOIN patent_application AS pa
       ON pi.appln_id = pa.appln_id
     INNER JOIN inventor_patent_counts AS ic
       ON pi.appln_id = ic.appln_id
-    INNER JOIN ipc_application AS ipc
+    INNER JOIN ipc
       ON pi.appln_id = ipc.appln_id
     GROUP BY pi.codinv, pa.patent_year, ipc.ipc_code
   ",
@@ -292,6 +256,6 @@ derived_inventory <- purrr::map_dfr(derived_tables, function(table_name) {
 }) |>
   dplyr::arrange(table_name)
 
-write_csv(derived_inventory, project_path("02_analysis", "output", "metadata", "derived_inventory.csv"))
+write_csv(derived_inventory, project_path("analysis", "output", "metadata", "derived_inventory.csv"))
 
 message("Derived table build complete.")

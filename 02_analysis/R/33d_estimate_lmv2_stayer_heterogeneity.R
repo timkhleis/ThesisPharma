@@ -177,6 +177,13 @@ run_one <- function(
     setNames(unname(prepared$contrasts[[moderator]]), spec$term),
     deal_multipliers, cfg$estimand$focal_contrast[[moderator]], cfg
   )
+  one_sd <- NULL
+  if (moderator != "team_persistence") {
+    one_sd <- lmv2_vr_linear_result(
+      fit, covariance, setNames(1, spec$term), deal_multipliers,
+      "one-standard-deviation increase in moderator", cfg
+    )
+  }
   marg <- marginal_contrasts(prepared, moderator)
   low <- lmv2_vr_linear_result(
     fit, covariance, marg$low, deal_multipliers,
@@ -207,6 +214,7 @@ run_one <- function(
     z
   }
   focal <- add_meta(focal, "focal_contrast")
+  if (!is.null(one_sd)) one_sd <- add_meta(one_sd, "one_sd_effect")
   low <- add_meta(low, "low_marginal_effect", marg$raw[1])
   high <- add_meta(high, "high_marginal_effect", marg$raw[2])
   for (field in c(
@@ -222,7 +230,7 @@ run_one <- function(
     high$effect_as_share_predeal_output <-
       high$estimate / high$predeal_annual_patent_stock
   }
-  rbind(focal, low, high)
+  do.call(rbind, Filter(Negate(is.null), list(focal, one_sd, low, high)))
 }
 
 run_grid <- function(
