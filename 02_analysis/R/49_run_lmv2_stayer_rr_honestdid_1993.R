@@ -9,12 +9,9 @@ arg <- function(name, default = NULL) {
   sub(paste0("^--", name, "="), "", hit[[1L]])
 }
 
-P6_ROOT <- normalizePath(".", winslash = "/", mustWork = TRUE)
-THESIS_ROOT <- normalizePath(
-  file.path(P6_ROOT, "..", ".."), winslash = "/", mustWork = TRUE)
-P4_ROOT <- normalizePath(
-  file.path(THESIS_ROOT, ".worktrees", "lmv2-p4-ebal"),
-  winslash = "/", mustWork = TRUE)
+THESIS_ROOT <- normalizePath(".", winslash = "/", mustWork = TRUE)
+P6_ROOT <- THESIS_ROOT
+P4_ROOT <- THESIS_ROOT
 BASE <- normalizePath("02_analysis", winslash = "/", mustWork = TRUE)
 source(file.path(BASE, "R", "00_utils.R"))
 use_project_library()
@@ -74,8 +71,7 @@ FULL_RR_DIR <- normalizePath(
   winslash = "/", mustWork = TRUE)
 OLD_STAYER_RR_DIR <- normalizePath(
   file.path(
-    THESIS_ROOT, ".worktrees", "lmv2-p6-outcomes", "02_analysis",
-    "output", "audit", "local_match_v2",
+    BASE, "output", "audit", "local_match_v2",
     "P5B_STAYER_RR_RM_HOLDOUT_M3_M2"),
   winslash = "/", mustWork = TRUE)
 

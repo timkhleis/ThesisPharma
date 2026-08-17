@@ -25,24 +25,24 @@ LMV2_RECRUIT <- list(
 LMV2_RECRUIT_PATHS <- list(
   database = file.path("02_analysis", "output", "thesis_foundation.duckdb"),
   p5a_roster = file.path(
-    ".worktrees", "lmv2-p4-ebal", "02_analysis", "output", "audit",
+    "02_analysis", "output", "audit",
     "local_match_v2", "P5_P6_HANDOFF", "p5_p6_primary_weighted_roster.parquet"),
   loyo_m3_roster = file.path(
-    ".worktrees", "lmv2-p4-ebal", "02_analysis", "output", "audit",
+    "02_analysis", "output", "audit",
     "local_match_v2", "P5C_P6_HANDOFF_V2_LOYO_M3",
     "p5c_p6_primary_weighted_roster.parquet"),
   count_active_roster = file.path(
-    ".worktrees", "lmv2-p4-ebal", "02_analysis", "output", "audit",
+    "02_analysis", "output", "audit",
     "local_match_v2", "P5C_P6_HANDOFF_V2_COUNT_ACTIVE",
     "p5c_p6_primary_weighted_roster.parquet"),
   p5a_panels = file.path(
-    ".worktrees", "lmv2-p6-outcomes", "02_analysis", "output", "audit",
+    "02_analysis", "output", "audit",
     "local_match_v2", "P6_V3_PRODUCTION", "panel_matched"),
   loyo_m3_panels = file.path(
-    ".worktrees", "lmv2-p6-outcomes", "02_analysis", "output", "audit",
+    "02_analysis", "output", "audit",
     "local_match_v2", "P6_P5C_PANEL_LOYO_M3"),
   count_active_panels = file.path(
-    ".worktrees", "lmv2-p6-outcomes", "02_analysis", "output", "audit",
+    "02_analysis", "output", "audit",
     "local_match_v2", "P6_P5C_PANEL_COUNT_ACTIVE"),
   output = file.path(
     "02_analysis", "output", "audit", "local_match_v2",

@@ -17,19 +17,15 @@ lmv2_stayer_existing_path <- function(candidates, label) {
 
 lmv2_stayer_config <- function(base = getwd()) {
   base <- normalizePath(base, winslash = "/", mustWork = TRUE)
-  user_root <- Sys.getenv("USERPROFILE")
-
   foundation_candidates <- unique(c(
     Sys.getenv("LMV2_FOUNDATION_ROOT"),
-    base,
-    file.path(user_root, "Documents", "Thesis", ".worktrees",
-              "lmv2-foundation")
+    base
   ))
   foundation_candidates <- foundation_candidates[nzchar(foundation_candidates)]
   foundation_root <- lmv2_stayer_existing_path(
     file.path(foundation_candidates, "02_analysis", "output",
               "thesis_foundation.duckdb"),
-    "the authoritative foundation database")
+    "the foundation database on the consolidated main branch")
 
   output_dir <- file.path(
     base, "02_analysis", "output", "audit",

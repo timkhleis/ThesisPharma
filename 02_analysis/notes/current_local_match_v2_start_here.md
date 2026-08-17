@@ -1,163 +1,61 @@
-# Start here: current Local Match v2 replication package
+# Start here: current Local Match v2 replication
 
-This is the complete current analysis path. Read and run it in order; do not
-use the archived Main-DiD-v1 scripts for headline results.
+The complete current code path is on the `main` branch. Run every command from
+the repository root; no auxiliary worktree is required.
 
-## Input data
+## Inputs
 
-`01_Data/` is the exact raw input bundle used by the analysis: Cassi--Ornaghi
-inventor, patent, firm-group, merger, and replication files, together with the
-OECD patent-quality files. The replication package contains this folder.
+Authorized raw Cassi--Ornaghi, PATSTAT, BvD/Zephyr, and OECD files belong in
+`01_Data/`. They are not published in Git because of licensing and size. The
+pipeline materializes its DuckDB and Parquet layers under `02_analysis/output/`.
 
-## Materialized research database
+## Build order
 
-`05_Database/thesis_foundation.duckdb` is the authoritative P6 DuckDB snapshot
-used to inspect the constructed research tables without rebuilding the raw
-data foundation. It is a derived, read-only convenience snapshot; the raw
-inputs and P0--P3 code remain the provenance source. Do not substitute the
-older databases from the root or other worktrees.
+1. Run `02_analysis/R/run_pipeline.R` to build the canonical data foundation
+   and derived tables.
+2. Scripts `15a_*`--`21e_*` define the Local Match v2 design, support, and
+   entropy-balanced weights.
+3. Scripts `18a_*`--`25a_*` construct outcomes and estimate the main
+   full-cohort results.
+4. Scripts `26_*`--`33_*` estimate selected-population retained-inventor and
+   heterogeneity packages.
+5. Scripts `34_*`--`64_*` build diagnostics, robustness checks, mechanism
+   analyses, network gates, and the final release.
+6. Scripts `66_*`--`70_*` create thesis-facing exhibits from certified output.
 
-## P0--P3: construct the research data and matching inputs
+## Final release
 
-Source folder: `02_Code/P0_P3_foundation/`.
-
-1. `01_build_data_foundation.R`: read and standardize the raw inputs.
-2. `02_build_derived_tables.R`: build canonical DuckDB and Parquet analysis
-   interfaces.
-3. `15a_lmv2_design_lock.R` through `16e_run_lmv2_p3.R`: lock the design,
-   define treated/control status, construct matching covariates, and certify
-   the foundation interfaces.
-
-## P4--P5: local support and entropy-balanced weights
-
-Source folder: `02_Code/P4_P5_weights/`.
-
-1. `17a_*` through `17z_*`: construct clean local firm and IPC4 donor support,
-   execute the accelerated balancing pipeline, and certify its artifacts.
-2. `21a_lmv2_p5c_annual_trajectory_config.R` through `21e_*`: create the
-   annual-trajectory P5c weights and the frozen P6 handoff.
-
-## P6: outcomes, estimates, and results communication
-
-Source folder: `02_Code/P6_outcomes/`.
-
-1. `18a_*` through `18g_*`: construct and certify the outcome panel.
-2. `19a_*` through `20f_*`: estimate the full-cohort P5c effect, inference,
-   censoring companion, and held-out-year diagnostics.
-3. `21a_*` through `27a_*`: build the raw-DiD/lifecycle diagnostics, result
-   packages, and supervisor memo.
-4. `36_run_lmv2_simple_control_placebo.R`: run the 2,000-draw untreated-firm
-   recruitment/pipeline falsification used in the robustness appendix.
-
-## Current interpretation
-
-The main result is the full pre-deal target-inventor cohort under clean local
-support and five-year entropy-balanced outcome histories. The acquisition year
-is excluded from the headline because annual patent data cannot order filings
-relative to deal completion. The initially retained analysis is secondary and
-post-treatment-selected.
-
-The machine-readable authority for current numerical reporting is
-`results_inventory/master_results_inventory.csv`. The C1 synchronization gate
-is `results_inventory/C1_RESULTS_SYNC_CERTIFICATION.csv`. Active documents
-must agree with the inventory at their displayed precision.
-
-The authoritative working thesis manuscript is
-`thesis_template/main.tex` in the main repository. Dated
-`PSE_Thesis_Template_Bounded_*` directories and ZIP files are distribution
-snapshots, not parallel manuscript authorities.
-
-P8 is the authoritative patenting-exit decomposition. For initially retained
-inventors, the three shares are 27.3% earlier end of observed patenting, 5.4%
-fewer active years among patenting survivors, and 67.3% fewer patents per
-active year. The two older two-factor decompositions are historical and must
-not be used in current reporting.
-
-The separately labelled control-endpoint diagnostic excludes full-cohort P5c
-controls whose focal patent group exits before +5. It yields an annual
-patent-count contrast of -0.0420 (deal-wild 95% interval
-[-0.0803, -0.0033], p=0.035). Because this is less negative than the frozen
--0.0534 full-cohort estimate, the control endpoint requirement explains none
-of the gap to the -0.1072 initially retained estimate. This diagnostic reuses
-the frozen weights after removing controls; it does not re-solve entropy
-balance. Its maximum absolute residual pre-period SMD is 0.0430, and it has no
-genuine restricted-sample LOYO. Do not present its joint negative-period test
-as a LOYO credential.
-
-Both the frozen and endpoint-restricted patent-count paths attenuate
-monotonically in absolute value from +1 through +5. The repeated shape is
-consistent with temporary integration disruption but does not identify that
-mechanism. Event time zero is the merger-completion year and is included as a
-separately reported merger effect: -0.0377 in frozen P5c and -0.0288 in the
-endpoint diagnostic. The frozen completion-through-+5 cumulative point effect
-is -0.3047 patents per inventor (deal-wild 95% interval
-[-0.5197, -0.0916], p=0.0086). The corresponding annual average across t=0
-through +5 is -0.0508 [-0.0866, -0.0153]. The +1 to +5 average remains
-separately reported because those are five fully exposed calendar years. Deal
-timing is available only by year, so t=0 cannot be divided into pre- and
-post-completion months or converted into a full-year exposure effect.
-
-Read `03_Current_notes/local_match_v2_quantity_results_for_supervisors.md`
-before interpreting the supervisor PDF in `04_Results/`.
-
-The untreated-firm placebo distribution and thesis-ready robustness wording are
-stored in `local_match_v2_simple_control_placebo_results.md`. The accepted
-interpretation is that the results are inconsistent with a purely mechanical
-lifecycle, recruitment, or simple observed mean-reversion explanation,
-although residual violations of conditional parallel trends prevent an
-unqualified causal interpretation.
-
-## D1: retained-status descriptive completion
-
-Run:
+Refresh the claim-to-code registry and thesis tables after the expensive
+artifacts exist:
 
 ```powershell
-& 'C:\Program Files\R\R-4.5.1\bin\Rscript.exe' 02_analysis\R\42_run_lmv2_stayer_descriptives.R
+& 'C:\Program Files\R\R-4.5.1\bin\Rscript.exe' 02_analysis\R\60_run_final_thesis_results_1993.R
 ```
 
-The certified D1 package reports predetermined status distributions, annual
-+1 through +5 patent-location paths, focal-affiliation persistence, symmetric
-group-existence diagnostics, descriptive +6 continuation, and the
-completion-year-inclusive timing results. Read
-`local_match_v2_stayer_descriptive_results.md` for the substantive summary.
-All location measures refer to patent affiliation, not employment.
+Add `--rebuild-new` to rerun the newer CS(2021), short-window, timing-placebo,
+mechanism, DealSim, and network packages first.
 
-## N0: outcome-blind network census
+The numerical reporting authority is
+`notes/final_thesis_results_registry_1993.csv`; read
+`notes/final_thesis_results_inventory_1993.md` for the corresponding
+interpretation and qualification of each result.
 
-Run:
+## Main interpretation
 
-```powershell
-& 'C:\Program Files\R\R-4.5.1\bin\Rscript.exe' 02_analysis\R\43_run_lmv2_network_census.R
-```
+The primary estimand covers the full pre-deal target-inventor cohort on common
+local support. The acquisition year is separate from the `+1` through `+5`
+headline because calendar-year patent records cannot order applications around
+the completion date. Initially retained inventors form a post-treatment-selected
+population and must retain that qualification.
 
-N0 uses only event times -5 through -1. The frozen -5 through -3 persistent
-tie definition covers only 8.2% of the weighted treated cohort, so it defines
-a narrow network-active subpopulation rather than evidence capable of
-corroborating the full-cohort headline. Conditional composition is defined for
-745 treated rows at -2 and 557 at -1, below the frozen 1,000-row requirement.
-The anchor also retains 2,230 treated focal inventors, below the frozen 3,000.
-The package therefore selects Path Q. N1 and post-acquisition causal network
-effects remain closed. Read `local_match_v2_network_census_results.md` and the
-hashed pre-analysis freeze for the exact denominator definitions and gate
-failures.
-
-## N4: exploratory retained-inventor team recomposition
-
-Run:
-
-```powershell
-& 'C:\Program Files\R\R-4.5.1\bin\Rscript.exe' 02_analysis\R\47_run_lmv2_n4_team_recomposition.R
-```
-
-N4 is a treated-only descriptive appendix and does not reopen Path Q. It uses
-all 2,663 matched initially retained inventors for team composition and
-reports strict and exploratory weak baseline ties side by side. The package
-is frozen before positive event times are constructed and passes 20/20
-certification checks. Read
-`local_match_v2_n4_team_recomposition_results.md` for the exact magnitudes and
-denominators.
+TechDrift fails its Local Match joint pretrend diagnostic. DealSim failed its
+prospective power gate. The persistent-team-tie design failed its held-out
+validation/precision gate. Those outputs remain useful diagnostics, but the
+final inventory deliberately does not present them as clean causal headline
+effects.
 
 ## Archive
 
-`99_Archive/` preserves completed Main-DiD-v1 and scratch exploration. It is
-not part of the current analysis path.
+`02_analysis/R/archive/` and `02_analysis/notes/archive/` preserve superseded
+Main-DiD-v1 and scratch work for auditability. They are not part of the current
+production path.

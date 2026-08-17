@@ -18,7 +18,7 @@ for (pkg in required) {
 
 ROOT <- normalizePath(file.path(BASE, ".."), winslash = "/", mustWork = TRUE)
 FOUNDATION <- normalizePath(
-  file.path(ROOT, ".worktrees", "lmv2-foundation", "02_analysis"),
+  file.path(ROOT, "02_analysis"),
   winslash = "/", mustWork = TRUE)
 OUT <- file.path(BASE, "output", "results", "cassi_ornaghi_bridge")
 dir.create(OUT, recursive = TRUE, showWarnings = FALSE)
@@ -39,8 +39,7 @@ paths <- list(
   inventor_year = file.path(
     FOUNDATION, "output", "parquet", "derived", "inventor_year.parquet"),
   stayer_weights = file.path(
-    ROOT, ".worktrees", "lmv2-p6-outcomes", "02_analysis", "output",
-    "audit", "local_match_v2", "P5B_STAYER_S3",
+    BASE, "output", "audit", "local_match_v2", "P5B_STAYER_S3",
     "s3_production_weights.parquet"),
   thesis_inventory = file.path(
     BASE, "output", "results", "local_match_v2", "C2_CURRENT_RELEASE",

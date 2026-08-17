@@ -6,7 +6,7 @@ if (!requireNamespace("ggplot2", quietly = TRUE)) {
 }
 
 input_path <- file.path(
-  ".worktrees", "lmv2-1993-amendment", "02_analysis", "output", "audit",
+  "02_analysis", "output", "audit",
   "local_match_v2_1993_amendment", "P5B_STAYER_S6_SECONDARY_OUTCOMES",
   "s6_secondary_dynamic.csv"
 )

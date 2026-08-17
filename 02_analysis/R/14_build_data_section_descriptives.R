@@ -3,8 +3,7 @@
 # P4 is not frozen.
 
 BASE <- normalizePath("02_analysis", mustWork = TRUE)
-FOUNDATION <- normalizePath(file.path(".worktrees", "lmv2-1993-amendment", "02_analysis"),
-                            mustWork = TRUE)
+FOUNDATION <- BASE
 PAR <- file.path(FOUNDATION, "output", "parquet")
 P2_AUDIT <- file.path(FOUNDATION, "output", "audit", "local_match_v2", "P2")
 RES <- file.path(BASE, "output", "results", "data_section")

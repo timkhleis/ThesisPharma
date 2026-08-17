@@ -2,8 +2,7 @@
 # Cassi--Ornaghi separation-sample statistics.
 
 BASE <- normalizePath("02_analysis", mustWork = TRUE)
-FOUNDATION <- normalizePath(file.path(".worktrees", "lmv2-foundation", "02_analysis"),
-                            mustWork = TRUE)
+FOUNDATION <- BASE
 ROOT_PAR <- file.path(BASE, "output", "parquet")
 LMV2_PAR <- file.path(FOUNDATION, "output", "parquet")
 OUT <- file.path(BASE, "output", "results", "data_section")

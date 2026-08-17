@@ -124,14 +124,14 @@ map_text <- paste(
   readLines(paths[["repository_map"]], warn = FALSE, encoding = "UTF-8"),
   collapse = "\n")
 map_terms <- c(
-  ".worktrees/lmv2-foundation",
-  ".worktrees/lmv2-p4-ebal",
-  ".worktrees/lmv2-p6-outcomes",
+  "02_analysis/R/15a_lmv2_design_lock.R",
+  "02_analysis/R/17a_lmv2_p4_pilot_config.R",
+  "02_analysis/R/18a_lmv2_outcome_config.R",
   "Package 8")
 missing_map_terms <- map_terms[
   !vapply(map_terms, grepl, logical(1), x = map_text, fixed = TRUE)]
 add_check(
-  "authoritative_worktrees_are_mapped",
+  "authoritative_main_branch_layers_are_mapped",
   if (length(missing_map_terms)) {
     paste(missing_map_terms, collapse = " | ")
   } else {

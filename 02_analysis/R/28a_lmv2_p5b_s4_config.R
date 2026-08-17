@@ -9,15 +9,12 @@ LMV2_P5B_S4_VERSION <- "lmv2_p5b_stayer_s4_1993_amendment_v1"
 lmv2_p5b_s4_config <- function(base = getwd()) {
   base <- normalizePath(base, winslash = "/", mustWork = TRUE)
   s3 <- lmv2_p5b_s3_config(base)
-  user_root <- Sys.getenv("USERPROFILE")
   p6_root <- lmv2_stayer_existing_path(
     c(
       base,
-      Sys.getenv("LMV2_P6_ROOT"),
-      file.path(user_root, "Documents", "Thesis", ".worktrees",
-                "lmv2-p6-outcomes")
+      Sys.getenv("LMV2_P6_ROOT")
     ),
-    "the authoritative P6 outcomes worktree")
+    "the consolidated P6 repository root")
   p6_audit <- file.path(
     p6_root, "02_analysis", "output", "audit",
     "local_match_v2_1993_amendment")

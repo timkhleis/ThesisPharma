@@ -6,7 +6,7 @@ if (!requireNamespace("ggplot2", quietly = TRUE)) {
 }
 
 audit_root <- file.path(
-  ".worktrees", "lmv2-1993-amendment", "02_analysis", "output", "audit",
+  "02_analysis", "output", "audit",
   "local_match_v2_1993_amendment"
 )
 robust_root <- file.path(audit_root, "ROBUSTNESS_RELEASE_1993")

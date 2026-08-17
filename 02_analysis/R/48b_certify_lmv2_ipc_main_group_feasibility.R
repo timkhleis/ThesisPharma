@@ -21,7 +21,7 @@ INPUT <- get_arg(
 )
 SOURCE_NOTE <- get_arg(
   "--source-note",
-  ".worktrees/lmv2-p4-ebal/02_analysis/notes/" %+%
+  "02_analysis/notes/" %+%
     "local_match_v2_p4_ebal_pre_e2_amendment.md"
 )
 OUTPUT_DIR <- get_arg(

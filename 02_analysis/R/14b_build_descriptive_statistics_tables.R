@@ -5,8 +5,7 @@
 
 BASE <- normalizePath("02_analysis", mustWork = TRUE)
 ROOT <- normalizePath(".", mustWork = TRUE)
-FOUNDATION <- normalizePath(file.path(".worktrees", "lmv2-1993-amendment", "02_analysis"),
-                            mustWork = TRUE)
+FOUNDATION <- BASE
 DB <- normalizePath(file.path(BASE, "output", "thesis_foundation.duckdb"),
                     mustWork = TRUE)
 TREATED <- normalizePath(file.path(

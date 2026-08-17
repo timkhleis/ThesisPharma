@@ -6,11 +6,11 @@ if (!requireNamespace("ggplot2", quietly = TRUE)) {
 }
 
 audit_root <- file.path(
-  ".worktrees", "lmv2-1993-amendment", "02_analysis", "output", "audit",
+  "02_analysis", "output", "audit",
   "local_match_v2_1993_amendment"
 )
 heterogeneity_root <- file.path(
-  ".worktrees", "lmv2-1993-amendment", "02_analysis", "output", "results",
+  "02_analysis", "output", "results",
   "local_match_v2_1993_amendment", "results_section_exhibits"
 )
 output_dir <- file.path("output", "results_blueprint")

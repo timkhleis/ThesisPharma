@@ -8,7 +8,7 @@ for (pkg in c("DBI", "duckdb")) {
   if (!requireNamespace(pkg, quietly = TRUE)) stop("Missing package: ", pkg)
 }
 
-p6_root <- file.path(".worktrees", "lmv2-p6-outcomes")
+p6_root <- "."
 panel_glob <- file.path(
   p6_root, "02_analysis", "output", "audit", "local_match_v2",
   "P6_V3_STAYER_SECONDARY_REFRESH", "panel_matched",

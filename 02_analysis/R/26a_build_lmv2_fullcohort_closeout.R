@@ -5,14 +5,14 @@
 # This script assembles already-frozen P5/P6 results. It does not alter the
 # support roster, balance constraints, weights, outcome panel, or estimand.
 #
-# Run from the lmv2-p6-outcomes worktree root:
+# Run from the repository root on `main`:
 # Rscript 02_analysis/R/26a_build_lmv2_fullcohort_closeout.R
 
 BASE <- normalizePath("02_analysis", winslash = "/", mustWork = TRUE)
 source(file.path(BASE, "R", "00_utils.R"))
 use_project_library()
 shared_lib <- normalizePath(
-  file.path(BASE, "..", "..", "..", ".r_libs"),
+  file.path(BASE, "..", ".r_libs"),
   winslash = "/", mustWork = FALSE)
 if (dir.exists(shared_lib)) {
   .libPaths(unique(c(shared_lib, .libPaths())))
@@ -25,10 +25,9 @@ for (pkg in c("DBI", "duckdb", "digest", "ggplot2", "gridExtra")) {
 source(file.path(BASE, "R", "00_lmv2_visual_style.R"))
 
 THESIS_ROOT <- normalizePath(
-  file.path(BASE, "..", "..", ".."), winslash = "/", mustWork = TRUE)
+  ".", winslash = "/", mustWork = TRUE)
 P5_ROOT <- file.path(
-  THESIS_ROOT, ".worktrees", "lmv2-p4-ebal", "02_analysis", "output",
-  "audit", "local_match_v2")
+  BASE, "output", "audit", "local_match_v2")
 AUDIT_ROOT <- file.path(BASE, "output", "audit", "local_match_v2")
 OUT_DIR <- file.path(AUDIT_ROOT, "P6_FULLCOHORT_RESULTS_PACKAGE")
 FIG_DIR <- file.path(

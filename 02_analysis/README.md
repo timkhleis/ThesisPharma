@@ -1,41 +1,50 @@
 # Analysis guide
 
-## Data and result lineage
+All current analysis code is consolidated in this repository's `main` branch.
+Run commands from the repository root; active scripts must not depend on a
+separate Git worktree.
 
-```text
-Raw Cassi--Ornaghi / PATSTAT / Zephyr inputs
-  -> P0--P2: canonical data, treatment/status interfaces
-  -> P3--P5: local donor support and entropy-balanced weights
-  -> P6: event-time outcome panel and weighted estimation
-  -> certified result packages and supervisor memo
+## Pipeline
+
+| Stage | Principal scripts | Purpose |
+|---|---|---|
+| Data foundation | `01_*`--`06_*` | Import, clean, link, and materialize canonical inventor, patent, firm, deal, and status tables. |
+| Early comparison designs | `11n_*`--`15_*` | Not-yet-treated, Verginer-style, Local Match pilot, and data-alignment diagnostics. |
+| Local Match v2 foundation and weights | `15a_*`--`21e_*` | Lock the design, construct treatment/control interfaces, build local support, and solve/certify entropy-balanced weights. |
+| Main outcomes and estimation | `18a_*`--`25a_*` | Build event panels, estimate full-cohort outcomes, run inference, and construct closeout packages. |
+| Initially retained and heterogeneity | `26_*`--`33_*` | Selected-population retained-inventor estimates, selection diagnostics, DealSim, and inventor/VR heterogeneity. |
+| Diagnostics and final release | `34_*`--`64_*` | Inventories, placebos, decompositions, HonestDiD, robustness, CS(2021), mechanisms, and network gates. |
+| Thesis exhibits | `66_*`--`70_*` | Build results, robustness, appendix, and TechDrift exhibits from certified artifacts. |
+
+The main thesis-facing refresh command is:
+
+```powershell
+& 'C:\Program Files\R\R-4.5.1\bin\Rscript.exe' 02_analysis\R\60_run_final_thesis_results_1993.R
 ```
 
-P0--P3 are authoritative in `lmv2-foundation`; P4--P5 are authoritative in
-`lmv2-p4-ebal`; P6 is authoritative in this worktree. Do not run the legacy
-root `run_pipeline.R` as a substitute for the Local Match v2 sequence.
+Add `--rebuild-new` to rerun the estimators listed by that orchestrator before
+rebuilding the release index and tables.
 
-## Active P6 sequence in this worktree
+## Authoritative outputs
 
-| Stage | Scripts | Purpose |
-|---|---|---|
-| Outcome configuration and materialization | `18a_*`--`18g_*` | Build and certify the outcome panel from frozen P5 inputs. |
-| Estimation | `19a_*`--`20f_*` | Estimate the P5c full-cohort ATT, inference, and diagnostics. |
-| Results diagnostics | `21a_*`--`24a_*` | Raw DiD, recruitment/lifecycle, mean-reversion, and early-recruitment checks. |
-| Closeout and communication | `25a_*`--`27a_*` | Quantity package, citation robustness, final tables/figures, and supervisor memo. |
+- `notes/final_thesis_results_inventory_1993.md` is the human-readable
+  claim-to-code map.
+- `notes/final_thesis_results_registry_1993.csv` is its machine-readable
+  companion.
+- Generated results live under
+  `output/audit/local_match_v2_1993_amendment/FINAL_THESIS_RELEASE_1993/`.
+- Generated outputs and licensed inputs are intentionally excluded from Git.
 
-Use the stage-specific freeze notes in `notes/` before re-running an existing
-analysis. The current full-cohort interpretation is in
-`notes/local_match_v2_quantity_results_for_supervisors.md`.
+## Interpretation boundaries
 
-## Current estimands
+- Initially retained inventors are a post-treatment-selected population.
+- TechDrift fails its Local Match joint pretrend diagnostic and is not a clean
+  causal result.
+- DealSim is exploratory because the prospective power gate failed.
+- The persistent-team-tie design failed its validation/precision gate; the
+  retained network results are descriptive.
+- Ordinary Lee bounds are not reported because the required identifying
+  conditions are not defensible in this setting.
 
-- **Full cohort (main):** treated inventors supported by local donor firms and
-  entropy-balanced on five annual pre-treatment outcomes and characteristics.
-- **Initially retained inventors (secondary):** a separately balanced,
-  post-treatment-selected group. It is not interchangeable with the full
-  cohort and must retain its selection qualification.
-
-## Archived material
-
-See `R/archive/README.md` and `notes/archive/README.md`. Archive contents are
-retained research history, not production inputs.
+Archived Main-DiD-v1 and scratch scripts are retained under `R/archive/` for
+auditability and are not inputs to the current release.

@@ -105,9 +105,9 @@ diagnostics <- list(); k <- 0L
 for (spec in c("loyo_m3","count_active")) {
   subdir <- file.path(root,spec); dir.create(subdir,showWarnings=FALSE)
   source_dir <- if (spec=="loyo_m3")
-    file.path(".worktrees","lmv2-p4-ebal","02_analysis","output","audit",
+    file.path("02_analysis","output","audit",
               "local_match_v2","P5C_ANNUAL_TRAJECTORY","placebo","weights") else
-    file.path(".worktrees","lmv2-p4-ebal","02_analysis","output","audit",
+    file.path("02_analysis","output","audit",
               "local_match_v2","P5C_ANNUAL_TRAJECTORY","production","weights")
   for (cohort in LMV2_RECRUIT$cohorts) {
     pattern <- file.path(source_dir,sprintf("c%d_primary_%s_b64ecb850b84.parquet",cohort,spec))

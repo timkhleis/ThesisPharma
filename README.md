@@ -1,53 +1,73 @@
 # Pharmaceutical acquisitions and inventor patenting
 
-This repository snapshot contains the reproducible Local Match v2 research
-pipeline and the completed full-cohort results package. The project is split
-across clean worktrees so that each computational layer has one authoritative
-implementation.
+This repository contains the analysis code and reproducibility documentation
+for a master's thesis on how pharmaceutical acquisitions affect the inventive
+output of target-firm inventors, with particular attention to inventors who
+remain with the acquiring group.
 
-## Current empirical approach
+## Current empirical design
 
-The main result is a common-support ATT for the full pre-deal target-inventor
-cohort. It compares treated inventors with acquisition-clean donor inventors
-under local firm and IPC4 support, and uses entropy balancing to align the
-five annual pre-treatment patent-count and active-patenting histories. The
-headline post window is `t=+1` through `t=+5`; the acquisition year is not
-used in the headline because annual patent data cannot order filings relative
-to deal completion.
+The main specification is Local Match v2 for the pre-deal target-inventor
+cohort. It restricts controls to acquisition-clean local firm and IPC support,
+then entropy-balances five annual pre-treatment patent-count and active-patenting
+histories. The main post-treatment window is event years `+1` through `+5`;
+the acquisition year is reported separately because annual patent data cannot
+order filings relative to deal completion.
 
-The result is reported together with a censoring-clean companion and
-leave-one-pre-year-out diagnostics. Initially retained inventors use a
-separate post-treatment-selected design and are reported as suggestive
-selected-group evidence, not as an always-retained causal effect.
+The certified release covers acquisition cohorts 1993--2010. The headline
+average annual patent-count estimate is -0.0521 patents per inventor (95%
+deal-wild-bootstrap interval [-0.0898, -0.0147]). Results for initially retained
+inventors are reported as selected-population evidence, not as an
+always-retained causal effect. TechDrift and DealSim results retain the
+identification and power qualifications recorded in the final results
+inventory.
 
-## Authoritative worktrees
+## Repository map
 
-| Layer | Worktree | Active scripts |
-|---|---|---|
-| P0--P3: design lock, data construction, status interfaces, matching inputs | `.worktrees/lmv2-foundation` | `02_analysis/R/15a_*` through `16e_*` |
-| P4--P5: support, entropy balancing, annual-trajectory weights | `.worktrees/lmv2-p4-ebal` | `02_analysis/R/17*` and `21a_*` through `21e_*` |
-| P6: outcome construction, estimation, diagnostics, communication | `.worktrees/lmv2-p6-outcomes` | `02_analysis/R/18a_*` through `27a_*` |
+- `02_analysis/R/` contains the consolidated production, robustness, and
+  thesis-exhibit scripts.
+- `02_analysis/notes/` contains design freezes, certification notes, and the
+  claim-to-code results inventory.
+- `02_analysis/R/archive/` and `02_analysis/notes/archive/` contain superseded
+  specifications retained for auditability.
+- `00_Discussion_Docs/` contains the previously committed proposal and research
+  memos. New working drafts are intentionally excluded.
 
-The detailed source-to-artifact map is
-[`02_analysis/notes/local_match_v2_authoritative_repository_map.md`](02_analysis/notes/local_match_v2_authoritative_repository_map.md).
+Start with
+[`02_analysis/notes/current_local_match_v2_start_here.md`](02_analysis/notes/current_local_match_v2_start_here.md)
+and the
+[`final thesis results inventory`](02_analysis/notes/final_thesis_results_inventory_1993.md).
 
-## Where to start
+## Reproduction
 
-- [`02_analysis/notes/current_local_match_v2_start_here.md`](02_analysis/notes/current_local_match_v2_start_here.md)
-  is the linear P0--P6 guide used by the full replication handover bundle.
-- [`02_analysis/README.md`](02_analysis/README.md) explains the active data
-  lineage and script sequence.
-- [`02_analysis/notes/local_match_v2_quantity_results_for_supervisors.md`](02_analysis/notes/local_match_v2_quantity_results_for_supervisors.md)
-  records the current full-cohort result and its qualifications.
-- [`02_analysis/output/results/local_match_v2/supervisor_package/`](02_analysis/output/results/local_match_v2/supervisor_package/)
-  is a generated, ignored output directory containing the supervisor PDF.
+The code was run with R 4.5.1 on Windows. Raw PATSTAT, Cassi--Ornaghi,
+BvD/Zephyr, and OECD inputs are not version-controlled because of size and
+licensing restrictions. Place authorized inputs in `01_Data/` before rebuilding
+the data foundation.
 
-## Archive policy
+From the repository root:
 
-`02_analysis/R/archive/` and `02_analysis/notes/archive/` contain completed
-Main-DiD-v1 and scratch explorations. They are retained for auditability but
-are not inputs to the Local Match v2 production pipeline. See the archive
-README before reusing any of them.
+```powershell
+# Rebuild the canonical database and derived tables
+& 'C:\Program Files\R\R-4.5.1\bin\Rscript.exe' 02_analysis\R\run_pipeline.R
 
-Raw data, DuckDB databases, Parquet files, and regenerated output are not
-version-controlled. They are intentionally excluded from the review ZIP.
+# Refresh the final thesis-facing release from completed estimator artifacts
+& 'C:\Program Files\R\R-4.5.1\bin\Rscript.exe' 02_analysis\R\60_run_final_thesis_results_1993.R
+
+# Also rerun the newer estimators and diagnostics
+& 'C:\Program Files\R\R-4.5.1\bin\Rscript.exe' 02_analysis\R\60_run_final_thesis_results_1993.R --rebuild-new
+```
+
+Generated DuckDB, Parquet, figures, tables, and logs are written below
+`02_analysis/output/` and are intentionally ignored by Git.
+
+## Branch policy
+
+`main` is the single authoritative branch for the current thesis code. The
+complete P0--P6 pipeline, the 1993 cohort amendment, retained-inventor packages,
+robustness analyses, and thesis-exhibit builders are all consolidated here.
+Historical branches remain only as development history; no worktree checkout is
+required to run the current code.
+
+The active manuscript, local AI instructions/context, licensed data, and dated
+distribution ZIPs are maintained outside this public analysis repository.

@@ -5,21 +5,49 @@
 .r_libs/
 CLAUDE.md
 .claude/
+AGENTS.md
+.codex/
+.worktrees/
+03_context_dump/
 Data/
 01_Data/*
 !01_Data/.gitkeep
 analysis/output/
 02_analysis/output/*
 !02_analysis/output/.gitkeep
+output/
+tmp/
+tools/
 
-# LaTeX build files for the thesis template (keep the compiled PDF)
-thesis_template/*.aux
-thesis_template/*.bbl
-thesis_template/*.blg
-thesis_template/*.lof
-thesis_template/*.log
-thesis_template/*.lot
-thesis_template/*.out
-thesis_template/*.toc
-thesis_template/chapters/*.aux
-thesis_template/appendices/*.aux
+# The active manuscript and working discussion drafts are shared separately.
+thesis_template/
+00_Discussion_Docs/
+CURRENT_THESIS_REFERENCE.md
+
+# Local exports, snapshots, and scratch files.
+/*.zip
+/PSE_Thesis_Template_Bounded_*/
+/AS
+/Rplots.pdf
+/texput.log
+/entropy_balancing_section.txt
+/pilot_audit_progress_note.md
+~$*
+
+# Local planning notes superseded by certified freeze/results documents.
+02_analysis/notes/local_match_v1_tonight_checkpoint.md
+02_analysis/notes/local_match_v2_patenting_exit_decomposition_implementation_plan.md
+02_analysis/notes/supported_inventor_size_split_implementation_plan.md
+
+# Generated LaTeX files.
+*.aux
+*.bbl
+*.blg
+*.fdb_latexmk
+*.fls
+*.lof
+*.log
+*.lot
+*.out
+*.synctex.gz
+*.toc

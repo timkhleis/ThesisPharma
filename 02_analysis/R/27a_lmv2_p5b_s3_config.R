@@ -23,14 +23,12 @@ LMV2_P5B_S3_FIRM_VARS <- c(
 
 lmv2_p5b_s3_config <- function(base = getwd()) {
   base <- normalizePath(base, winslash = "/", mustWork = TRUE)
-  user_root <- Sys.getenv("USERPROFILE")
   p4_root <- lmv2_stayer_existing_path(
     c(
       Sys.getenv("LMV2_P4_ROOT"),
-      file.path(user_root, "Documents", "Thesis", ".worktrees",
-                "lmv2-p4-ebal")
+      base
     ),
-    "the authoritative P4/P5 worktree")
+    "the consolidated P4/P5 repository root")
   foundation_db <- lmv2_stayer_config(base)$foundation_db
   p5_root <- file.path(
     p4_root, "02_analysis", "output", "audit",

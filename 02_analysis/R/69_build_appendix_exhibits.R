@@ -9,11 +9,11 @@ for (pkg in c("ggplot2", "DBI", "duckdb")) {
 }
 
 audit_root <- file.path(
-  ".worktrees", "lmv2-1993-amendment", "02_analysis", "output", "audit",
+  "02_analysis", "output", "audit",
   "local_match_v2_1993_amendment"
 )
 results_root <- file.path(
-  ".worktrees", "lmv2-1993-amendment", "02_analysis", "output", "results",
+  "02_analysis", "output", "results",
   "local_match_v2_1993_amendment"
 )
 out_root <- file.path("output", "appendix_exhibits")
@@ -164,11 +164,11 @@ writeLines(
 
 db_path <- file.path("02_analysis", "output", "thesis_foundation.duckdb")
 treated_path <- file.path(
-  ".worktrees", "lmv2-1993-amendment", "02_analysis", "output", "parquet",
+  "02_analysis", "output", "parquet",
   "derived", "lmv2_treated_primary.parquet"
 )
 inventor_covariate_path <- file.path(
-  ".worktrees", "lmv2-1993-amendment", "02_analysis", "output", "parquet",
+  "02_analysis", "output", "parquet",
   "derived", "lmv2_p3_treated_inventor_units.parquet"
 )
 retained_roster_path <- file.path(
