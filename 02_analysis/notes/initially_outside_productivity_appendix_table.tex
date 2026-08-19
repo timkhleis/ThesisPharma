@@ -1,0 +1,53 @@
+\begin{table}[!htbp]
+    \centering
+    \caption{Patent Output of Inventors Initially Patenting Outside the Combined Organisation}
+    \label{tab:initially_outside_productivity}
+    \begin{threeparttable}
+        \small
+        \renewcommand{\arraystretch}{1.08}
+        \begin{tabular*}{\textwidth}{@{\extracolsep{\fill}}lrrrrrrr@{}}
+            \toprule
+            Specification
+            & ATT
+            & SE
+            & 95\% CI
+            & \(p\)-value
+            & Change (\%)
+            & Inventors
+            & Deals \\
+            \midrule
+            Primary specification
+            & -0.065 & 0.060 & \([-0.183,\ 0.054]\)
+            & 0.284 & -9.3 & 987 & 169 \\
+            Censoring-clean cohorts
+            & -0.044 & 0.062 & \([-0.167,\ 0.078]\)
+            & 0.480 & -6.5 & 903 & 151 \\
+            First outside patent by \(g+2\)
+            & -0.111 & 0.088 & \([-0.283,\ 0.062]\)
+            & 0.209 & -12.4 & 562 & 126 \\
+            Excluding mixed first-patenting years
+            & -0.052 & 0.058 & \([-0.166,\ 0.061]\)
+            & 0.367 & -7.8 & 973 & 167 \\
+            Route-consistent classification
+            & -0.065 & 0.060 & \([-0.183,\ 0.054]\)
+            & 0.284 & -9.3 & 987 & 169 \\
+            \bottomrule
+        \end{tabular*}
+        \begin{tablenotes}[flushleft]
+            \footnotesize
+            \item \textit{Notes:} The dependent variable is the inventor's
+            annual number of patent applications. The ATT is averaged over
+            \(g+1,\ldots,g+5\) and is measured in patents per inventor-year.
+            Standard errors are two-way clustered by treated deal and
+            inventor. Percentage changes are calculated relative to the
+            weighted control-group mean during the post-event period.
+            ``Censoring-clean cohorts'' restricts acquisitions to 1993--2008.
+            The number of inventors refers to treated inventors on common
+            support. Initially-outside status is determined from the first
+            observed post-event patent and measures patent affiliation rather
+            than verified employment. The target-only classification is not
+            estimated because it fails the pre-specified common-support
+            requirement.
+        \end{tablenotes}
+    \end{threeparttable}
+\end{table}
