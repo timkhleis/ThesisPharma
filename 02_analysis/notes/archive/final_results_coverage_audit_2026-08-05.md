@@ -1,4 +1,9 @@
-# Final results coverage audit — 5 August 2026
+# Historical final-results coverage audit — 5 August 2026
+
+> Superseded by the consolidated 1993--2010 release on `main`. This document
+> preserves the pre-integration diagnosis and its historical worktree links;
+> it is not a current reproduction guide. Use `../../REPLICATION.md` and
+> `../final_thesis_results_inventory_1993.md` for the authoritative release.
 
 ## Bottom line
 

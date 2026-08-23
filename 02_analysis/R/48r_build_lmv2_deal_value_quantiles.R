@@ -15,8 +15,16 @@ get_arg <- function(flag, default = NA_character_) {
 
 DEAL_MAP <- get_arg("--deal-map")
 OUTPUT_DIR <- get_arg("--output-dir")
+EXPECTED_DEALS <- as.integer(get_arg("--expected-deals", "343"))
+COHORT_START <- as.integer(get_arg("--cohort-start", "1993"))
+COHORT_END <- as.integer(get_arg("--cohort-end", "2010"))
+DESIGNATION <- get_arg("--designation", "post_hoc_exploratory")
 if (any(is.na(c(DEAL_MAP, OUTPUT_DIR)))) {
   stop("48r requires --deal-map= and --output-dir=")
+}
+if (anyNA(c(EXPECTED_DEALS, COHORT_START, COHORT_END)) ||
+    EXPECTED_DEALS < 10L || COHORT_START > COHORT_END) {
+  stop("Invalid expected-deals or cohort range")
 }
 if (!file.exists(DEAL_MAP)) stop("Deal map missing: ", DEAL_MAP)
 if (dir.exists(OUTPUT_DIR) && length(list.files(
@@ -36,8 +44,9 @@ if (anyDuplicated(deal[c("cohort", "deal_id")]) ||
     any(!is.finite(deal$n_supported)) || any(deal$n_supported <= 0)) {
   stop("Deal map contains duplicate keys or invalid values")
 }
-if (nrow(deal) != 343L || !identical(sort(unique(deal$cohort)), 1993:2010)) {
-  stop("Expected the frozen 343-deal, 1993--2010 P5c roster")
+if (nrow(deal) != EXPECTED_DEALS ||
+    !identical(sort(unique(deal$cohort)), COHORT_START:COHORT_END)) {
+  stop("Deal map does not match the declared frozen roster")
 }
 
 # Stable ordering is used only after confirming that no bin boundary cuts a
@@ -102,8 +111,8 @@ write_csv(counts, "deal_value_quantile_counts.csv")
 write_csv(boundary_audit, "deal_value_quantile_boundary_audit.csv")
 
 manifest <- data.frame(
-  version = "lmv2_deal_value_quantile_design_v1",
-  designation = "post_hoc_exploratory",
+  version = "lmv2_deal_value_quantile_design_v2",
+  designation = DESIGNATION,
   unit_defining_quantiles = "acquisition",
   requested_partitions = "quartiles;deciles",
   tie_rule = "fail_if_empirical_boundary_splits_equal_target_values",
@@ -118,6 +127,6 @@ manifest <- data.frame(
 )
 write_csv(manifest, "deal_value_quantile_design_manifest.csv")
 message(sprintf(
-  "Frozen outcome-blind value quantiles for %d acquisitions; no boundary ties.",
-  nrow(deal)
+  "Frozen outcome-blind value quantiles for %d acquisitions (%d--%d); no boundary ties.",
+  nrow(deal), COHORT_START, COHORT_END
 ))

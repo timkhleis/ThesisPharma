@@ -81,47 +81,39 @@ event_study_plot <- function(data) {
   ggplot2::ggplot(d, ggplot2::aes(event_time, estimate_display)) +
     ggplot2::annotate(
       "rect", xmin = -0.5, xmax = 5.5, ymin = -Inf, ymax = Inf,
-      fill = THESIS[["tint"]], alpha = 0.72
+      fill = THESIS[["tint"]], alpha = 0.70
     ) +
     ggplot2::geom_hline(
-      yintercept = 0, colour = THESIS[["warm_grey"]], linewidth = 0.45
+      yintercept = 0, colour = THESIS[["warm_grey"]], linewidth = 0.40
     ) +
     ggplot2::geom_vline(
       xintercept = -0.5, colour = THESIS[["warm_grey"]],
-      linewidth = 0.45, linetype = "dashed"
+      linewidth = 0.40, linetype = "dashed"
     ) +
     ggplot2::geom_errorbar(
       ggplot2::aes(ymin = ci_low_display, ymax = ci_high_display),
-      width = 0.13, linewidth = 0.5, colour = THESIS[["accent_dark"]]
+      width = 0.12, linewidth = 0.45, colour = THESIS[["accent_dark"]]
     ) +
     ggplot2::geom_line(
-      linewidth = 0.75, colour = THESIS[["accent"]]
+      linewidth = 0.70, colour = THESIS[["accent"]]
     ) +
     ggplot2::geom_point(
-      data = d[d$event_time < 0, ],
-      size = 2.05, shape = 21, stroke = 0.6,
-      colour = THESIS[["accent_dark"]], fill = THESIS[["white"]]
+      shape = 21, size = 1.90, stroke = 0.55,
+      colour = THESIS[["accent_dark"]],
+      fill = ifelse(
+        d$event_time >= 1, THESIS[["accent"]], THESIS[["white"]]
+      )
     ) +
-    ggplot2::geom_point(
-      data = d[d$event_time == 0, ],
-      size = 2.05, shape = 21, stroke = 0.6,
-      colour = THESIS[["warm_grey"]], fill = THESIS[["white"]]
-    ) +
-    ggplot2::geom_point(
-      data = d[d$event_time >= 1, ],
-      size = 2.05, shape = 21, stroke = 0.6,
-      colour = THESIS[["accent_dark"]], fill = THESIS[["accent"]]
-    ) +
-    ggplot2::facet_wrap(~panel, nrow = 1, scales = "free_y") +
+    ggplot2::facet_wrap(~panel, ncol = 2, scales = "free_y") +
     ggplot2::scale_x_continuous(
-      breaks = -5:5, limits = c(-5.35, 5.35)
+      breaks = -5:5
     ) +
     ggplot2::labs(
       x = "Years relative to acquisition",
       y = "Estimated acquisition effect"
     ) +
-    theme_thesis(10) +
-    ggplot2::theme(panel.spacing.x = grid::unit(1.25, "lines"))
+    theme_thesis(9) +
+    ggplot2::theme(panel.spacing = grid::unit(1.0, "lines"))
 }
 
 full_dynamic <- read_csv(file.path(
@@ -247,7 +239,7 @@ full_head <- full_head[
     full_head$summary == "average_annual_t1_to_t5", , drop = FALSE
 ]
 full_diagnostic_head <- read_csv(file.path(
-  output_dir, "full_citations_per_patent_estimation",
+  audit_root, "P6_ESTIMATION_CITATIONS_PER_PATENT",
   "p6_headline_post_att.csv"
 ))
 full_diagnostic_head <- full_diagnostic_head[
@@ -261,7 +253,7 @@ full_pre <- read_csv(file.path(
   audit_root, "P6_ESTIMATION_PRIMARY", "p6_joint_pretrend_tests.csv"
 ))
 full_diagnostic_pre <- read_csv(file.path(
-  output_dir, "full_citations_per_patent_estimation",
+  audit_root, "P6_ESTIMATION_CITATIONS_PER_PATENT",
   "p6_joint_pretrend_tests.csv"
 ))
 full_pre <- rbind(full_pre, full_diagnostic_pre)

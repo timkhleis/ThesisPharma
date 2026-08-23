@@ -18,8 +18,7 @@ lmv2_io_config <- function(base = getwd()) {
     c(
       Sys.getenv("LMV2_SOURCE_ROOT"),
       Sys.getenv("LMV2_FOUNDATION_ROOT"),
-      base,
-      file.path(base, ".worktrees", "lmv2-1993-amendment")
+      base
     ),
     file.path("02_analysis", "output", "audit",
               "local_match_v2_1993_amendment", "P5C_ANNUAL_TRAJECTORY",

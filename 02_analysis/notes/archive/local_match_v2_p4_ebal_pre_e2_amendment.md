@@ -1,4 +1,4 @@
-# Local matching v2: P4-EB pre-E2 amendment (support calipers, technology resolution, ESS/concentration thresholds)
+# Historical Local matching v2: P4-EB pre-E2 amendment (support calipers, technology resolution, ESS/concentration thresholds)
 
 Status: immutable prospective record, written 2026-07-23, after E1 was
 approved (`f5dedc6`, `3256dbe`) and before any E2 execution or outcome

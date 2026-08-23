@@ -1,4 +1,4 @@
-# Local matching v2: P4 outcome-blind pilot
+# Historical Local matching v2: P4 outcome-blind pilot
 
 ## FINAL STATUS: definitive design failure (2026-07-23)
 

@@ -13,7 +13,7 @@
 # ============================================================================
 BASE <- normalizePath("02_analysis", mustWork = TRUE)
 options(main_did_v1.source_functions_only = TRUE)
-source(file.path(BASE, "R", "11j_build_robustness_weights.R"))   # config + helpers only
+source(file.path(BASE, "R", "archive", "main_did_v1", "11j_build_robustness_weights.R"))   # config + helpers only
 options(main_did_v1.source_functions_only = NULL)
 set.seed(SEED)
 

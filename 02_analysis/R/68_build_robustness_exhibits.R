@@ -315,7 +315,7 @@ loyo_table <- c(
   "        \\footnotesize",
   "        \\renewcommand{\\arraystretch}{1.08}",
   "        \\setlength{\\tabcolsep}{5.0pt}",
-  "        \\begin{tabular*}{0.88\\textwidth}{@{\\extracolsep{\\fill}}lrrrr@{}}",
+  "        \\begin{tabular*}{\\textwidth}{@{\\extracolsep{\\fill}}lrrrr@{}}",
   "            \\toprule",
   "            Check & Estimate & SE & 95\\% CI & $p$-value \\\\",
   "            \\midrule",
@@ -344,10 +344,8 @@ loyo_table <- c(
   "        \\begin{tablenotes}[flushleft]",
   "            \\scriptsize",
   paste0(
-    "            \\item \\textit{Notes:} For each year, I omit that year's patent-count and active-patenting measures from ",
-    "entropy balancing, recompute the weights, and report the change in the treated--control patent-count gap between the ",
-    "reference and held-out years. Values close to zero indicate that the weights reproduce a pre-acquisition outcome not ",
-    "used to fit them. The ATT rows use the same leave-one-year-out weights. $^{\\dagger}$~Because $t=g-1$ is normally the ",
+    "            \\item \\textit{Notes:} Values close to zero indicate that the weights reproduce a pre-acquisition outcome not ",
+    "used to fit them. The ATT rows use the corresponding leave-one-year-out weights. $^{\\dagger}$~Because $t=g-1$ is normally the ",
     "reference period, its held-out gap is measured relative to $t=g-4$; the corresponding ATT retains $t=g-1$ as its ",
     "reference and is therefore a separate reference-period sensitivity. Standard errors use two-way acquisition--inventor ",
     "clustering. $^{*}p<.10$, $^{**}p<.05$, $^{***}p<.01$."
@@ -732,6 +730,43 @@ retained_aggregation_rows <- rbind(
 )
 retained_aggregation_rows$percent_format <- FALSE
 
+retained_deal_value_dir <- file.path(
+  retained_root, "DEAL_VALUE_QUANTILES", "ESTIMATION_V1"
+)
+retained_quantile_att <- read_csv(file.path(
+  retained_deal_value_dir, "deal_value_quantile_att.csv"
+))
+retained_quantile_counts <- read_csv(file.path(
+  retained_deal_value_dir, "deal_value_quantile_estimation_counts.csv"
+))
+retained_quantile_omnibus <- read_csv(file.path(
+  retained_deal_value_dir, "deal_value_quantile_omnibus.csv"
+))
+retained_quartile_rows <- merge(
+  retained_quantile_att[retained_quantile_att$partition == "quartile", ],
+  retained_quantile_counts[retained_quantile_counts$partition == "quartile", ],
+  by = c("partition", "bin"), sort = FALSE
+)
+retained_quartile_rows$bin_number <- as.integer(
+  sub("Q", "", retained_quartile_rows$bin)
+)
+retained_quartile_rows <- retained_quartile_rows[
+  order(retained_quartile_rows$bin_number),
+]
+retained_deal_size_rows <- data.frame(
+  label = quartile_labels,
+  estimate = retained_quartile_rows$estimate,
+  se = retained_quartile_rows$two_way_se,
+  ci_low = retained_quartile_rows$ci_low,
+  ci_high = retained_quartile_rows$ci_high,
+  p_value = retained_quartile_rows$governing_p,
+  scale = "Annual patents / inventor",
+  percent_format = FALSE
+)
+retained_quartile_joint <- select_row(
+  retained_quantile_omnibus, partition = "quartile"
+)
+
 retained_wild_marker <- stars(retained_wild$p_value[1])
 retained_wild_marker <- ifelse(
   nzchar(retained_wild_marker),
@@ -775,6 +810,14 @@ retained_table <- c(
   "            \\multicolumn{5}{@{}l}{\\textit{Alternative inference for the main ATT}} \\\\",
   "            \\addlinespace[0.15em]",
   retained_wild_line,
+  "            \\addlinespace[0.65em]",
+  "            \\multicolumn{5}{@{}l}{\\textit{Heterogeneous effects across deal sizes}} \\\\ ",
+  "            \\addlinespace[0.15em]",
+  format_spec_rows(retained_deal_size_rows),
+  paste0(
+    "            Equality of all quartile ATTs & -- & -- & -- & ",
+    fmt_p(retained_quartile_joint$governing_p), " \\\\"
+  ),
   "            \\bottomrule",
   "        \\end{tabularx}",
   "        \\begin{tablenotes}[flushleft]",
@@ -785,8 +828,11 @@ retained_table <- c(
     "standard errors. PPML reports the percentage change in patent counts and its delta-method standard error in percentage ",
     "points. The established-inventor row is based on 471 treated inventors from 49 acquisitions and should be interpreted ",
     "as a narrower-support comparison. The largest-deal check removes SmithKline Beecham--Glaxo (2000). The equal-weight ",
-    "comparison uses the same 15 feasible cohorts in both rows; three cohorts fail the equal-deal balance gate. The final ",
-    "row reports a 9,999-draw deal-level Webb wild-bootstrap confidence interval. ",
+    "comparison uses the same 15 feasible cohorts in both rows; three cohorts fail the equal-deal balance gate. The ",
+    "deal-level wild-bootstrap row uses 9,999 Webb draws. Deal-size quartiles use the full-cohort cutpoints and contain ",
+    "26/86, 25/115, 38/378, and 64/2,213 acquisitions/inventors from Q1 to Q4. For these rows, confidence intervals and ",
+    "$p$-values follow the wider of two-way clustered and deal-level wild-bootstrap inference. The joint equality test ",
+    "yields $p=.291$, and no individual quartile remains significant after Holm adjustment. ",
     "$^{*}p<.10$, $^{**}p<.05$, $^{***}p<.01$."
   ),
   "        \\end{tablenotes}",
@@ -799,86 +845,120 @@ write_both(retained_table, "table_robustness_retained.tex")
 # Main-text compact table: common checks by analysis sample
 # -----------------------------------------------------------------------------
 
-format_compact_cell <- function(row, percent = FALSE) {
-  marker <- stars(row$p_value[1])
-  marker <- ifelse(
-    nzchar(marker), paste0("\\textsuperscript{", marker, "}"), ""
+make_core_row <- function(label, row, percent = FALSE) {
+  data.frame(
+    label = label,
+    row[, c("estimate", "se", "ci_low", "ci_high", "p_value")],
+    scale = "",
+    percent_format = percent,
+    stringsAsFactors = FALSE
   )
-  if (percent) {
-    paste0(
-      fmt_num(row$estimate[1], 1), "\\%", marker,
-      "\\;{\\footnotesize(", fmt_num(row$se[1], 2), " p.p.)}"
-    )
-  } else {
-    paste0(
-      fmt_num(row$estimate[1], 3), marker,
-      "\\;{\\footnotesize(", fmt_num(row$se[1], 3), ")}"
-    )
-  }
 }
 
-compact_rows <- data.frame(
-  label = c(
-    "Main specification",
-    "Fractional patent-count outcome",
-    "Poisson model (PPML): patent count",
-    "Shorter post-period: $t=g+1$ to $g+3$",
-    "Established-inventor sample",
-    "Remove largest acquisition",
-    "Remove each acquisition in turn"
-  ),
-  full = c(
-    format_compact_cell(main),
-    format_compact_cell(fractional),
-    format_compact_cell(ppml_row, percent = TRUE),
-    format_compact_cell(window3),
-    format_compact_cell(verginer_strict),
-    format_compact_cell(no_deal70),
-    "\\textit{$-0.061$ to $-0.046$}"
-  ),
-  retained = c(
-    format_compact_cell(retained_main),
-    format_compact_cell(retained_fractional),
-    format_compact_cell(retained_ppml_row, percent = TRUE),
-    format_compact_cell(retained_window3),
-    format_compact_cell(retained_established),
-    format_compact_cell(retained_remove_largest),
-    sprintf(
-      "\\textit{$%.3f$ to $%.3f$}",
-      retained_lodo$minimum_lodo[1], retained_lodo$maximum_lodo[1]
-    )
-  ),
-  stringsAsFactors = FALSE
+core_full_rows <- rbind(
+  make_core_row("Main specification", main),
+  make_core_row("Fractional patent-count outcome", fractional),
+  make_core_row("Poisson model (PPML): patent count", ppml_row, TRUE),
+  make_core_row("Shorter post-period: $t=g+1$ to $g+3$", window3),
+  make_core_row("Established-inventor sample", verginer_strict),
+  make_core_row("Remove largest acquisition", no_deal70),
+  data.frame(
+    label = "Remove each acquisition in turn",
+    estimate = NA_real_, se = NA_real_, ci_low = NA_real_,
+    ci_high = NA_real_, p_value = NA_real_,
+    scale = "ATT range: $-0.061$ to $-0.046$",
+    percent_format = FALSE
+  )
 )
+
+core_retained_rows <- rbind(
+  make_core_row("Main specification", retained_main),
+  make_core_row("Fractional patent-count outcome", retained_fractional),
+  make_core_row("Poisson model (PPML): patent count", retained_ppml_row, TRUE),
+  make_core_row("Shorter post-period: $t=g+1$ to $g+3$", retained_window3),
+  make_core_row("Established-inventor sample", retained_established),
+  make_core_row("Remove largest acquisition", retained_remove_largest),
+  data.frame(
+    label = "Remove each acquisition in turn",
+    estimate = NA_real_, se = NA_real_, ci_low = NA_real_,
+    ci_high = NA_real_, p_value = NA_real_,
+    scale = sprintf(
+      "ATT range: $%.3f$ to $%.3f$",
+      retained_lodo$minimum_lodo[1], retained_lodo$maximum_lodo[1]
+    ),
+    percent_format = FALSE
+  )
+)
+
+format_core_rows <- function(data) {
+  output <- character(nrow(data))
+  for (i in seq_len(nrow(data))) {
+    if (is.na(data$estimate[i])) {
+      output[i] <- paste0(
+        "            ", data$label[i],
+        " & \\multicolumn{5}{c}{\\textit{", data$scale[i], "}} \\\\"
+      )
+      next
+    }
+    marker <- stars(data$p_value[i])
+    marker <- ifelse(
+      nzchar(marker), paste0("\\textsuperscript{", marker, "}"), ""
+    )
+    if (isTRUE(data$percent_format[i])) {
+      estimate <- paste0(fmt_num(data$estimate[i], 1), "\\%")
+      se <- paste0("(", fmt_num(data$se[i], 2), " p.p.)")
+      ci <- paste0(
+        "[", fmt_num(data$ci_low[i], 1), "\\%, ",
+        fmt_num(data$ci_high[i], 1), "\\%]"
+      )
+    } else {
+      estimate <- fmt_num(data$estimate[i], 3)
+      se <- fmt_se(data$se[i])
+      ci <- fmt_ci(data$ci_low[i], data$ci_high[i])
+    }
+    output[i] <- paste0(
+      "            ", data$label[i], " & ", estimate, " & ", marker,
+      " & ", se, " & ", ci, " & ", fmt_p(data$p_value[i]), " \\\\"
+    )
+  }
+  output
+}
 
 compact_table <- c(
   "\\begin{table}[!htbp]",
   "    \\centering",
-  "    \\caption{Core Robustness Checks across Analysis Samples}",
+  "    \\caption{Robustness of the Estimated Patent-Count Effects}",
   "    \\label{tab:robustness_core_by_sample}",
   "    \\begin{threeparttable}",
   "        \\footnotesize",
-  "        \\renewcommand{\\arraystretch}{1.16}",
-  "        \\setlength{\\tabcolsep}{6.0pt}",
-  "        \\begin{tabularx}{0.94\\textwidth}{@{}>{\\raggedright\\arraybackslash}Xcc@{}}",
+  "        \\renewcommand{\\arraystretch}{1.14}",
+  "        \\setlength{\\tabcolsep}{5.0pt}",
+  "        \\begin{tabularx}{\\textwidth}{@{}>{\\raggedright\\arraybackslash}Xr@{}lrrr@{}}",
   "            \\toprule",
-  "            Specification & Full target-inventor cohort & Initially retained inventors \\\\",
-  "            \\midrule",
   paste0(
-    "            ", compact_rows$label, " & ",
-    compact_rows$full, " & ", compact_rows$retained, " \\\\"
+    "            Specification & \\multicolumn{2}{c}{Estimate} & ",
+    "\\multicolumn{1}{c}{SE} & \\multicolumn{1}{c}{95\\% CI} & ",
+    "\\multicolumn{1}{c}{$p$-value} \\\\"
   ),
+  "            \\midrule",
+  "            \\addlinespace[0.40em]",
+  "            \\multicolumn{6}{@{}l}{\\textbf{Full target-inventor cohort}} \\\\",
+  "            \\addlinespace[0.20em]",
+  format_core_rows(core_full_rows),
+  "            \\addlinespace[0.70em]",
+  "            \\multicolumn{6}{@{}l}{\\textbf{Initially retained inventors}} \\\\",
+  "            \\addlinespace[0.20em]",
+  format_core_rows(core_retained_rows),
   "            \\bottomrule",
   "        \\end{tabularx}",
   "        \\begin{tablenotes}[flushleft]",
   "            \\scriptsize",
   paste0(
-    "            \\item \\textit{Notes:} Cells report estimates with two-way acquisition--inventor clustered standard errors ",
-    "in parentheses. Except for the fractional and PPML rows, estimates are changes in annual patents per inventor. PPML ",
-    "reports percentage changes and delta-method standard errors in percentage points. The final row reports the range from ",
+    "            \\item \\textit{Notes:} Except for the fractional and PPML rows, estimates are changes in annual patents per inventor. ",
+    "Standard errors use two-way acquisition--inventor clustering. PPML reports percentage changes and delta-method standard errors in percentage points. The final row reports the range from ",
     "holding the weights fixed and removing each acquisition once. The established-inventor retained estimate is based on ",
-    "471 treated inventors from 49 acquisitions and therefore has substantially narrower support. Complete confidence ",
-    "intervals, classification sensitivities, and aggregation checks are reported in the appendix tables. ",
+    "471 treated inventors from 49 acquisitions and therefore has substantially narrower support. Additional classification ",
+    "and aggregation checks are reported in the appendix tables. ",
     "$^{*}p<.10$, $^{**}p<.05$, $^{***}p<.01$."
   ),
   "        \\end{tablenotes}",

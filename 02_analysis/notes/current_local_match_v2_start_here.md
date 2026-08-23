@@ -19,9 +19,12 @@ pipeline materializes its DuckDB and Parquet layers under `02_analysis/output/`.
    full-cohort results.
 4. Scripts `26_*`--`33_*` estimate selected-population retained-inventor and
    heterogeneity packages.
-5. Scripts `34_*`--`64_*` build diagnostics, robustness checks, mechanism
-   analyses, network gates, and the final release.
-6. Scripts `66_*`--`70_*` create thesis-facing exhibits from certified output.
+5. Scripts `34_*`--`65m_*` build diagnostics, robustness checks, mechanism
+   analyses, network gates, relative standing, and the final release.
+6. Scripts `66_run_*`--`75_run_*` build selected-population support and the
+   final financial, size, retained, and deal-value robustness extensions.
+7. Scripts `66_build_*`--`70_build_*` create thesis-facing exhibits from
+   certified output.
 
 ## Final release
 
@@ -34,6 +37,10 @@ artifacts exist:
 
 Add `--rebuild-new` to rerun the newer CS(2021), short-window, timing-placebo,
 mechanism, DealSim, and network packages first.
+
+Run `02_analysis/R/00_replication_preflight.R` before production. The exact
+licensed-input layout, package versions, and commands for the extension and
+exhibit stages are in `02_analysis/REPLICATION.md`.
 
 The numerical reporting authority is
 `notes/final_thesis_results_registry_1993.csv`; read

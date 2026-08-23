@@ -1,4 +1,4 @@
-# Local Match v2 -- full-cohort DiD closeout plan
+# Historical Local Match v2 -- full-cohort DiD closeout plan
 
 Planning sequence updated: 2026-07-27.
 

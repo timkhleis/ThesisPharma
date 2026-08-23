@@ -1,4 +1,4 @@
-source(file.path("analysis", "R", "00_utils.R"))
+source(file.path("02_analysis", "R", "00_utils.R"))
 
 load_packages()
 ensure_output_dirs()
@@ -256,6 +256,6 @@ derived_inventory <- purrr::map_dfr(derived_tables, function(table_name) {
 }) |>
   dplyr::arrange(table_name)
 
-write_csv(derived_inventory, project_path("analysis", "output", "metadata", "derived_inventory.csv"))
+write_csv(derived_inventory, project_path("02_analysis", "output", "metadata", "derived_inventory.csv"))
 
 message("Derived table build complete.")

@@ -2,7 +2,7 @@
 
 Status: immutable prospective record, written 2026-07-23, approved by the
 review after the five/ten-firm fixed-weight P4 pilot recorded a definitive
-design failure (`local_match_v2_p4_outcome_blind_pilot.md`, run of
+design failure (`archive/local_match_v2_p4_outcome_blind_pilot.md`, run of
 2026-07-23: "the five-firm design misses acceptability by 0.004 in balance
 or 0.77pp in retention after bounded bisection, and the ten-firm final
 structural attempt degrades Stage-1 balance below the preferred tier ...

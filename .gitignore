@@ -23,6 +23,13 @@ tools/
 thesis_template/
 00_Discussion_Docs/
 CURRENT_THESIS_REFERENCE.md
+/.review_*/
+/.tim_draft_review/
+/*_Final_Overleaf*.tex
+/*_Review_Draft.tex
+/Introduction_Revised_Review.tex
+/Theoretical_Mechanisms_Proposed.tex
+/Theoretical_Mechanisms_Review.md
 
 # Local exports, snapshots, and scratch files.
 /*.zip

@@ -8,8 +8,8 @@
 BASE <- normalizePath("02_analysis", mustWork = TRUE)
 source(file.path(BASE, "R", "00_utils.R"))
 use_project_library()
-source(file.path(BASE, "R", "11a_main_design_config.R"))
-source(file.path(BASE, "R", "11i_robustness_config.R"))
+source(file.path(BASE, "R", "archive", "main_did_v1", "11a_main_design_config.R"))
+source(file.path(BASE, "R", "archive", "main_did_v1", "11i_robustness_config.R"))
 if (!requireNamespace("ggplot2", quietly = TRUE)) stop("Missing package: ggplot2")
 suppressMessages(library(ggplot2))
 

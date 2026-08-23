@@ -254,7 +254,7 @@ sample_comparison <- DBI::dbGetQuery(con, sprintf("
    sql_path(retained_roster_path)))
 DBI::dbDisconnect(con, shutdown = TRUE)
 
-if (!identical(sort(sample_comparison$inventors), c(12773, 29007))) {
+if (!identical(sort(sample_comparison$inventors), c(12136, 29007))) {
   stop("Cassi--Ornaghi sample-restriction counts changed.")
 }
 if (!all(sample_comparison$retained == 3220) || !all(sample_comparison$leavers == 1191)) {
@@ -720,7 +720,10 @@ write_tex(
 
 full_dynamic <- read_csv(file.path(audit_root, "P6_ESTIMATION_PRIMARY", "p6_event_study_dynamic.csv"))
 ret_secondary <- read_csv(file.path(audit_root, "P5B_STAYER_S6_SECONDARY_OUTCOMES", "s6_secondary_dynamic.csv"))
-full_cpp_path <- file.path("output", "results_blueprint", "full_citations_per_patent_estimation", "p6_event_study_dynamic.csv")
+full_cpp_path <- file.path(
+  audit_root, "P6_ESTIMATION_CITATIONS_PER_PATENT",
+  "p6_event_study_dynamic.csv"
+)
 if (file.exists(full_cpp_path)) full_dynamic <- rbind(full_dynamic, read_csv(full_cpp_path))
 
 plot_secondary <- function(d, panels) {

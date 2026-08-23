@@ -19,6 +19,13 @@ PANEL_DIR <- get_arg("--panel-dir")
 DESIGN_DIR <- get_arg("--design-dir")
 OUTPUT_DIR <- get_arg("--output-dir")
 BOOTSTRAP_REPS <- as.integer(get_arg("--bootstrap-reps", "9999"))
+EXPECTED_DEALS <- as.integer(get_arg("--expected-deals", "343"))
+COHORT_START <- as.integer(get_arg("--cohort-start", "1993"))
+COHORT_END <- as.integer(get_arg("--cohort-end", "2010"))
+DESIGNATION <- get_arg("--designation", "post_hoc_exploratory")
+WEIGHT_SCHEME <- get_arg(
+  "--weight-scheme", "frozen_certified_p5c_relative_weights"
+)
 if (any(is.na(c(PANEL_DIR, DESIGN_DIR, OUTPUT_DIR)))) {
   stop("48s requires --panel-dir=, --design-dir=, and --output-dir=")
 }
@@ -31,6 +38,10 @@ if (dir.exists(OUTPUT_DIR) && length(list.files(
 }
 if (!is.finite(BOOTSTRAP_REPS) || BOOTSTRAP_REPS < 199L) {
   stop("At least 199 bootstrap replications are required")
+}
+if (anyNA(c(EXPECTED_DEALS, COHORT_START, COHORT_END)) ||
+    EXPECTED_DEALS < 10L || COHORT_START > COHORT_END) {
+  stop("Invalid expected-deals or cohort range")
 }
 
 BASE <- normalizePath(CODE_ROOT, winslash = "/", mustWork = TRUE)
@@ -70,7 +81,7 @@ if (nrow(manifest) != 1L || !isTRUE(manifest$analysis_authorized[[1]]) ||
   stop("The outcome-blind design did not authorize estimation")
 }
 deal_map <- utils::read.csv(map_path, stringsAsFactors = FALSE)
-if (nrow(deal_map) != 343L ||
+if (nrow(deal_map) != EXPECTED_DEALS ||
     anyDuplicated(deal_map[c("cohort", "deal_id")]) ||
     !identical(sort(unique(deal_map$decile_label)), sprintf("D%02d", 1:10)) ||
     !identical(sort(unique(deal_map$quartile_label)), paste0("Q", 1:4))) {
@@ -81,8 +92,8 @@ panel_files <- sort(list.files(
   PANEL_DIR, pattern = "^lmv2_event_panel_c[0-9]+\\.parquet$", full.names = TRUE
 ))
 panel_cohorts <- as.integer(sub("^.*_c([0-9]+)\\.parquet$", "\\1", panel_files))
-if (!identical(panel_cohorts, 1993:2010)) {
-  stop("Base P5c panel must contain exactly the 1993--2010 cohorts")
+if (!identical(panel_cohorts, COHORT_START:COHORT_END)) {
+  stop("Panel shards do not match the declared cohort range")
 }
 base_panel_sql <- lmv2_panel_sql(panel_files)
 map_sql <- sql_string(normalizePath(map_path, winslash = "/", mustWork = TRUE))
@@ -277,7 +288,7 @@ bind_partitions <- function(name) rbind(decile[[name]], quartile[[name]])
 
 # Exact decomposition of the original pooled P5c ATT. These are contributions,
 # not separately rebalanced subgroup ATTs, and therefore sum algebraically.
-cohorts <- 1993:2010
+cohorts <- COHORT_START:COHORT_END
 pair_table <- lmv2_build_pair_table(
   con, base_panel_sql, "patent_count", cohorts,
   "deal_value_quantile_pooled_identity")
@@ -362,11 +373,11 @@ write_csv(pooled_identity, "deal_value_quantile_pooled_identity.csv")
 write_csv(resolved_nonidentity, "deal_value_quantile_resolved_nonidentity.csv")
 
 estimation_manifest <- data.frame(
-  version = "lmv2_deal_value_quantile_estimation_v1",
-  designation = "post_hoc_exploratory",
+  version = "lmv2_deal_value_quantile_estimation_v2",
+  designation = DESIGNATION,
   outcome = "patent_count",
   estimand = "average_annual_t1_to_t5_relative_to_tminus1",
-  weight_scheme = "frozen_certified_p5c_relative_weights",
+  weight_scheme = WEIGHT_SCHEME,
   control_rescaling = "within_cohort_by_bin",
   bootstrap_replications = BOOTSTRAP_REPS,
   bootstrap_seed = cfg$inference$bootstrap_seed,

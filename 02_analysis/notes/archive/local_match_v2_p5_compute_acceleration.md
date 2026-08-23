@@ -1,4 +1,4 @@
-# Local Match v2 — P5 compute acceleration
+# Historical Local Match v2 — P5 compute acceleration
 
 ## Decision
 

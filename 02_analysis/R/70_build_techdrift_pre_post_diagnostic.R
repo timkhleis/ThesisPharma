@@ -8,25 +8,24 @@ for (pkg in c("DBI", "duckdb")) {
   if (!requireNamespace(pkg, quietly = TRUE)) stop("Missing package: ", pkg)
 }
 
-p6_root <- "."
+audit_root <- file.path(
+  "02_analysis", "output", "audit", "local_match_v2_1993_amendment"
+)
 panel_glob <- file.path(
-  p6_root, "02_analysis", "output", "audit", "local_match_v2",
-  "P6_V3_STAYER_SECONDARY_REFRESH", "panel_matched",
+  audit_root, "P6_P5C_COUNT_ACTIVE", "panel_matched",
   "lmv2_event_panel_c*.parquet"
 )
 weights_path <- file.path(
-  p6_root, "02_analysis", "output", "audit", "local_match_v2",
-  "P5B_STAYER_S3", "s3_production_weights.parquet"
+  audit_root, "P5B_STAYER_S3", "s3_production_weights.parquet"
 )
 out_dir <- file.path(
-  "02_analysis", "output", "audit", "local_match_v2",
-  "TECHDRIFT_PRE_POST_DIAGNOSTIC"
+  audit_root, "TECHDRIFT_PRE_POST_DIAGNOSTIC"
 )
 dir.create(out_dir, recursive = TRUE, showWarnings = FALSE)
 
 panel_files <- Sys.glob(panel_glob)
-if (length(panel_files) != 17L) {
-  stop("Expected 17 certified TechDrift panel shards; found ",
+if (length(panel_files) != 18L) {
+  stop("Expected 18 certified 1993--2010 TechDrift panel shards; found ",
        length(panel_files))
 }
 if (!file.exists(weights_path)) stop("Missing certified stayer weights")

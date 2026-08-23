@@ -10,7 +10,7 @@
 BASE <- normalizePath("02_analysis", mustWork = TRUE)
 source(file.path(BASE, "R", "00_utils.R")); use_project_library()
 source(file.path(BASE, "R", "13a_local_match_config.R"))
-source(file.path(BASE, "R", "11_main_design_utils.R"))
+source(file.path(BASE, "R", "archive", "main_did_v1", "11_main_design_utils.R"))
 source(file.path(BASE, "R", "13_local_match_utils.R"))
 set.seed(SEED)
 

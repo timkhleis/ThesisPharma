@@ -1,9 +1,10 @@
-# Pharmaceutical acquisitions and inventor patenting
+# Acquisitions and Inventive Output
+
+*Evidence from Inventors Who Remain with the Acquiring Group*
 
 This repository contains the analysis code and reproducibility documentation
-for a master's thesis on how pharmaceutical acquisitions affect the inventive
-output of target-firm inventors, with particular attention to inventors who
-remain with the acquiring group.
+for the master's thesis *Acquisitions and Inventive Output: Evidence from
+Inventors Who Remain with the Acquiring Group*.
 
 ## Current empirical design
 
@@ -30,8 +31,8 @@ inventory.
   claim-to-code results inventory.
 - `02_analysis/R/archive/` and `02_analysis/notes/archive/` contain superseded
   specifications retained for auditability.
-- `00_Discussion_Docs/` contains the previously committed proposal and research
-  memos. New working drafts are intentionally excluded.
+- `00_Discussion_Docs/` contains the proposal and research memos I shared with
+  my supervisors throughout the thesis project.
 
 Start with
 [`02_analysis/notes/current_local_match_v2_start_here.md`](02_analysis/notes/current_local_match_v2_start_here.md)
@@ -40,26 +41,42 @@ and the
 
 ## Reproduction
 
-The code was run with R 4.5.1 on Windows. Raw PATSTAT, Cassi--Ornaghi,
-BvD/Zephyr, and OECD inputs are not version-controlled because of size and
-licensing restrictions. Place authorized inputs in `01_Data/` before rebuilding
-the data foundation.
-
-From the repository root:
+The code was run with R 4.5.1 on Windows. Licensed raw data and generated
+artifacts are not committed to GitHub. Before running any expensive stage,
+check the code, package environment, and authorized input layout:
 
 ```powershell
-# Rebuild the canonical database and derived tables
-& 'C:\Program Files\R\R-4.5.1\bin\Rscript.exe' 02_analysis\R\run_pipeline.R
+& 'C:\Program Files\R\R-4.5.1\bin\Rscript.exe' 02_analysis\R\00_replication_preflight.R
+```
 
-# Refresh the final thesis-facing release from completed estimator artifacts
+The preflight also supports `--code-only` for a GitHub-only review. From the
+repository root, the data foundation is rebuilt with:
+
+```powershell
+& 'C:\Program Files\R\R-4.5.1\bin\Rscript.exe' 02_analysis\R\run_pipeline.R
+```
+
+After the checkpointed P3--P6 estimator artifacts exist, refresh the final
+thesis-facing release with:
+
+```powershell
 & 'C:\Program Files\R\R-4.5.1\bin\Rscript.exe' 02_analysis\R\60_run_final_thesis_results_1993.R
 
-# Also rerun the newer estimators and diagnostics
+# Re-estimate late diagnostics before refreshing
 & 'C:\Program Files\R\R-4.5.1\bin\Rscript.exe' 02_analysis\R\60_run_final_thesis_results_1993.R --rebuild-new
+
+# Rebuild the final financial, size, retained, and quantile robustness packages
+& 'C:\Program Files\R\R-4.5.1\bin\Rscript.exe' 02_analysis\R\75_run_lmv2_release_extensions.R
 ```
 
 Generated DuckDB, Parquet, figures, tables, and logs are written below
 `02_analysis/output/` and are intentionally ignored by Git.
+
+The exact licensed-input tree, package versions, staged production sequence,
+and interpretation boundaries are in the
+[`replication guide`](02_analysis/REPLICATION.md). The final release refresh is
+deliberately not described as a raw-data-to-results command; matching and
+entropy-balancing stages are checkpointed and must be completed first.
 
 ## Branch policy
 

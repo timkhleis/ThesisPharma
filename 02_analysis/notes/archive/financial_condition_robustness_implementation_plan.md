@@ -1,4 +1,4 @@
-# Financial-condition robustness: implementation plan
+# Historical financial-condition robustness: implementation plan
 
 ## Implementation amendment after the outcome-blind feasibility audit
 

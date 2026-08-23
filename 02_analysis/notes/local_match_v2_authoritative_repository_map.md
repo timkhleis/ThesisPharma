@@ -12,8 +12,9 @@ historical development records and are not required for reproduction.
 | P4--P5 support and balancing | `02_analysis/R/17a_*` through `21e_certify_lmv2_p5c_provenance.R` | `P5_PRODUCTION_FINAL`, P5/P6 handoffs, and `P5C_ANNUAL_TRAJECTORY` |
 | P6 outcomes and estimation | `02_analysis/R/18a_*` through `25a_*` | outcome panels, event-study estimates, inference, and closeout packages |
 | Retained-inventor and heterogeneity packages | `02_analysis/R/26_*` through `33_*`, plus `42_*`, `43_*`, and `47_*` | selected-population estimates, status descriptions, network support, and heterogeneity packages |
-| Final diagnostics and thesis release | `02_analysis/R/34_*` through `64_*` | robustness releases, final results registry, and thesis-facing tables |
-| Thesis exhibits | `02_analysis/R/66_*` through `70_*` | generated figures and LaTeX table wrappers |
+| Final diagnostics and thesis release | `02_analysis/R/34_*` through `65m_*` | robustness releases, final results registry, relative standing, and thesis-facing tables |
+| Release extensions | `02_analysis/R/66_run_*` through `75_run_*` | selected-population support plus financial, size, retained, and deal-value robustness packages |
+| Thesis exhibits | `02_analysis/R/66_build_*` through `70_build_*` | generated figures and LaTeX table wrappers |
 
 ## Frozen lineage
 
@@ -26,6 +27,8 @@ historical development records and are not required for reproduction.
    full-cohort results.
 5. `60_run_final_thesis_results_1993.R` refreshes the final thesis release and,
    with `--rebuild-new`, reruns the newer robustness and mechanism packages.
+6. `75_run_lmv2_release_extensions.R` builds and certifies the late robustness
+   extensions after the frozen P5c/P6 inputs exist.
 
 The machine-readable authority for thesis claims is
 `final_thesis_results_registry_1993.csv`; the human-readable companion is

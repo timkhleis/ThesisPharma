@@ -13,8 +13,9 @@ separate Git worktree.
 | Local Match v2 foundation and weights | `15a_*`--`21e_*` | Lock the design, construct treatment/control interfaces, build local support, and solve/certify entropy-balanced weights. |
 | Main outcomes and estimation | `18a_*`--`25a_*` | Build event panels, estimate full-cohort outcomes, run inference, and construct closeout packages. |
 | Initially retained and heterogeneity | `26_*`--`33_*` | Selected-population retained-inventor estimates, selection diagnostics, DealSim, and inventor/VR heterogeneity. |
-| Diagnostics and final release | `34_*`--`64_*` | Inventories, placebos, decompositions, HonestDiD, robustness, CS(2021), mechanisms, and network gates. |
-| Thesis exhibits | `66_*`--`70_*` | Build results, robustness, appendix, and TechDrift exhibits from certified artifacts. |
+| Diagnostics and final release | `34_*`--`65m_*` | Inventories, placebos, decompositions, HonestDiD, robustness, CS(2021), mechanisms, network gates, and relative standing. |
+| Release extensions | `66_run_*`--`75_run_*` | Selection/support diagnostics, retained robustness, deal-value quantiles, and the standard-path extension runner. |
+| Thesis exhibits | `66_build_*`--`70_build_*` | Build results, robustness, appendix, and TechDrift exhibits from certified artifacts. |
 
 The main thesis-facing refresh command is:
 
@@ -24,6 +25,10 @@ The main thesis-facing refresh command is:
 
 Add `--rebuild-new` to rerun the estimators listed by that orchestrator before
 rebuilding the release index and tables.
+
+Run `00_replication_preflight.R` before any production stage. See
+[`REPLICATION.md`](REPLICATION.md) for the licensed-input layout, exact scope
+of each runner, package versions, and the final robustness-extension command.
 
 ## Authoritative outputs
 

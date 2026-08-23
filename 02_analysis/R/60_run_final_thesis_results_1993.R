@@ -38,6 +38,32 @@ if (rebuild) {
   run("64_build_lmv2_network_descriptive.R")
   run("65_run_lmv2_relative_standing.R")
   run("65k_estimate_lmv2_relative_standing_5x5.R")
+  run("65m_estimate_lmv2_heterogeneity_pretrends.R")
+  p6_root <- file.path(
+    root, "02_analysis", "output", "audit",
+    "local_match_v2_1993_amendment"
+  )
+  citation_dir <- file.path(p6_root, "P6_ESTIMATION_CITATIONS_PER_PATENT")
+  citation_manifest <- file.path(citation_dir, "p6_estimation_manifest.csv")
+  if (!file.exists(citation_manifest)) {
+    run("19c_run_lmv2_p6_estimation.R", c(
+      paste0(
+        "--panel-dir=",
+        file.path(p6_root, "P6_P5C_COUNT_ACTIVE", "panel_matched")
+      ),
+      paste0(
+        "--p6-manifest=",
+        file.path(p6_root, "P6_P5C_COUNT_ACTIVE", "p6_manifest.csv")
+      ),
+      paste0("--output-dir=", citation_dir),
+      "--outcomes=fwd_cits5_conditional_mean"
+    ))
+  } else {
+    message(
+      "[1993 final release] Reusing certified citations-per-patent estimate: ",
+      citation_manifest
+    )
+  }
 }
 
 run("58_build_final_thesis_release_1993.R")
