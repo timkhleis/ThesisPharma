@@ -40,6 +40,15 @@ headline_only <- tolower(arg("headline-only", "false")) %in%
 bootstrap_reps <- as.integer(arg("bootstrap-reps", "0"))
 resume <- tolower(arg("resume", "true")) %in% c("true", "1", "yes")
 checkpoint_every <- as.integer(arg("checkpoint-every", "50"))
+point_only <- tolower(arg("point-only", "false")) %in%
+  c("true", "1", "yes")
+retained_candidates_path <- arg("retained-candidates", NA_character_)
+reference_results_override <- arg("reference-results", NA_character_)
+retained_mode <- !is.na(retained_candidates_path)
+if (retained_mode) {
+  retained_candidates_path <- normalizePath(
+    retained_candidates_path, winslash = "/", mustWork = TRUE)
+}
 if (anyNA(c(draws, firms_per_arm, master_seed)) ||
     anyNA(c(bootstrap_reps, checkpoint_every)) || draws < 1L ||
     firms_per_arm < 2L || bootstrap_reps < 0L || checkpoint_every < 1L) {
@@ -147,6 +156,23 @@ DBI::dbExecute(con, "
     ON t.codinv=b.codinv
    AND t.first_treated_cohort<=b.cohort+5
   WHERE t.codinv IS NULL")
+if (retained_mode) {
+  DBI::dbExecute(con, sprintf("
+    CREATE OR REPLACE TEMP TABLE simple_retained_candidates AS
+    SELECT DISTINCT
+      CAST(cohort AS INTEGER) cohort,
+      CAST(codinv AS BIGINT) codinv,
+      CAST(control_group AS BIGINT) id_group
+    FROM read_parquet('%s')
+    WHERE retention_window='t1_t5_primary'
+      AND retention_status='initially_retained'",
+    gsub("'", "''", retained_candidates_path)))
+  DBI::dbExecute(con, "
+    CREATE OR REPLACE TEMP TABLE simple_u2_units AS
+    SELECT u.*
+    FROM simple_u2_units u
+    JOIN simple_retained_candidates r USING(cohort,codinv,id_group)")
+}
 
 candidate_firms <- DBI::dbGetQuery(con, "
   SELECT
@@ -351,6 +377,50 @@ restore_rows <- function(files, target, label) {
   }
   target
 }
+
+fit_delta_point_only <- function(data) {
+  model <- fixest::feols(
+    delta ~ treated | cohort,
+    data = data,
+    weights = ~inventors,
+    warn = FALSE, notes = FALSE)
+  estimate <- unname(stats::coef(model)[["treated"]])
+  data.frame(
+    estimate = estimate,
+    standard_error = NA_real_, p_value = NA_real_,
+    ci_low = NA_real_, ci_high = NA_real_,
+    primary_inference = "point_estimate_only",
+    hc3_p_value = NA_real_, cohort_wild_p_value = NA_real_,
+    firm_crv1_se = NA_real_, firm_crv1_p_value = NA_real_,
+    cohort_crv1_se = NA_real_, cohort_crv1_p_value = NA_real_,
+    two_way_crv1_se = NA_real_, two_way_crv1_p_value = NA_real_,
+    stringsAsFactors = FALSE)
+}
+
+firm_headline <- NULL
+if (headline_only) {
+  firm_headline <- DBI::dbGetQuery(con, "
+    WITH event_times AS (
+      SELECT UNNEST([-1,1,2,3,4,5])::INTEGER AS event_time
+    ), firm_event AS (
+      SELECT u.cohort,u.id_group,e.event_time,
+        COUNT(*) AS inventors,
+        AVG(COALESCE(y.patent_count,0))::DOUBLE AS mean_patent_count
+      FROM simple_u2_units u
+      CROSS JOIN event_times e
+      LEFT JOIN lmv2_p3_inventor_year_typed y
+        ON y.codinv=u.codinv AND y.year=u.cohort+e.event_time
+      GROUP BY 1,2,3
+    ), baseline AS (
+      SELECT cohort,id_group,inventors,mean_patent_count baseline
+      FROM firm_event WHERE event_time=-1
+    ), post AS (
+      SELECT cohort,id_group,inventors,AVG(mean_patent_count) post
+      FROM firm_event WHERE event_time BETWEEN 1 AND 5
+      GROUP BY 1,2,3)
+    SELECT p.cohort,p.id_group,p.inventors,p.post-b.baseline delta
+    FROM post p JOIN baseline b USING(cohort,id_group,inventors)")
+}
 if (resume) {
   headline_rows <- restore_rows(
     checkpoint_files("headline"), headline_rows, "headline")
@@ -381,15 +451,26 @@ started <- Sys.time()
 for (draw_id in draw_ids) {
   draw_started <- Sys.time()
   assignment <- draw_assignment(draw_id)
-  duckdb::duckdb_register(con, "simple_assignment", assignment)
-  event_time_expression <- if (headline_only) {
-    "UNNEST([-1,1,2,3,4,5])::INTEGER"
+  if (headline_only) {
+    headline_data <- merge(
+      assignment[c("cohort", "id_group", "treated")],
+      firm_headline,
+      by = c("cohort", "id_group"), sort = FALSE)
+    if (nrow(headline_data) != nrow(assignment)) {
+      stop("Precomputed placebo firm outcomes failed to map")
+    }
+    headline <- if (point_only) {
+      fit_delta_point_only(headline_data)
+    } else {
+      fit_delta(
+        headline_data,
+        bootstrap_seed = master_seed + 100000L + draw_id)
+    }
   } else {
-    "UNNEST(range(-5,6))::INTEGER"
-  }
-  firm_event <- DBI::dbGetQuery(con, sprintf("
+    duckdb::duckdb_register(con, "simple_assignment", assignment)
+    firm_event <- DBI::dbGetQuery(con, sprintf("
     WITH event_times AS (
-      SELECT %s AS event_time
+      SELECT UNNEST(range(-5,6))::INTEGER AS event_time
     ),
     recruited AS (
       SELECT
@@ -407,27 +488,28 @@ for (draw_id in draw_ids) {
       ON y.codinv=r.codinv
      AND y.year=r.cohort+e.event_time
     GROUP BY 1,2,3,4
-    ORDER BY 1,2,4", event_time_expression))
-  duckdb::duckdb_unregister(con, "simple_assignment")
+    ORDER BY 1,2,4"))
+    duckdb::duckdb_unregister(con, "simple_assignment")
 
-  baseline <- firm_event[
-    firm_event$event_time == -1L,
-    c("cohort", "id_group", "treated", "inventors",
-      "mean_patent_count")]
-  names(baseline)[5L] <- "baseline"
-  post <- stats::aggregate(
-    mean_patent_count ~ cohort + id_group + treated + inventors,
-    data = firm_event[firm_event$event_time %in% 1:5, ],
-    FUN = mean)
-  headline_data <- merge(
-    post, baseline,
-    by = c("cohort", "id_group", "treated", "inventors"),
-    sort = FALSE)
-  headline_data$delta <-
-    headline_data$mean_patent_count - headline_data$baseline
-  headline <- fit_delta(
-    headline_data,
-    bootstrap_seed = master_seed + 100000L + draw_id)
+    baseline <- firm_event[
+      firm_event$event_time == -1L,
+      c("cohort", "id_group", "treated", "inventors",
+        "mean_patent_count")]
+    names(baseline)[5L] <- "baseline"
+    post <- stats::aggregate(
+      mean_patent_count ~ cohort + id_group + treated + inventors,
+      data = firm_event[firm_event$event_time %in% 1:5, ],
+      FUN = mean)
+    headline_data <- merge(
+      post, baseline,
+      by = c("cohort", "id_group", "treated", "inventors"),
+      sort = FALSE)
+    headline_data$delta <-
+      headline_data$mean_patent_count - headline_data$baseline
+    headline <- fit_delta(
+      headline_data,
+      bootstrap_seed = master_seed + 100000L + draw_id)
+  }
   headline$draw_id <- draw_id
   headline$treated_firms <- sum(assignment$treated == 1L)
   headline$control_firms <- sum(assignment$treated == 0L)
@@ -515,20 +597,32 @@ summary$cohort_wild_rejection_share_5pct <- if (
 } else {
   mean(headline$cohort_wild_p_value < 0.05, na.rm = TRUE)
 }
-reference_path <- file.path(
-  BASE, "output", "audit", "local_match_v2_1993_amendment",
-  "P6_ESTIMATION_PRIMARY", "p6_headline_post_att.csv")
+reference_path <- if (!is.na(reference_results_override)) {
+  normalizePath(reference_results_override, winslash = "/", mustWork = TRUE)
+} else if (retained_mode) {
+  file.path(
+    BASE, "output", "audit", "local_match_v2_1993_amendment",
+    "P5B_STAYER_S4_RESULTS", "s4_headline_post_att.csv")
+} else {
+  file.path(
+    BASE, "output", "audit", "local_match_v2_1993_amendment",
+    "P6_ESTIMATION_PRIMARY", "p6_headline_post_att.csv")
+}
 if (!file.exists(reference_path)) {
   stop("Certified main-result inventory not found: ", reference_path)
 }
 reference_inventory <- utils::read.csv(
   reference_path, stringsAsFactors = FALSE)
-reference_row <- reference_inventory[
+reference_keep <-
   reference_inventory$sample == "full_1993_2010" &
-    reference_inventory$outcome == "patent_count" &
-    reference_inventory$summary == "average_annual_t1_to_t5" &
-    reference_inventory$inference == "deal_wild_bootstrap_t", ,
-  drop = FALSE]
+  reference_inventory$outcome == "patent_count" &
+  reference_inventory$summary == "average_annual_t1_to_t5" &
+  reference_inventory$inference == "deal_wild_bootstrap_t"
+if (retained_mode && "spec" %in% names(reference_inventory)) {
+  reference_keep <- reference_keep &
+    reference_inventory$spec == "primary_count_active_scale"
+}
+reference_row <- reference_inventory[reference_keep, , drop = FALSE]
 if (nrow(reference_row) != 1L ||
     !is.finite(reference_row$estimate)) {
   stop("Certified patent-count ATT is not uniquely identified")
@@ -661,7 +755,11 @@ if (!headline_only) {
 }
 
 manifest <- data.frame(
-  design = "simple_symmetric_random_u2_firm_placebo",
+  design = if (retained_mode) {
+    "simple_symmetric_random_u2_firm_placebo_initially_retained"
+  } else {
+    "simple_symmetric_random_u2_firm_placebo"
+  },
   cohorts = "1993-2010",
   draws = draws,
   firms_per_arm_per_cohort = firms_per_arm,
@@ -677,10 +775,22 @@ manifest <- data.frame(
   },
   bootstrap_replications = bootstrap_reps,
   headline_only = headline_only,
+  point_estimate_only = point_only,
   resume_enabled = resume,
   checkpoint_every = checkpoint_every,
-  interpretation =
-    "preliminary recruitment/event-time falsification; not P5 validation",
+  interpretation = if (retained_mode) {
+    paste(
+      "retained-inventor recruitment/event-time falsification;",
+      "retention applied symmetrically relative to placebo cohort;",
+      "not P5 validation")
+  } else {
+    "preliminary recruitment/event-time falsification; not P5 validation"
+  },
+  retained_candidates = if (retained_mode) {
+    retained_candidates_path
+  } else {
+    NA_character_
+  },
   script_sha256 = digest::digest(
     file = file.path(
       BASE, "R", "36_run_lmv2_simple_control_placebo.R"),

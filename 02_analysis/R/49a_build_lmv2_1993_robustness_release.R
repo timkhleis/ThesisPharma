@@ -64,7 +64,17 @@ add_weight(
 )
 add_weight(
   "equal_deal_same16", "Equal-deal weighting",
-  "No detectable effect for the equally weighted acquisition estimand."
+  paste(
+    "No detectable effect for the equally weighted acquisition estimand;",
+    "this solve excludes cohorts 2000 and 2005."
+  )
+)
+add_weight(
+  "headline_same16", "Inventor weighting on equal-deal cohort set",
+  paste(
+    "Same 16 cohorts as the equal-deal estimate, so the aggregation",
+    "comparison is not confounded by cohort coverage."
+  )
 )
 add_weight(
   "no_deal70", "Exclude deal 70 and re-solve",
@@ -73,6 +83,161 @@ add_weight(
 add_weight(
   "omit_henkel", "Exclude Henkel and re-solve",
   "Henkel does not drive the inventor-weighted result."
+)
+
+size_dir <- file.path(ROBUST, "DEAL_VALUE_SIZE_SPLIT")
+size_design_dir <- file.path(size_dir, "DESIGN_V2")
+size_estimation_dir <- file.path(size_dir, "ESTIMATION_PRIMARY_V3")
+size_sensitivity_dir <- file.path(size_dir, "ESTIMATION_REBALANCED")
+size_headline_path <- file.path(
+  size_estimation_dir, "deal_value_size_headline.csv")
+size_difference_path <- file.path(
+  size_estimation_dir, "deal_value_size_formal_difference.csv")
+size_manifest_path <- file.path(
+  size_estimation_dir, "deal_value_size_estimation_manifest.csv")
+size_counts_path <- file.path(
+  size_estimation_dir, "deal_value_size_primary_counts.csv")
+size_identity_path <- file.path(
+  size_estimation_dir, "deal_value_size_filtered_identity_check.csv")
+size_sensitivity_difference_path <- file.path(
+  size_sensitivity_dir, "deal_value_size_formal_difference.csv")
+size_headline <- read_csv(size_headline_path)
+size_difference <- read_csv(size_difference_path)
+size_manifest <- read_csv(size_manifest_path)
+size_counts <- read_csv(size_counts_path)
+size_identity <- read_csv(size_identity_path)
+size_sensitivity_difference <- read_csv(size_sensitivity_difference_path)
+if (!isTRUE(size_manifest$main_text_eligible[[1]]) ||
+    !identical(size_manifest$placement[[1]], "main_table_and_appendix")) {
+  stop("Deal-value size split is not eligible for the Influence and aggregation panel")
+}
+size_governing <- size_headline[
+  size_headline$summary == "average_annual_t1_to_t5" &
+    size_headline$governing, , drop = FALSE]
+size_count <- function(group, field) {
+  row <- size_counts$size_group == group
+  as.integer(size_counts[[field]][row])
+}
+add_size <- function(spec, label, group = NA_character_) {
+  z <- one(size_governing, size_governing$specification == spec, label)
+  detail <- if (is.na(group)) {
+    paste0(
+      "Pooled inventor-weighted anchor on the 16 common financial-size cohorts (",
+      sum(size_counts$acquisitions),
+      " acquisitions; ",
+      sum(size_counts$supported_treated_inventors),
+      " supported treated inventors)."
+    )
+  } else {
+    paste0(
+      if (group == "small") "Target value at or below EUR 5 billion" else
+        "Target value above EUR 5 billion",
+      "; ", size_count(group, "acquisitions"),
+      " acquisitions and ", size_count(group, "supported_treated_inventors"),
+      " treated inventors."
+    )
+  }
+  add(
+    label, num(z$estimate), num(z$ci_low), num(z$ci_high), num(z$p_value),
+    interpretation = detail, source = size_headline_path
+  )
+}
+add_size(
+  "pooled_common_cohorts", "Deal-value split: pooled common-cohort anchor")
+add_size("deal_value_size_small", "Deal value at or below EUR 5 billion", "small")
+add_size("deal_value_size_large", "Deal value above EUR 5 billion", "large")
+size_diff <- one(
+  size_difference, size_difference$governing, "deal-value direct difference")
+add(
+  "Deal-value split: above minus at/below EUR 5 billion", num(size_diff$estimate),
+  num(size_diff$ci_low), num(size_diff$ci_high), num(size_diff$p_value),
+  interpretation = paste(
+    "Formal direct comparison on 16 common cohorts. The subgroup estimates",
+    "are not statistically distinguishable."
+  ), source = size_difference_path
+)
+size_sensitivity_diff <- one(
+  size_sensitivity_difference, size_sensitivity_difference$governing,
+  "rebalanced deal-value difference")
+add(
+  "Deal-value split: rebalanced subset difference",
+  num(size_sensitivity_diff$estimate), num(size_sensitivity_diff$ci_low),
+  num(size_sensitivity_diff$ci_high), num(size_sensitivity_diff$p_value),
+  status = "appendix_sensitivity",
+  interpretation = paste(
+    "Stage-2 weights are re-solved within value cells; only nine cohorts and",
+    "24 above-threshold acquisitions remain."
+  ), source = size_sensitivity_difference_path
+)
+
+quantile_dir <- file.path(
+  ROBUST, "DEAL_VALUE_QUANTILES", "ESTIMATION_V2"
+)
+quantile_att_path <- file.path(quantile_dir, "deal_value_quantile_att.csv")
+quantile_counts_path <- file.path(
+  quantile_dir, "deal_value_quantile_estimation_counts.csv")
+quantile_omnibus_path <- file.path(
+  quantile_dir, "deal_value_quantile_omnibus.csv")
+quantile_extreme_path <- file.path(
+  quantile_dir, "deal_value_quantile_extreme_contrasts.csv")
+quantile_identity_path <- file.path(
+  quantile_dir, "deal_value_quantile_pooled_identity.csv")
+quantile_certification_path <- file.path(
+  quantile_dir, "deal_value_quantile_certification.csv")
+quantile_manifest_path <- file.path(
+  quantile_dir, "deal_value_quantile_estimation_manifest.csv")
+quantile_att <- read_csv(quantile_att_path)
+quantile_counts <- read_csv(quantile_counts_path)
+quantile_omnibus <- read_csv(quantile_omnibus_path)
+quantile_extreme <- read_csv(quantile_extreme_path)
+quantile_identity <- read_csv(quantile_identity_path)
+quantile_certification <- read_csv(quantile_certification_path)
+quantile_manifest <- read_csv(quantile_manifest_path)
+
+quartile_att <- quantile_att[quantile_att$partition == "quartile", ]
+quartile_counts <- quantile_counts[quantile_counts$partition == "quartile", ]
+for (label in paste0("Q", 1:4)) {
+  z <- one(quartile_att, quartile_att$bin == label, paste("deal-value", label))
+  count <- one(
+    quartile_counts, quartile_counts$bin == label, paste("deal-value count", label))
+  add(
+    paste("Deal-value quartile", label), num(z$estimate), num(z$ci_low),
+    num(z$ci_high), num(z$governing_p), status = "appendix_exploratory",
+    interpretation = paste0(
+      count$acquisitions[[1]], " acquisitions and ",
+      count$treated_inventors[[1]], " treated inventors."
+    ), source = quantile_att_path
+  )
+}
+quantile_extreme_q <- one(
+  quantile_extreme, quantile_extreme$partition == "quartile",
+  "deal-value Q4-minus-Q1 contrast")
+add(
+  "Deal-value quartiles: Q4 minus Q1", num(quantile_extreme_q$estimate),
+  num(quantile_extreme_q$ci_low), num(quantile_extreme_q$ci_high),
+  num(quantile_extreme_q$governing_p), status = "appendix_exploratory",
+  interpretation = "Formal top-minus-bottom quartile comparison.",
+  source = quantile_extreme_path
+)
+quantile_omnibus_q <- one(
+  quantile_omnibus, quantile_omnibus$partition == "quartile",
+  "deal-value quartile omnibus")
+add(
+  "Deal-value quartiles: joint equality test", p_value =
+    num(quantile_omnibus_q$governing_p), status = "appendix_exploratory",
+  interpretation = "Three-restriction test that all four quartile ATTs are equal.",
+  source = quantile_omnibus_path
+)
+
+quantile_release <- quantile_att[c(
+  "partition", "bin", "estimate", "ci_low", "ci_high", "governing_p")]
+names(quantile_release)[names(quantile_release) == "governing_p"] <-
+  "ordinary_p_value"
+quantile_release$p_value_type <- "ordinary_unadjusted"
+utils::write.csv(
+  quantile_release,
+  file.path(OUT, "deal_value_quantile_profile_ordinary_p.csv"),
+  row.names = FALSE
 )
 
 donor <- weight[grepl("^omit_firm_", weight$specification), , drop = FALSE]
@@ -352,7 +517,12 @@ utils::write.csv(
 required <- c(
   weight_path, cbps_path, transform_path, ppml_path, lodo_path, sign_path,
   loyo_path, m1_path, ipc_path, ppscm_path, uniform_path, placebo_path,
-  vr_path, stayer_het_path, inventor_omnibus_path, exit_path
+  vr_path, stayer_het_path, inventor_omnibus_path, exit_path,
+  size_headline_path, size_difference_path, size_manifest_path,
+  size_counts_path, size_identity_path, size_sensitivity_difference_path,
+  quantile_att_path, quantile_counts_path, quantile_omnibus_path,
+  quantile_extreme_path, quantile_identity_path,
+  quantile_certification_path, quantile_manifest_path
 )
 cert <- data.frame(
   check = c(
@@ -361,6 +531,12 @@ cert <- data.frame(
     "untreated_placebo_has_both_plots", "loyo_m1_certified",
     "untreated_placebo_certified", "uniform_completed_499_draws",
     "uniform_failed_gate_without_real_post_att",
+    "deal_value_size_estimation_certified",
+    "deal_value_size_filtered_identity_passes",
+    "deal_value_size_formal_difference_reported",
+    "deal_value_quantile_estimation_certified",
+    "deal_value_quantile_pooled_identity_passes",
+    "deal_value_quantile_formal_tests_reported",
     "all_numeric_reported_p_values_are_valid"
   ),
   pass = c(
@@ -386,8 +562,30 @@ cert <- data.frame(
     uniform$completed_draws == 499L,
     identical(uniform$status, "CONTROL_NULL_FAILED") &&
       !isTRUE(uniform$real_post_outcomes_queried),
+    all(read_csv(
+      size_estimation_dir, "deal_value_size_estimation_certification.csv"
+    )$pass) && isTRUE(size_manifest$all_panel_certification_pass[[1]]) &&
+      isTRUE(size_manifest$joint_model_tooth_check_pass[[1]]),
+    isTRUE(size_manifest$filtered_identity_pass[[1]]) &&
+      isTRUE(size_identity$pass[[1]]) &&
+      size_identity$absolute_difference[[1]] <= size_identity$tolerance[[1]],
+    nrow(size_difference[size_difference$governing, , drop = FALSE]) == 1L &&
+      abs(size_diff$estimate[[1]] - (-0.0149654064648304)) < 1e-10,
+    all(quantile_certification$pass) &&
+      isTRUE(quantile_manifest$all_certification_pass[[1]]) &&
+      nrow(quantile_att) == 14L &&
+      sum(quantile_counts$partition == "decile") == 10L &&
+      sum(quantile_counts$partition == "quartile") == 4L,
+    all(quantile_identity$pass) &&
+      isTRUE(quantile_manifest$pooled_contribution_identity_pass[[1]]) &&
+      max(abs(quantile_identity$pooled_att - (-0.0520603086129782))) < 1e-10,
+    nrow(quantile_omnibus) == 2L && nrow(quantile_extreme) == 2L &&
+      abs(quantile_omnibus_q$governing_p[[1]] - 0.5088) < 1e-10 &&
+      abs(quantile_extreme_q$estimate[[1]] - (-0.0136348555616051)) < 1e-10,
     all(results$p_value[is.finite(results$p_value)] >= 0 &
-          results$p_value[is.finite(results$p_value)] <= 1)
+          results$p_value[is.finite(results$p_value)] <= 1) &&
+      all(quantile_release$ordinary_p_value >= 0 &
+          quantile_release$ordinary_p_value <= 1)
   ),
   stringsAsFactors = FALSE
 )
