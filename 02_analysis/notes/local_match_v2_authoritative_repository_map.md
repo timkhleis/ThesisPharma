@@ -34,6 +34,10 @@ The machine-readable authority for thesis claims is
 `final_thesis_results_registry_1993.csv`; the human-readable companion is
 `final_thesis_results_inventory_1993.md`.
 
+The registry's 18 directly linked result scripts are grouped in
+`02_analysis/R/final_thesis/`; their shared builders, configurations, and
+certifiers remain in the parent `02_analysis/R/` pipeline.
+
 ## Package 8 and later diagnostics
 
 Package 8 and subsequent scripts remain additive: they read frozen support,

@@ -429,7 +429,8 @@ execution_hash <- digest::digest(list(
     algo = "sha256"),
   source_sha256 = digest::digest(
     file = file.path(
-      BASE, "R", "24a_run_lmv2_verginer_early_recruitment_p6.R"),
+      BASE, "R", "final_thesis",
+      "24a_run_lmv2_verginer_early_recruitment_p6.R"),
     algo = "sha256"),
   bootstrap_reps = BOOTSTRAP_REPS
 ), algo = "sha256")

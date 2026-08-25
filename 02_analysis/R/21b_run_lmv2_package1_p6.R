@@ -32,7 +32,7 @@ freeze_path <- file.path(
 required <- c(
   base_panel_dir, base_manifest, p4_grid_cert, freeze_path,
   file.path(BASE, "R", "20a_reweight_lmv2_p6_panel.R"),
-  file.path(BASE, "R", "19c_run_lmv2_p6_estimation.R"),
+  file.path(BASE, "R", "final_thesis", "19c_run_lmv2_p6_estimation.R"),
   file.path(BASE, "R", "19d_certify_lmv2_p6_estimation.R"))
 if (!all(file.exists(required) | dir.exists(required))) {
   stop("Package 1 P6 input is missing")
@@ -103,7 +103,7 @@ for (variant in variants) {
         estimation_out)
     }
     run_r(
-      file.path(BASE, "R", "19c_run_lmv2_p6_estimation.R"),
+      file.path(BASE, "R", "final_thesis", "19c_run_lmv2_p6_estimation.R"),
       c(
         paste0("--panel-dir=", file.path(panel_out, "panel_matched")),
         paste0("--p6-manifest=", panel_manifest),

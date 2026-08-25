@@ -131,6 +131,10 @@ results remain part of the release: TechDrift fails its joint pretrend gate,
 DealSim fails its prospective power gate, the network design fails validation,
 and ordinary Lee bounds are not identified under defensible assumptions.
 
+The 18 scripts linked directly by that registry are grouped under
+`02_analysis/R/final_thesis/`. They remain part of the wider staged pipeline
+and use shared dependencies from `02_analysis/R/`.
+
 The GitHub repository is therefore a code-and-documentation release. A fully
 executable replication handoff also requires the separately authorized raw
 inputs (or a certified generated-artifact bundle) because neither can be

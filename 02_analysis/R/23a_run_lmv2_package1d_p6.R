@@ -39,7 +39,7 @@ required <- c(
   base_panel_dir, base_manifest, p4_cert_path, roster, roster_manifest,
   FREEZE_PATH,
   file.path(BASE, "R", "20a_reweight_lmv2_p6_panel.R"),
-  file.path(BASE, "R", "19c_run_lmv2_p6_estimation.R"),
+  file.path(BASE, "R", "final_thesis", "19c_run_lmv2_p6_estimation.R"),
   file.path(BASE, "R", "19d_certify_lmv2_p6_estimation.R"))
 if (!all(file.exists(required) | dir.exists(required))) {
   stop("Package 1D P6 input is missing")
@@ -88,7 +88,7 @@ if (!file.exists(estimation_cert)) {
     stop("Partial Package 1D estimation directory requires review")
   }
   run_r(
-    file.path(BASE, "R", "19c_run_lmv2_p6_estimation.R"),
+    file.path(BASE, "R", "final_thesis", "19c_run_lmv2_p6_estimation.R"),
     c(
       paste0("--panel-dir=", file.path(panel_out, "panel_matched")),
       paste0("--p6-manifest=", panel_manifest),

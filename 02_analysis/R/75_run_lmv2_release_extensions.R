@@ -45,8 +45,11 @@ rscript <- file.path(R.home("bin"), "Rscript.exe")
 if (!file.exists(rscript)) rscript <- file.path(R.home("bin"), "Rscript")
 run <- function(script, extra = character()) {
   message("[release extensions] ", script)
+  script_path <- file.path(r_dir, script)
+  final_path <- file.path(r_dir, "final_thesis", script)
+  if (file.exists(final_path)) script_path <- final_path
   status <- system2(
-    rscript, c(file.path(r_dir, script), extra), stdout = "", stderr = ""
+    rscript, c(script_path, extra), stdout = "", stderr = ""
   )
   if (!identical(status, 0L)) stop(script, " failed with status ", status)
 }

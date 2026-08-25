@@ -9,7 +9,8 @@ args <- commandArgs(trailingOnly = TRUE)
 rebuild <- "--rebuild-new" %in% args
 
 root <- normalizePath(".", winslash = "/", mustWork = TRUE)
-if (!file.exists(file.path(root, "02_analysis", "R", "51_run_cs2021_1993.R"))) {
+final_r <- file.path(root, "02_analysis", "R", "final_thesis")
+if (!file.exists(file.path(final_r, "51_run_cs2021_1993.R"))) {
   stop("Run this script from the thesis repository root.")
 }
 rscript <- file.path(R.home("bin"), "Rscript.exe")
@@ -17,6 +18,8 @@ if (!file.exists(rscript)) rscript <- file.path(R.home("bin"), "Rscript")
 
 run <- function(script, extra = character()) {
   path <- file.path(root, "02_analysis", "R", script)
+  final_path <- file.path(final_r, script)
+  if (file.exists(final_path)) path <- final_path
   message("[1993 final release] ", script)
   status <- system2(rscript, c(path, extra), stdout = "", stderr = "")
   if (!identical(status, 0L)) stop(script, " failed with status ", status)

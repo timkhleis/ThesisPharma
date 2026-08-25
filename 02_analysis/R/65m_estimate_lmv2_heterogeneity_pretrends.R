@@ -19,6 +19,7 @@ source(file.path(BASE, "R", "18a_lmv2_outcome_config.R"))
 source(file.path(BASE, "R", "19a_lmv2_p6_estimation_config.R"))
 source(file.path(BASE, "R", "32a_lmv2_vr_heterogeneity_config.R"))
 source(file.path(BASE, "R", "33a_lmv2_stayer_heterogeneity_config.R"))
+source(file.path(BASE, "R", "65a_lmv2_relative_standing_config.R"))
 
 read_parquet <- function(con, path) {
   DBI::dbGetQuery(con, sprintf(
@@ -102,6 +103,10 @@ model_spec <- list(
     rhs = c(common_rhs, "techfit_z", "tx_techfit"),
     term = "tx_techfit"
   )
+)
+
+star_rhs <- c(
+  common_rhs, "star_c", "tx_star"
 )
 
 linear_two_way <- function(fit, covariance, term, confidence = 0.95) {
@@ -235,6 +240,67 @@ estimate_sample <- function(unit, sample, prepare, cfg, output_path) {
   list(pretrend = pretrend, effect = effect)
 }
 
+attach_star_moderator <- function(unit, moderators) {
+  eligible <- moderators$standing_eligibility == "eligible" &
+    !is.na(moderators$kapoor_top20)
+  m <- moderators[eligible, c("roster_row_id", "kapoor_top20")]
+  if (anyDuplicated(m$roster_row_id)) {
+    stop("Eligible star moderator rows are duplicated")
+  }
+  pos <- match(unit$roster_row_id, m$roster_row_id)
+  keep <- !is.na(pos)
+  z <- unit[keep, , drop = FALSE]
+  z$kapoor_top20 <- m$kapoor_top20[pos[keep]]
+  z
+}
+
+prepare_star_data <- function(unit, cohorts) {
+  z <- unit[unit$cohort %in% cohorts, , drop = FALSE]
+  z <- lmv2_vr_analysis_weights(z)
+  tr <- z$treated == 1
+  wmean <- function(v, w) sum(v * w) / sum(w)
+  center <- function(v) v - wmean(v[tr], z$analysis_weight[tr])
+  standardize <- function(v) {
+    m <- wmean(v[tr], z$analysis_weight[tr])
+    s <- sqrt(wmean((v[tr] - m)^2, z$analysis_weight[tr]))
+    if (!is.finite(s) || s <= 1e-12) stop("Degenerate moderator scale")
+    (v - m) / s
+  }
+  z$prod_z <- standardize(z$log_patent_count_5y)
+  z$age_z <- standardize(log1p(z$career_age))
+  z$team_any_c <- center(z$team_any)
+  positive_team <- tr & z$team_any == 1
+  team_mean <- if (any(positive_team)) {
+    wmean(
+      z$persistent_patent_share[positive_team],
+      z$analysis_weight[positive_team]
+    )
+  } else 0
+  z$team_intensity <- ifelse(
+    z$team_any == 1, z$persistent_patent_share - team_mean, 0
+  )
+  z$star_c <- center(z$kapoor_top20)
+  z$tx_star <- z$treated * z$star_c
+  z
+}
+
+estimate_star_sample <- function(unit, sample, cohorts) {
+  z <- attach_pre_outcomes(prepare_star_data(unit, cohorts))
+  rows <- lapply(c("patent_count", "active_patenting"), function(outcome) {
+    diagnostic <- joint_pretrend(z, outcome, star_rhs, "tx_star")
+    diagnostic$sample <- sample
+    diagnostic$moderator <- "star_inventor"
+    diagnostic$outcome <- outcome
+    diagnostic
+  })
+  pretrend <- do.call(rbind, rows)
+  pretrend[, c(
+    "sample", "moderator", "outcome", "periods", "f_stat", "df1",
+    "df2", "p_value", "estimate_m5", "estimate_m4", "estimate_m3",
+    "estimate_m2", "n_observations", "nominal_deals"
+  )]
+}
+
 full_unit <- read_parquet(
   con,
   file.path(LMV2_VR_HET$output_dir, "vr_unit_analysis.parquet")
@@ -242,6 +308,29 @@ full_unit <- read_parquet(
 retained_unit <- read_parquet(
   con,
   file.path(LMV2_STAYER_HET$output_dir, "stayer_unit_analysis.parquet")
+)
+standing_moderators <- read_parquet(
+  con,
+  file.path(
+    LMV2_RELSTAND$output_dir, "relative_standing_moderators.parquet"
+  )
+)
+full_star <- estimate_star_sample(
+  attach_star_moderator(full_unit, standing_moderators),
+  "full_target_inventor_cohort",
+  LMV2_VR_HET$estimand$samples$full_1993_2010
+)
+retained_star <- estimate_star_sample(
+  attach_star_moderator(retained_unit, standing_moderators),
+  "initially_retained",
+  LMV2_STAYER_HET$estimand$samples$full_1993_2010
+)
+star_pretrend <- rbind(full_star, retained_star)
+write_csv_atomic(
+  star_pretrend,
+  file.path(
+    LMV2_RELSTAND$output_dir, "star_moderator_pretrend_tests.csv"
+  )
 )
 
 full <- estimate_sample(
@@ -270,7 +359,7 @@ combined_dir <- file.path(
   "results_section_exhibits"
 )
 write_csv_atomic(
-  rbind(full$pretrend, retained$pretrend),
+  rbind(full$pretrend, retained$pretrend, star_pretrend),
   file.path(combined_dir, "heterogeneity_pretrend_tests.csv")
 )
 write_csv_atomic(

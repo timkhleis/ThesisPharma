@@ -301,8 +301,9 @@ lmv2_io_write_csv(checks, file.path(config$s4_dir, "s4_certification.csv"))
 manifest_paths <- c(
   config$plan_files, weights_path, config$foundation_db,
   file.path(config$base, "02_analysis", "R",
-            c("71a_lmv2_initially_outside_config.R",
-              "73_run_lmv2_initially_outside_s4.R")))
+            "71a_lmv2_initially_outside_config.R"),
+  file.path(config$base, "02_analysis", "R", "final_thesis",
+            "73_run_lmv2_initially_outside_s4.R"))
 manifest_paths <- manifest_paths[file.exists(manifest_paths)]
 manifest <- data.frame(
   path = normalizePath(manifest_paths, winslash = "/", mustWork = TRUE),

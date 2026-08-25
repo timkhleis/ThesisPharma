@@ -28,8 +28,11 @@ rscript <- file.path(
 run_stage <- function(script) {
   stage <- sub("\\.R$", "", script)
   log <- file.path(output_dir, paste0(stage, ".log"))
+  script_path <- file.path("02_analysis", "R", script)
+  final_path <- file.path("02_analysis", "R", "final_thesis", script)
+  if (file.exists(final_path)) script_path <- final_path
   child_args <- c(
-    file.path("02_analysis", "R", script),
+    script_path,
     if (smoke) "--smoke" else "--production",
     paste0("--output-dir=", output_dir))
   status <- system2(

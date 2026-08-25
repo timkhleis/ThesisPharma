@@ -105,7 +105,7 @@ lmv2_exit_config <- function(base = getwd(), output_dir = NULL) {
       c(
         "36a_lmv2_exit_decomposition_config.R",
         "36b_build_lmv2_global_career_endpoints.R",
-        "36c_estimate_lmv2_exit_decomposition.R",
+        "final_thesis/36c_estimate_lmv2_exit_decomposition.R",
         "36d_report_certify_lmv2_exit_decomposition.R",
         "36_run_lmv2_exit_decomposition.R"
       ))

@@ -24,9 +24,10 @@ LMV2_P6_P5C_INPUTS <- list(
     sha256 =
       "7e09ca4d5d15b242b5e2d511222b4147d3339bbe0067f190dda3b52afa7a639f"),
   estimation_runner = list(
-    path = file.path(BASE, "R", "19c_run_lmv2_p6_estimation.R"),
+    path = file.path(
+      BASE, "R", "final_thesis", "19c_run_lmv2_p6_estimation.R"),
     sha256 =
-      "29a8f2200d793a2d2b032f6b7dd474923f75598a256bd07e081dccab696538ab"),
+      "7277e8d07ecc1bcb945c8e1e6e0ae4c933f21dbc0bece9d561785f726507c46c"),
   panel_reweighter = list(
     path = file.path(BASE, "R", "20a_reweight_lmv2_p6_panel.R"),
     sha256 =

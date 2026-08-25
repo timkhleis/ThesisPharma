@@ -93,7 +93,7 @@ lmv2_io_config <- function(base = getwd()) {
         "71c_certify_lmv2_initially_outside_s0_s2.R",
         "71_run_lmv2_initially_outside_s0_s2.R",
         "72_build_lmv2_initially_outside_s3.R",
-        "73_run_lmv2_initially_outside_s4.R")),
+        "final_thesis/73_run_lmv2_initially_outside_s4.R")),
     plan_files = file.path(
       base, "02_analysis", "notes",
       c("local_match_v2_leaver_productivity_implementation_plan.md",

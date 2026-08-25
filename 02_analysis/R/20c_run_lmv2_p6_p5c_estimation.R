@@ -30,7 +30,8 @@ lmv2_p6_p5c_assert_freeze(design, panel_manifest)
 
 rscript <- file.path(
   R.home("bin"), if (.Platform$OS.type == "windows") "Rscript.exe" else "Rscript")
-runner <- file.path(BASE, "R", "19c_run_lmv2_p6_estimation.R")
+runner <- file.path(
+  BASE, "R", "final_thesis", "19c_run_lmv2_p6_estimation.R")
 status <- system2(
   rscript,
   c(

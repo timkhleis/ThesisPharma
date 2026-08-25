@@ -971,11 +971,11 @@ controls_body <- c(
   "            \\toprule",
   "            Moderator & Moderator-specific controls in $Z_{ig}$ \\\\",
   "            \\midrule",
-  "            Prior productivity & Career age, target-group tenure and exclusivity, target-group scale, field, and acquisition-cohort fixed effects. \\\\",
-  "            Persistent collaboration & Prior productivity, career age, target-group tenure and exclusivity, target-group scale, field, and acquisition-cohort fixed effects. \\\\",
-  "            Technological fit & Prior productivity, career age, target-group tenure and exclusivity, target-group scale, field, and acquisition-cohort fixed effects. \\\\",
-  "            Star inventor & Prior productivity controls and the prespecified inventor-, firm-, field-, and cohort-level controls. \\\\",
-  "            Predicted standing loss & Separate loss and gain slopes, prior productivity controls, and acquisition-cohort fixed effects; the restricted sample is rebalanced within cohort. \\\\",
+  "            Prior productivity & Career age, persistent-collaboration indicator and intensity, and acquisition-cohort fixed effects. \\\\",
+  "            Persistent collaboration & Prior productivity, career age, and acquisition-cohort fixed effects. \\\\",
+  "            Technological fit & Prior productivity, career age, persistent-collaboration indicator and intensity, and acquisition-cohort fixed effects. \\\\",
+  "            Star inventor & Prior productivity, career age, persistent-collaboration indicator and intensity, and acquisition-cohort fixed effects. \\\\",
+  "            Predicted standing loss & Prior-productivity categories, pre-acquisition patent trajectory, career age, target-group tenure and exclusivity, persistent-collaboration indicator and intensity, target-firm productivity rank, target-firm inventor-pool size, number of added acquirer inventors, patent count at $t=-1$, mean patent count over $t=-5,\\ldots,-1$, and acquisition-cohort fixed effects. \\\\",
   "            \\bottomrule",
   "        \\end{tabularx}"
 )
@@ -985,7 +985,7 @@ write_tex(
     "Moderator-Specific Controls",
     "tab:heterogeneity_controls",
     controls_body,
-    "The table summarises the prespecified control families. Exact variable construction follows the definitions in the empirical-strategy section. Continuous moderators are standardised unless stated otherwise."
+    "Every specification includes the treatment indicator, the moderator main effect or effects, and the corresponding treatment interaction or interactions. Predicted standing losses and gains enter as separate slopes. In that specification, every listed non-cohort control also enters interacted with treatment. The star-inventor and predicted-standing-loss samples are rebalanced separately within cohort. Exact variable construction follows the empirical-strategy section. Continuous variables are standardised unless stated otherwise."
   )
 )
 

@@ -81,7 +81,6 @@ LIGHT_GREY <- "#DDD6D8"
 # as context rather than competing for the same red channel.
 COHORT_BAR <- "#DAD3D1"
 COHORT_LINE <- THESIS_ACCENT
-COHORT_CAPSULE_FILL <- THESIS_TINT
 COHORT_CAPSULE_TEXT <- THESIS_ACCENT_DARK
 
 # Retain the semantic names used by the figure code below while mapping every
@@ -309,9 +308,8 @@ figure1a <- cowplot::plot_grid(p_deal_value, p_inventors, labels = c("A", "B"),
 save_figure(figure1a, "figure1a_cohorts_two_panel", 8.4, 6.5)
 
 # Figure 1B: compact MBB-style alternative with highlighted inventor capsules.
-# All 17 cohort labels stay on one row: the "n = " prefix is dropped and the
-# capsule is trimmed to the narrowest pill that still separates cleanly from
-# its neighbours. The legend identifies the capsules as affected inventors.
+# Exact cohort counts stay on one row. Compact padding lets the labels use a
+# larger font without crowding. The legend identifies them as affected inventors.
 bar_max <- max(cohorts$total_value_billions)
 label_row_y <- bar_max * 1.18
 ylim_top <- label_row_y * 1.12
@@ -325,9 +323,9 @@ p_mbb <- ggplot2::ggplot(cohorts, ggplot2::aes(x = deal_year)) +
   ggplot2::geom_label(
     ggplot2::aes(y = label_row_y, label = scales::comma(n_inventors),
                 colour = "Affected inventors (labels)"),
-    fill = COHORT_CAPSULE_FILL, size = 2.55,
-    fontface = "bold", linewidth = 0.28,
-    label.padding = grid::unit(0.12, "lines"), label.r = grid::unit(0.35, "lines")
+    fill = "white", size = 3.45,
+    fontface = "bold", linewidth = 0.32,
+    label.padding = grid::unit(0.08, "lines"), label.r = grid::unit(0.3, "lines")
   ) +
   ggplot2::scale_fill_manual(values = c("Deal value (bars)" = COHORT_BAR), name = NULL) +
   ggplot2::scale_colour_manual(values = c("Deals (line)" = COHORT_LINE,
@@ -339,6 +337,7 @@ p_mbb <- ggplot2::ggplot(cohorts, ggplot2::aes(x = deal_year)) +
   ggplot2::scale_y_continuous(
     "Aggregate deal value (EUR bn)", limits = c(0, ylim_top),
     sec.axis = ggplot2::sec_axis(~ . / value_scale, name = "Number of deals",
+                                 breaks = c(0, 20, 40),
                                  labels = scales::label_number(accuracy = 1)),
     expand = ggplot2::expansion(mult = c(0, 0.01))
   ) +
@@ -353,8 +352,10 @@ p_mbb <- ggplot2::ggplot(cohorts, ggplot2::aes(x = deal_year)) +
     legend.box.spacing = grid::unit(0.4, "lines"),
     legend.key.size = grid::unit(0.85, "lines"),
     legend.text = ggplot2::element_text(size = 9),
+    axis.title = ggplot2::element_text(size = 12),
     axis.title.y.right = ggplot2::element_text(colour = COHORT_LINE),
-    axis.text.x = ggplot2::element_text(size = 8.5)
+    axis.text = ggplot2::element_text(size = 10.5),
+    axis.text.x = ggplot2::element_text(size = 10)
   )
 save_figure(p_mbb, "figure1b_cohorts_mbb", 10.6, 5.0)
 

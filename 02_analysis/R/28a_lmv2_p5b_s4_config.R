@@ -57,7 +57,7 @@ lmv2_p5b_s4_config <- function(base = getwd()) {
       base, "02_analysis", "R",
       c(
         "28a_lmv2_p5b_s4_config.R",
-        "28b_run_lmv2_p5b_s4_estimation.R",
+        "final_thesis/28b_run_lmv2_p5b_s4_estimation.R",
         "28c_certify_lmv2_p5b_s4_results.R"
       )),
     external_core_files = file.path(

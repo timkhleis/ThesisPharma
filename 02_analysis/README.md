@@ -32,6 +32,8 @@ of each runner, package versions, and the final robustness-extension command.
 
 ## Authoritative outputs
 
+- `R/final_thesis/` contains the 18 scripts linked directly from the final
+  thesis claim registry; shared pipeline dependencies remain in `R/`.
 - `notes/final_thesis_results_inventory_1993.md` is the human-readable
   claim-to-code map.
 - `notes/final_thesis_results_registry_1993.csv` is its machine-readable

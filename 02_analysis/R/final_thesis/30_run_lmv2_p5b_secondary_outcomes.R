@@ -282,7 +282,7 @@ write_csv(certification, "s6_certification.csv")
 
 source_paths <- c(
   config$s3_weights, panel_manifest, cassi_path,
-  file.path(config$base, "02_analysis", "R",
+  file.path(config$base, "02_analysis", "R", "final_thesis",
             "30_run_lmv2_p5b_secondary_outcomes.R"),
   config$external_core_files)
 manifest <- data.frame(

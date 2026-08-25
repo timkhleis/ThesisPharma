@@ -1,7 +1,7 @@
 # Estimate the frozen P5b S4 initially-retained quantity package.
 #
 # Usage:
-# Rscript 02_analysis/R/28b_run_lmv2_p5b_s4_estimation.R
+# Rscript 02_analysis/R/final_thesis/28b_run_lmv2_p5b_s4_estimation.R
 #   [--output-dir=<directory>] [--smoke]
 #
 # Completed cohort-window/outcome/specification cells are checkpointed as RDS

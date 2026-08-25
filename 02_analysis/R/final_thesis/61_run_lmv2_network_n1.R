@@ -587,7 +587,7 @@ manifest <- data.frame(
 write_csv(manifest, "network_n1_manifest.csv")
 
 source_paths <- c(
-  file.path(BASE, "R", "61_run_lmv2_network_n1.R"),
+  file.path(BASE, "R", "final_thesis", "61_run_lmv2_network_n1.R"),
   ties_file, amend_manifest_path
 )
 source_manifest <- data.frame(

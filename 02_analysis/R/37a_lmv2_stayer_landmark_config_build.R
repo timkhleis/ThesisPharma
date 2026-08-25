@@ -3,7 +3,7 @@ if (!exists("lmv2_exit_config")) {
                    "36a_lmv2_exit_decomposition_config.R"))
 }
 if (!exists("lmv2_exit_entropy_calibrate")) {
-  source(file.path("02_analysis", "R",
+  source(file.path("02_analysis", "R", "final_thesis",
                    "36c_estimate_lmv2_exit_decomposition.R"))
 }
 

@@ -206,7 +206,7 @@ active_sources <- file.path(BASE, "R", c(
   "33e_report_certify_lmv2_stayer_heterogeneity.R",
   "34a_run_lmv2_control_endpoint_diagnostic.R",
   "36a_lmv2_exit_decomposition_config.R",
-  "36c_estimate_lmv2_exit_decomposition.R",
+  "final_thesis/36c_estimate_lmv2_exit_decomposition.R",
   "36_run_lmv2_exit_decomposition.R",
   "36_run_lmv2_simple_control_placebo.R",
   "37a_lmv2_stayer_landmark_config_build.R",

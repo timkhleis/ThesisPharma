@@ -2,7 +2,7 @@
 # 19c_run_lmv2_p6_estimation.R -- certified P6 full-cohort outcome runner
 # ============================================================================
 # Usage:
-# Rscript 02_analysis/R/19c_run_lmv2_p6_estimation.R
+# Rscript 02_analysis/R/final_thesis/19c_run_lmv2_p6_estimation.R
 #   --panel-dir=<certified P6 panel_matched directory>
 #   --p6-manifest=<certified P6 p6_manifest.csv>
 #   --output-dir=<new estimation output directory>
@@ -169,12 +169,14 @@ write_csv(headline, "p6_headline_post_att.csv")
 write_csv(coverage, "p6_outcome_pair_coverage.csv")
 write_csv(progress, "p6_estimation_progress.csv")
 
-source_files <- file.path(BASE, "R", c(
-  "18a_lmv2_outcome_config.R",
-  "19a_lmv2_p6_estimation_config.R",
-  "19b_lmv2_p6_estimation_core.R",
-  "19c_run_lmv2_p6_estimation.R"
-))
+source_files <- c(
+  file.path(BASE, "R", c(
+    "18a_lmv2_outcome_config.R",
+    "19a_lmv2_p6_estimation_config.R",
+    "19b_lmv2_p6_estimation_core.R"
+  )),
+  file.path(BASE, "R", "final_thesis", "19c_run_lmv2_p6_estimation.R")
+)
 source_hashes <- vapply(
   source_files, digest::digest, character(1),
   file = TRUE, algo = "sha256"

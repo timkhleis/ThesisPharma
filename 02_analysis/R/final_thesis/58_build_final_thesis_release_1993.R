@@ -22,7 +22,29 @@ rel <- function(path) {
   } else path
 }
 path_a <- function(...) file.path(audit, ...)
-path_r <- function(name) file.path(root, "02_analysis", "R", name)
+final_script_names <- c(
+  "19c_run_lmv2_p6_estimation.R",
+  "24a_run_lmv2_verginer_early_recruitment_p6.R",
+  "28b_run_lmv2_p5b_s4_estimation.R",
+  "30_run_lmv2_p5b_secondary_outcomes.R",
+  "36c_estimate_lmv2_exit_decomposition.R",
+  "49a_build_lmv2_1993_robustness_release.R",
+  "51_run_cs2021_1993.R",
+  "52_run_lmv2_short_window.R",
+  "53_run_lmv2_timing_placebo.R",
+  "54_run_lmv2_mechanism_selection.R",
+  "55_run_dealsim_exploratory.R",
+  "56_run_lmv2_network_census.R",
+  "57_certify_selection_bounds_decision.R",
+  "58_build_final_thesis_release_1993.R",
+  "61_run_lmv2_network_n1.R",
+  "63_census_lmv2_retained_network_support.R",
+  "64_build_lmv2_network_descriptive.R",
+  "73_run_lmv2_initially_outside_s4.R"
+)
+path_r <- function(name) {
+  file.path(root, "02_analysis", "R", "final_thesis", name)
+}
 read_csv <- function(path) {
   if (!file.exists(path)) stop("Missing release input: ", rel(path))
   utils::read.csv(path, check.names = FALSE, stringsAsFactors = FALSE)
@@ -577,7 +599,14 @@ requirements <- data.frame(
     "31c_estimate_lmv2_inventor_heterogeneity.R",
     "32_run_lmv2_vr_heterogeneity.R"),
   stringsAsFactors = FALSE)
-requirements$code_file <- file.path("02_analysis", "R", requirements$code_file)
+requirements$code_file <- file.path(
+  "02_analysis", "R",
+  ifelse(
+    requirements$code_file %in% final_script_names,
+    file.path("final_thesis", requirements$code_file),
+    requirements$code_file
+  )
+)
 if (!all(file.exists(file.path(root, requirements$code_file)))) {
   stop("A thesis-requirement code link is missing.")
 }
@@ -641,12 +670,15 @@ if (!all(cert$pass)) stop("Final 1993 release certification failed.")
 
 # Concise, tracked handoff for GitHub. Paths are repository-relative links.
 fmt <- function(x) ifelse(is.na(x), "", formatC(x, digits = 4, format = "f"))
+code_link <- function(path) {
+  sub("^02_analysis/R/", "", gsub("\\\\", "/", path))
+}
 main_rows <- registry[registry$section == "Main results", ]
 main_lines <- vapply(seq_len(nrow(main_rows)), function(i) sprintf(
   "| %s | %s | [%s, %s] | %s | %s | [`%s`](../R/%s) |",
   main_rows$outcome[i], fmt(main_rows$estimate[i]), fmt(main_rows$ci_low[i]),
   fmt(main_rows$ci_high[i]), fmt(main_rows$p_value[i]), main_rows$status[i],
-  basename(main_rows$code_file[i]), basename(main_rows$code_file[i])), character(1))
+  basename(main_rows$code_file[i]), code_link(main_rows$code_file[i])), character(1))
 key_robust <- registry[registry$result %in% c(
   "Alternative post window, t=+1,...,+3",
   "Treatment timing shifted three years early"), ]
@@ -655,7 +687,7 @@ key_robust_lines <- vapply(seq_len(nrow(key_robust)), function(i) sprintf(
   key_robust$result[i], key_robust$outcome[i], fmt(key_robust$estimate[i]),
   fmt(key_robust$ci_low[i]), fmt(key_robust$ci_high[i]),
   fmt(key_robust$p_value[i]), basename(key_robust$code_file[i]),
-  basename(key_robust$code_file[i])), character(1))
+  code_link(key_robust$code_file[i])), character(1))
 decomp_note <- registry[
   registry$result %in% c(
     "Full-cohort two-factor Shapley decomposition",
@@ -665,18 +697,18 @@ decomp_note_lines <- vapply(seq_len(nrow(decomp_note)), function(i) sprintf(
   "| %s | %s | %s | %s | [`%s`](../R/%s) |",
   decomp_note$population[i], decomp_note$outcome[i],
   fmt(decomp_note$estimate[i]), decomp_note$thesis_use[i],
-  basename(decomp_note$code_file[i]), basename(decomp_note$code_file[i])),
+  basename(decomp_note$code_file[i]), code_link(decomp_note$code_file[i])),
   character(1))
 coverage <- unique(registry[c("section", "result", "status", "code_file")])
 coverage_lines <- vapply(seq_len(nrow(coverage)), function(i) sprintf(
   "| %s | %s | %s | [`%s`](../R/%s) |",
   coverage$section[i], coverage$result[i], coverage$status[i],
-  basename(coverage$code_file[i]), basename(coverage$code_file[i])), character(1))
+  basename(coverage$code_file[i]), code_link(coverage$code_file[i])), character(1))
 requirement_lines <- vapply(seq_len(nrow(requirements)), function(i) sprintf(
   "| %s | %s | %s | [`%s`](../R/%s) |",
   requirements$requirement[i], requirements$status[i],
   requirements$thesis_action[i], basename(requirements$code_file[i]),
-  basename(requirements$code_file[i])), character(1))
+  code_link(requirements$code_file[i])), character(1))
 network_result_lines <- vapply(seq_len(nrow(network_leads)), function(i) sprintf(
   "| %d | %s | [%s, %s] | %s |",
   network_leads$event_time[i], fmt(network_leads$estimate[i]),
@@ -687,7 +719,7 @@ network_desc_lines <- vapply(seq_len(nrow(network_desc)), function(i) sprintf(
   network_desc$sample[i], network_desc$metric[i],
   fmt(network_desc$estimate[i]), network_desc$focal_inventors[i],
   basename("64_build_lmv2_network_descriptive.R"),
-  basename("64_build_lmv2_network_descriptive.R")), character(1))
+  "final_thesis/64_build_lmv2_network_descriptive.R"), character(1))
 network_pool_lines <- vapply(seq_len(nrow(network_pool)), function(i) sprintf(
   "| %s | %s | %s | %s | %s |",
   network_pool$population[i], network_pool$arm[i],
@@ -697,7 +729,7 @@ network_balance_lines <- vapply(seq_len(nrow(network_balance)), function(i) spri
   "| %s | %s | [`%s`](../R/%s) |",
   network_balance$population[i], fmt(network_balance$absolute_smd[i]),
   basename("64_build_lmv2_network_descriptive.R"),
-  basename("64_build_lmv2_network_descriptive.R")), character(1))
+  "final_thesis/64_build_lmv2_network_descriptive.R"), character(1))
 note <- c(
   "# Final thesis results inventory: 1993--2010 cohort release",
   "", "This is the authoritative map from thesis claims to result artifacts and code.",
